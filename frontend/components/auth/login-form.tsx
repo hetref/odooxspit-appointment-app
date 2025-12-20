@@ -53,7 +53,7 @@ export function LoginForm({
         data?.accessToken &&
         data?.refreshToken
       ) {
-        // Save auth data to localStorage and cookies
+        // Save complete auth data to cookies (includes role, organizationId, organization/adminOrganization)
         saveAuthData({
           accessToken: data.accessToken,
           refreshToken: data.refreshToken,

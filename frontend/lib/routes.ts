@@ -67,14 +67,14 @@ export function matchesRoute(path: string, routes: readonly string[]): boolean {
 export function getRedirectUrl(userRole?: 'USER' | 'ORGANIZATION'): string {
     if (!userRole) return '/dashboard';
 
-    // Organization users can access organization dashboard
+    // Organization users go to organization dashboard
     if (userRole === 'ORGANIZATION') {
-        return '/dashboard/organization';
+        return '/dashboard/org';
     }
 
-    // Regular users can access their appointments
+    // Regular users go to user dashboard
     if (userRole === 'USER') {
-        return '/dashboard/appointments';
+        return '/dashboard/user';
     }
 
     return '/dashboard';
