@@ -4,14 +4,37 @@ import Link from 'next/link'
 import React from 'react'
 import { useUser } from '@/contexts/UserContext'
 import { User, Building2 } from 'lucide-react'
+import { Skeleton } from '@/components/ui/skeleton'
 
 const page = () => {
     const { user, isLoading } = useUser();
 
     if (isLoading) {
         return (
-            <div className="flex items-center justify-center min-h-[400px]">
-                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-900" />
+            <div className="w-full px-4 xl:px-6 py-6 space-y-6">
+                <div className="border-b pb-4 space-y-2">
+                    <Skeleton className="h-9 w-64" />
+                    <Skeleton className="h-4 w-96" />
+                </div>
+                <div className="space-y-6">
+                    <div className="border rounded-lg p-6 space-y-4">
+                        <div className="flex items-center gap-2 mb-4">
+                            <Skeleton className="h-5 w-5 rounded" />
+                            <Skeleton className="h-6 w-48" />
+                        </div>
+                        <div className="grid gap-3">
+                            {[...Array(5)].map((_, i) => (
+                                <div key={i} className="space-y-1">
+                                    <Skeleton className="h-4 w-24" />
+                                    <Skeleton className="h-5 w-full" />
+                                </div>
+                            ))}
+                        </div>
+                    </div>
+                    <div className="border rounded-lg p-6">
+                        <Skeleton className="h-32 w-full" />
+                    </div>
+                </div>
             </div>
         );
     }

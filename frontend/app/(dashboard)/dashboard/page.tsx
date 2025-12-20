@@ -3,7 +3,6 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import {
-    Loader2,
     User as UserIcon,
     Building2,
     Mail,
@@ -18,6 +17,7 @@ import { authStorage } from "@/lib/auth";
 import { userApi } from "@/lib/api";
 import { User } from "@/lib/types";
 import Link from "next/link";
+import { Skeleton } from "@/components/ui/skeleton";
 
 export default function DashboardPage() {
     const router = useRouter();
@@ -83,10 +83,31 @@ export default function DashboardPage() {
 
     if (isLoading || contextLoading) {
         return (
-            <div className="flex min-h-[60vh] items-center justify-center">
-                <div className="flex flex-col items-center gap-4">
-                    <Loader2 className="size-8 animate-spin text-primary" />
-                    <p className="text-muted-foreground">Loading dashboard...</p>
+            <div className="mx-auto p-6 space-y-8">
+                <div className="space-y-2">
+                    <Skeleton className="h-9 w-80" />
+                    <Skeleton className="h-4 w-64" />
+                </div>
+                <div className="grid gap-6 md:grid-cols-2">
+                    {[...Array(2)].map((_, i) => (
+                        <div key={i} className="border rounded-lg p-6 space-y-6">
+                            <div className="flex items-center gap-3">
+                                <Skeleton className="h-12 w-12 rounded-full" />
+                                <div className="space-y-2">
+                                    <Skeleton className="h-6 w-48" />
+                                    <Skeleton className="h-4 w-32" />
+                                </div>
+                            </div>
+                            <div className="space-y-4">
+                                {[...Array(5)].map((_, j) => (
+                                    <div key={j} className="space-y-2">
+                                        <Skeleton className="h-4 w-24" />
+                                        <Skeleton className="h-5 w-full" />
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
+                    ))}
                 </div>
             </div>
         );
