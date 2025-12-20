@@ -127,25 +127,23 @@ export function MultiStepBooking({ appointment, onSuccess, onCancel }: MultiStep
             );
 
             if (response.success && response.data) {
-                // Backend returns: { data: { slots: [...], date, dayOfWeek, appointment } }
+                // Backend returns: { data: { slots: [...], date, dayOfWeek } }
                 const slotsData = response.data as any;
                 const slots = slotsData.slots || [];
 
-                // Transform slots to match TimeSlot interface
-                const transformedSlots: TimeSlot[] = slots.map((slot: any) => {
-                    // Create ISO datetime string for the selected date and time
-                    const [hours, minutes] = slot.time.split(':');
-                    const slotDateTime = new Date(selectedDate);
-                    slotDateTime.setHours(parseInt(hours), parseInt(minutes), 0, 0);
-
-                    return {
-                        startTime: slotDateTime.toISOString(),
-                        endTime: new Date(slotDateTime.getTime() + appointment.durationMinutes * 60000).toISOString(),
-                        availableCount: slot.resources?.length || slot.users?.length || 1,
-                    };
-                });
+                // Slots already have startTime and endTime in ISO format
+                const transformedSlots: TimeSlot[] = slots.map((slot: any) => ({
+                    startTime: slot.startTime,
+                    endTime: slot.endTime,
+                    availableCount: slot.availableCount || 1,
+                }));
 
                 setTimeSlots(transformedSlots);
+
+                // Clear error if we got slots
+                if (transformedSlots.length === 0) {
+                    setError(slotsData.message || "No available slots for this date");
+                }
             } else {
                 setTimeSlots([]);
                 setError(response.message || "No available slots for this date");
