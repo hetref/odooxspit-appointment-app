@@ -1,5 +1,6 @@
 const prisma = require("../lib/prisma");
 const crypto = require("crypto");
+const { notifyOrganizationMembers, createNotification } = require('../lib/notificationHelper');
 
 // Generate secret link for unpublished appointments
 const generateSecretLink = () => {
@@ -702,6 +703,28 @@ const createBooking = async (req, res) => {
             },
         });
 
+        // Notify organization members about new booking
+        await notifyOrganizationMembers({
+            organizationId: booking.appointment.organizationId,
+            type: 'BOOKING_CREATED',
+            title: 'New Booking Received',
+            message: `${booking.user.name} booked "${booking.appointment.title}" for ${start.toLocaleString()}`,
+            relatedId: booking.id,
+            relatedType: 'booking',
+            actionUrl: `/dashboard/org/appointments`,
+        });
+
+        // Send confirmation notification to the user who booked
+        await createNotification({
+            userId: booking.userId,
+            type: 'BOOKING_CONFIRMED',
+            title: 'Booking Confirmed',
+            message: `Your booking for "${booking.appointment.title}" on ${start.toLocaleString()} has been confirmed`,
+            relatedId: booking.id,
+            relatedType: 'booking',
+            actionUrl: `/dashboard/bookings`,
+        });
+
         res.status(201).json({
             success: true,
             message: "Booking created successfully",
@@ -893,6 +916,23 @@ const cancelBooking = async (req, res) => {
                     decrement: 1,
                 },
             },
+        });
+
+        // Get user info for notification
+        const user = await prisma.user.findUnique({
+            where: { id: userId },
+            select: { name: true, email: true },
+        });
+
+        // Notify organization members about booking cancellation
+        await notifyOrganizationMembers({
+            organizationId: booking.appointment.organizationId,
+            type: 'BOOKING_CANCELLED',
+            title: 'Booking Cancelled',
+            message: `${user.name} cancelled their booking for "${booking.appointment.title}"`,
+            relatedId: booking.id,
+            relatedType: 'booking',
+            actionUrl: `/dashboard/org/appointments`,
         });
 
         res.json({
