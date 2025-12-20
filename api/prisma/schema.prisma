@@ -15,19 +15,35 @@ enum Role {
   ORGANIZATION
 }
 
+enum AppointmentBookType {
+  USER
+  RESOURCE
+}
+
+enum AssignmentType {
+  AUTOMATIC
+  BY_VISITOR
+}
+
 model User {
   id                      String                   @id @default(cuid())
   email                   String                   @unique
   password                String
   name                    String?
   role                    Role                     @default(USER)
+  isMember                Boolean                  @default(false)
   emailVerified           Boolean                  @default(false)
+  organizationId          String?
   createdAt               DateTime                 @default(now())
   updatedAt               DateTime                 @updatedAt
   refreshTokens           RefreshToken[]
   emailVerificationTokens EmailVerificationToken[]
   passwordResetTokens     PasswordResetToken[]
-  business                Business?
+  organization            Organization?            @relation("OrganizationMembers", fields: [organizationId], references: [id])
+  adminOrganization       Organization?            @relation("OrganizationAdmin")
+  allowedAppointments     Appointment[]            @relation("AppointmentAllowedUsers")
+
+  @@index([organizationId])
 }
 
 model RefreshToken {
@@ -78,16 +94,54 @@ model PasswordResetToken {
   @@index([email])
 }
 
-model Business {
-  id           String   @id @default(cuid())
-  name         String
-  location     String
-  workingHours String?
-  description  String?
-  userId       String   @unique
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
-  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+model Organization {
+  id            String        @id @default(cuid())
+  name          String
+  location      String
+  description   String?
+  businessHours Json
+  adminId       String        @unique
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
+  admin         User          @relation("OrganizationAdmin", fields: [adminId], references: [id], onDelete: Cascade)
+  members       User[]        @relation("OrganizationMembers")
+  resources     Resource[]
+  appointments  Appointment[]
 
-  @@index([userId])
+  @@index([adminId])
+}
+
+model Resource {
+  id                  String        @id @default(cuid())
+  name                String
+  capacity            Int
+  organizationId      String
+  createdAt           DateTime      @default(now())
+  updatedAt           DateTime      @updatedAt
+  organization        Organization  @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  allowedAppointments Appointment[] @relation("AppointmentAllowedResources")
+
+  @@index([organizationId])
+}
+
+model Appointment {
+  id                 String              @id @default(cuid())
+  title              String
+  description        String?
+  durationMinutes    Int
+  bookType           AppointmentBookType
+  assignmentType     AssignmentType
+  allowMultipleSlots Boolean             @default(false)
+  price              Int?
+  cancellationHours  Int
+  schedule           Json
+  questions          Json
+  organizationId     String
+  createdAt          DateTime            @default(now())
+  updatedAt          DateTime            @updatedAt
+  organization       Organization        @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  allowedUsers       User[]              @relation("AppointmentAllowedUsers")
+  allowedResources   Resource[]          @relation("AppointmentAllowedResources")
+
+  @@index([organizationId])
 }

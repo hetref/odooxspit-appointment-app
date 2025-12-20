@@ -80,7 +80,13 @@ async function register(req, res) {
       if (!business || !business.name || !business.location) {
         return res.status(400).json({
           success: false,
-          message: 'Business name and location are required for ORGANIZATION role.',
+          message: 'Organization name and location are required for ORGANIZATION role.',
+        });
+      }
+      if (!business.businessHours || !Array.isArray(business.businessHours)) {
+        return res.status(400).json({
+          success: false,
+          message: 'Business hours are required for ORGANIZATION role and must be an array.',
         });
       }
     }
@@ -109,24 +115,31 @@ async function register(req, res) {
           password: hashedPassword,
           name: name || null,
           role: userRole,
+          isMember: false, // ORGANIZATION users start as admins
         },
       });
 
-      // Create business if role is ORGANIZATION
-      let businessData = null;
+      // Create organization if role is ORGANIZATION
+      let organizationData = null;
       if (userRole === 'ORGANIZATION') {
-        businessData = await tx.business.create({
+        organizationData = await tx.organization.create({
           data: {
             name: business.name,
             location: business.location,
-            workingHours: business.workingHours || null,
+            businessHours: business.businessHours,
             description: business.description || null,
-            userId: user.id,
+            adminId: user.id,
           },
+        });
+
+        // Update user with organizationId
+        await tx.user.update({
+          where: { id: user.id },
+          data: { organizationId: organizationData.id },
         });
       }
 
-      return { user, business: businessData };
+      return { user, organization: organizationData };
     });
 
     // Generate email verification token
@@ -142,11 +155,11 @@ async function register(req, res) {
       role: result.user.role,
     };
 
-    if (result.business) {
-      responseData.business = {
-        id: result.business.id,
-        name: result.business.name,
-        location: result.business.location,
+    if (result.organization) {
+      responseData.organization = {
+        id: result.organization.id,
+        name: result.organization.name,
+        location: result.organization.location,
       };
     }
 

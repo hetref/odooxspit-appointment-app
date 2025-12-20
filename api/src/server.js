@@ -9,6 +9,8 @@ const authRoutes = require('./routes/auth');
 const userRoutes = require('./routes/user');
 const sessionRoutes = require('./routes/session');
 const mediaRoutes = require('./routes/media');
+const organizationRoutes = require('./routes/organization');
+const appointmentRoutes = require('./routes/appointment');
 
 const app = express();
 const PORT = process.env.PORT || 4000;
@@ -69,6 +71,8 @@ app.use('/auth', authRoutes);
 app.use('/user', userRoutes);
 app.use('/sessions', sessionRoutes);
 app.use('/media', mediaRoutes);
+app.use('/organization', organizationRoutes);
+app.use('/', appointmentRoutes); // Public routes
 
 // 404 handler
 app.use((req, res) => {

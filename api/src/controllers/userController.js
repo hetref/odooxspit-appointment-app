@@ -12,7 +12,7 @@ const { sendVerificationEmail } = require('../lib/mailer');
  */
 async function getProfile(req, res) {
   try {
-    // Fetch user with business information
+    // Fetch user with organization information
     const user = await prisma.user.findUnique({
       where: { id: req.user.id },
       select: {
@@ -20,15 +20,27 @@ async function getProfile(req, res) {
         email: true,
         name: true,
         role: true,
+        isMember: true,
         emailVerified: true,
         createdAt: true,
         updatedAt: true,
-        business: {
+        organization: {
           select: {
             id: true,
             name: true,
             location: true,
-            workingHours: true,
+            businessHours: true,
+            description: true,
+            createdAt: true,
+            updatedAt: true,
+          },
+        },
+        adminOrganization: {
+          select: {
+            id: true,
+            name: true,
+            location: true,
+            businessHours: true,
             description: true,
             createdAt: true,
             updatedAt: true,
@@ -246,13 +258,13 @@ async function deleteAccount(req, res) {
  */
 async function convertToOrganization(req, res) {
   try {
-    const { business } = req.body;
+    const { organization } = req.body;
     const userId = req.user.id;
 
     // Fetch current user
     const currentUser = await prisma.user.findUnique({
       where: { id: userId },
-      include: { business: true },
+      include: { adminOrganization: true },
     });
 
     // Check if user is already an ORGANIZATION
@@ -263,34 +275,45 @@ async function convertToOrganization(req, res) {
       });
     }
 
-    // Validate business data
-    if (!business || !business.name || !business.location) {
+    // Validate organization data
+    if (!organization || !organization.name || !organization.location) {
       return res.status(400).json({
         success: false,
-        message: 'Business name and location are required.',
+        message: 'Organization name and location are required.',
       });
     }
 
-    // Convert user to ORGANIZATION and create business in a transaction
-    const result = await prisma.$transaction(async (tx) => {
-      // Update user role
-      const updatedUser = await tx.user.update({
-        where: { id: userId },
-        data: { role: 'ORGANIZATION' },
+    if (!organization.businessHours || !Array.isArray(organization.businessHours)) {
+      return res.status(400).json({
+        success: false,
+        message: 'Business hours are required and must be an array.',
       });
+    }
 
-      // Create business
-      const newBusiness = await tx.business.create({
+    // Convert user to ORGANIZATION and create organization in a transaction
+    const result = await prisma.$transaction(async (tx) => {
+      // Create organization
+      const newOrganization = await tx.organization.create({
         data: {
-          name: business.name,
-          location: business.location,
-          workingHours: business.workingHours || null,
-          description: business.description || null,
-          userId: userId,
+          name: organization.name,
+          location: organization.location,
+          businessHours: organization.businessHours,
+          description: organization.description || null,
+          adminId: userId,
         },
       });
 
-      return { user: updatedUser, business: newBusiness };
+      // Update user role and link to organization
+      const updatedUser = await tx.user.update({
+        where: { id: userId },
+        data: {
+          role: 'ORGANIZATION',
+          isMember: false,
+          organizationId: newOrganization.id,
+        },
+      });
+
+      return { user: updatedUser, organization: newOrganization };
     });
 
     res.status(200).json({
@@ -302,13 +325,14 @@ async function convertToOrganization(req, res) {
           email: result.user.email,
           name: result.user.name,
           role: result.user.role,
+          isMember: result.user.isMember,
         },
-        business: {
-          id: result.business.id,
-          name: result.business.name,
-          location: result.business.location,
-          workingHours: result.business.workingHours,
-          description: result.business.description,
+        organization: {
+          id: result.organization.id,
+          name: result.organization.name,
+          location: result.organization.location,
+          businessHours: result.organization.businessHours,
+          description: result.organization.description,
         },
       },
     });
