@@ -266,7 +266,7 @@ export default function Navbar() {
 
   const isLoading = userData === null;
   const userRole = userData?.role || "customer";
-  const userName = userData?.name || "";
+  const userName = userData?.name || "";  
   const userEmail = userData?.email || "";
   const navigationLinks = userData ? navigationByRole[userData.role] : [];
   const mobileNavStructure = userData ? getMobileNav(userData.role) : [{ name: "Main", items: [] }];
@@ -289,7 +289,7 @@ export default function Navbar() {
   }, []);
 
   return (
-    <header className="sticky top-0 z-50 border-border w-full flex-col items-center justify-between gap-3 border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 px-4 xl:px-6">
+    <header className="sticky top-0 z-50 border-border w-full flex-col items-center justify-between gap-3 border-b bg-background px-4 xl:px-6">
       <div className="flex w-full items-center justify-between gap-4 h-16">
         <div className="flex flex-1 items-center justify-start gap-2">
           <Link
@@ -308,7 +308,7 @@ export default function Navbar() {
           <MobileNav nav={mobileNavStructure} />
 
           <Link href="/dashboard" className="flex items-center gap-2">
-            <span className="font-bold text-lg hidden sm:inline-block">AppointBook</span>
+            <span className="font-bold text-lg hidden sm:inline-block">BookNow</span>
           </Link>
         </div>
 
