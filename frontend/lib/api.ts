@@ -384,3 +384,30 @@ export const mediaApi = {
   },
 };
 
+// Public API functions (no authentication required)
+export const publicApi = {
+  // Get all organizations with search
+  getAllOrganizations: (search?: string): Promise<ApiResponse<{
+    organizations: Array<{
+      id: string;
+      name: string;
+      description: string | null;
+      location: string | null;
+      businessHours: any;
+      createdAt: string;
+      publishedAppointmentsCount: number;
+    }>
+  }>> => {
+    const queryParams = search ? `?search=${encodeURIComponent(search)}` : "";
+    return api.get(`/public/organizations${queryParams}`);
+  },
+
+  // Get single organization with published appointments
+  getOrganizationById: (organizationId: string): Promise<ApiResponse<{
+    organization: Organization & {
+      appointments: Appointment[];
+    };
+  }>> => {
+    return api.get(`/public/organizations/${organizationId}`);
+  },
+};

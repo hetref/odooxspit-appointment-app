@@ -1,4 +1,4 @@
-import OrganizationAppointmentsList from "@/components/dashboard/organization/appointments-list";
+import OrganizationAppointmentsList from "@/components/dashboard/organization/appointments-list-new";
 
 
 export default function AppointmentPage() {

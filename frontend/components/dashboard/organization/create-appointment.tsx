@@ -36,7 +36,7 @@ import {
   HelpCircle,
   X,
 } from "lucide-react";
-import { organizationApi, mediaApi } from "@/lib/api";
+import { organizationApi, mediaApi, userApi } from "@/lib/api";
 import { authStorage } from "@/lib/auth";
 
 interface TimeSlot {
@@ -64,6 +64,12 @@ interface Resource {
   id: string;
   name: string;
   capacity: number;
+}
+
+interface BusinessHour {
+  day: string;
+  from: string;
+  to: string;
 }
 
 interface AppointmentTypeFormData {
@@ -96,6 +102,7 @@ export function CreateAppointment({ onBack }: { onBack?: () => void }) {
   const [editingQuestion, setEditingQuestion] = useState<Question | null>(null);
   const [users, setUsers] = useState<User[]>([]);
   const [resources, setResources] = useState<Resource[]>([]);
+  const [businessHours, setBusinessHours] = useState<BusinessHour[]>([]);
   const [isLoadingData, setIsLoadingData] = useState(true);
   const [dataError, setDataError] = useState("");
   const [formData, setFormData] = useState<AppointmentTypeFormData>({
@@ -114,10 +121,7 @@ export function CreateAppointment({ onBack }: { onBack?: () => void }) {
     description: "",
     picture: null,
     picturePreview: null,
-    timeSlots: [
-      { id: "1", day: "Monday", from: "09:00", to: "12:00" },
-      { id: "2", day: "Monday", from: "14:00", to: "17:00" },
-    ],
+    timeSlots: [],
     questions: [],
     introMessage: "",
     confirmationMessage: "",
@@ -127,7 +131,7 @@ export function CreateAppointment({ onBack }: { onBack?: () => void }) {
   const [success, setSuccess] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
 
-  // Fetch users and resources on mount
+  // Fetch users, resources, and organization on mount
   useEffect(() => {
     const fetchData = async () => {
       try {
@@ -138,9 +142,10 @@ export function CreateAppointment({ onBack }: { onBack?: () => void }) {
           return;
         }
 
-        const [membersResponse, resourcesResponse] = await Promise.all([
+        const [membersResponse, resourcesResponse, userResponse] = await Promise.all([
           organizationApi.getMembers(token),
           organizationApi.getResources(token),
+          userApi.getMe(token),
         ]);
 
         if (membersResponse.success && membersResponse.data) {
@@ -151,6 +156,27 @@ export function CreateAppointment({ onBack }: { onBack?: () => void }) {
         if (resourcesResponse.success && resourcesResponse.data) {
           const resourcesData = resourcesResponse.data as { resources: Resource[] };
           setResources(resourcesData.resources || []);
+        }
+
+        // Extract business hours from user's organization
+        if (userResponse.success && userResponse.data) {
+          const userData = userResponse.data as any;
+          // Check both adminOrganization (for org admin) and organization (for members)
+          const org = userData.user?.adminOrganization || userData.user?.organization;
+
+          if (org?.businessHours) {
+            const orgBusinessHours = org.businessHours as BusinessHour[];
+            setBusinessHours(orgBusinessHours);
+
+            // Auto-populate time slots with business hours
+            const initialSlots: TimeSlot[] = orgBusinessHours.map((bh, index) => ({
+              id: `${index + 1}`,
+              day: bh.day.charAt(0).toUpperCase() + bh.day.slice(1).toLowerCase(),
+              from: bh.from,
+              to: bh.to,
+            }));
+            setFormData(prev => ({ ...prev, timeSlots: initialSlots }));
+          }
         }
 
         setIsLoadingData(false);
@@ -302,6 +328,22 @@ export function CreateAppointment({ onBack }: { onBack?: () => void }) {
     setFormData({ ...formData, timeSlots: [...formData.timeSlots, newSlot] });
   };
 
+  const loadBusinessHours = () => {
+    if (businessHours.length === 0) {
+      setDataError("No business hours configured for your organization");
+      return;
+    }
+
+    const slots: TimeSlot[] = businessHours.map((bh, index) => ({
+      id: `${Date.now()}-${index}`,
+      day: bh.day.charAt(0).toUpperCase() + bh.day.slice(1).toLowerCase(),
+      from: bh.from,
+      to: bh.to,
+    }));
+
+    setFormData({ ...formData, timeSlots: slots });
+  };
+
   const removeTimeSlot = (id: string) => {
     setFormData({
       ...formData,
@@ -380,9 +422,9 @@ export function CreateAppointment({ onBack }: { onBack?: () => void }) {
                 <CheckCircle2 className="w-10 h-10 sm:w-12 sm:h-12 text-green-600" />
               </div>
               <div className="space-y-2">
-                <h2 className="text-2xl sm:text-3xl font-bold">Appointment Type Created!</h2>
+                <h2 className="text-2xl sm:text-3xl font-bold">Appointment Created!</h2>
                 <p className="text-muted-foreground text-sm sm:text-base">
-                  {formData.title} has been successfully created and is now available for booking.
+                  {formData.title} has been successfully created. You can publish it to make it available for public booking.
                 </p>
               </div>
               <Button onClick={onBack} className="w-full sm:w-auto" size="lg">
@@ -420,7 +462,7 @@ export function CreateAppointment({ onBack }: { onBack?: () => void }) {
               size="sm"
             >
               <Save className="w-4 h-4" />
-              {isLoading ? "Publishing..." : "Publish"}
+              {isLoading ? "Creating..." : "Create Appointment"}
             </Button>
           </div>
         </div>
@@ -766,6 +808,32 @@ export function CreateAppointment({ onBack }: { onBack?: () => void }) {
 
                 <CardContent>
                   <TabsContent value="schedule" className="mt-0 space-y-4">
+                    {/* Business Hours Info */}
+                    {businessHours.length > 0 && formData.timeSlots.length > 0 && (
+                      <div className="bg-blue-50 dark:bg-blue-950/20 border border-blue-200 dark:border-blue-800 rounded-lg p-3">
+                        <div className="flex items-start gap-2">
+                          <CalendarIcon className="w-4 h-4 text-blue-600 dark:text-blue-400 flex-shrink-0 mt-0.5" />
+                          <div className="text-xs text-blue-800 dark:text-blue-200">
+                            <p className="font-medium">Schedule loaded from business hours</p>
+                            <p className="text-blue-600 dark:text-blue-300 mt-1">
+                              These time slots match your organization's business hours. You can modify them as needed or reload them anytime.
+                            </p>
+                          </div>
+                        </div>
+                      </div>
+                    )}
+
+                    {businessHours.length === 0 && !isLoadingData && (
+                      <div className="bg-amber-50 dark:bg-amber-950/20 border border-amber-200 dark:border-amber-800 rounded-lg p-3">
+                        <div className="flex items-start gap-2">
+                          <AlertCircle className="w-4 h-4 text-amber-600 dark:text-amber-400 flex-shrink-0 mt-0.5" />
+                          <p className="text-xs text-amber-800 dark:text-amber-200">
+                            No business hours configured. Add time slots manually or set up your organization's business hours first.
+                          </p>
+                        </div>
+                      </div>
+                    )}
+
                     <div className="overflow-x-auto -mx-6 px-6">
                       <table className="w-full min-w-[600px]">
                         <thead>
@@ -840,15 +908,27 @@ export function CreateAppointment({ onBack }: { onBack?: () => void }) {
                       </p>
                     )}
 
-                    <Button
-                      type="button"
-                      variant="outline"
-                      onClick={addTimeSlot}
-                      className="w-full sm:w-auto gap-2"
-                    >
-                      <Plus className="w-4 h-4" />
-                      Add a Line
-                    </Button>
+                    <div className="flex flex-col sm:flex-row gap-2">
+                      <Button
+                        type="button"
+                        variant="outline"
+                        onClick={addTimeSlot}
+                        className="flex-1 sm:flex-none gap-2"
+                      >
+                        <Plus className="w-4 h-4" />
+                        Add a Line
+                      </Button>
+                      <Button
+                        type="button"
+                        variant="secondary"
+                        onClick={loadBusinessHours}
+                        disabled={businessHours.length === 0}
+                        className="flex-1 sm:flex-none gap-2"
+                      >
+                        <CalendarIcon className="w-4 h-4" />
+                        Load Business Hours
+                      </Button>
+                    </div>
                   </TabsContent>
 
                   <TabsContent value="questions" className="mt-0">
@@ -1197,7 +1277,7 @@ function QuestionModal({
     setNewOption("");
   };
 
- 
+
   useEffect(() => {
     if (editingQuestion) {
       setQuestionText(editingQuestion.question);

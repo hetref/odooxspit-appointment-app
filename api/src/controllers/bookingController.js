@@ -773,6 +773,12 @@ const getOrganizationBookings = async (req, res) => {
             const org = await prisma.organization.findUnique({
                 where: { adminId: user.id },
             });
+            if (!org) {
+                return res.status(403).json({
+                    success: false,
+                    message: "Organization not found",
+                });
+            }
             organizationId = org.id;
         } else if (user.isMember && user.organizationId) {
             organizationId = user.organizationId;

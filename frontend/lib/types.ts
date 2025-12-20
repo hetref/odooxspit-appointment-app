@@ -69,6 +69,9 @@ export interface Appointment {
   allowMultipleSlots: boolean;
   maxSlotsPerBooking?: number; // Maximum continuous slots a user can book
   price?: number;
+  isPaid?: boolean;
+  location?: string;
+  picture?: string;
   cancellationHours: number;
   schedule: any; // JSON
   questions: any; // JSON
@@ -110,7 +113,9 @@ export interface Booking {
 }
 
 export interface TimeSlot {
-  start: string;
-  end: string;
+  start?: string;
+  end?: string;
+  startTime?: string;
+  endTime?: string;
   availableCount?: number; // Number of available spots in this slot
 }
