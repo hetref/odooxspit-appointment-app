@@ -104,5 +104,5 @@ export const clearAuthData = () => {
 
  export const GetUserData = async () => {
     await new Promise(resolve => setTimeout(resolve, 2000));
-    return { name: "John Doe", email: "john.doe@example.com", role: "customer" }; 
+    return { name: "John Doe", email: "john.doe@example.com", role: "organizer" }; 
   }

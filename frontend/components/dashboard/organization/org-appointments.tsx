@@ -83,7 +83,7 @@ function ShareModal({ appointmentName }: { appointmentName: string }) {
   );
 }
 
-export default function AppointmentsPage() {
+export default function OrgAppointments() {
   return (
     <div className="min-h-screen bg-muted/30">
       {/* Header */}
