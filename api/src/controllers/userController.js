@@ -19,6 +19,7 @@ async function getProfile(req, res) {
         id: true,
         email: true,
         name: true,
+        phone: true,
         role: true,
         isMember: true,
         emailVerified: true,
@@ -84,7 +85,7 @@ async function getMe(req, res) {
  */
 async function updateProfile(req, res) {
   try {
-    const { name, email, password, currentPassword } = req.body;
+    const { name, email, phone, password, currentPassword } = req.body;
     const userId = req.user.id;
 
     const updateData = {};
@@ -92,6 +93,11 @@ async function updateProfile(req, res) {
     // Update name
     if (name !== undefined) {
       updateData.name = name;
+    }
+
+    // Update phone
+    if (phone !== undefined) {
+      updateData.phone = phone || null; // Allow empty string to clear phone
     }
 
     // Update email
@@ -180,6 +186,7 @@ async function updateProfile(req, res) {
         id: true,
         email: true,
         name: true,
+        phone: true,
         emailVerified: true,
         createdAt: true,
         updatedAt: true,
