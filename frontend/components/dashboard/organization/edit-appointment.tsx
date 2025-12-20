@@ -169,6 +169,14 @@ export function EditAppointment({ appointmentId, onBack }: EditAppointmentProps)
                 return;
             }
 
+            // Validate price when marked as paid
+            const parsedPrice = formData.isPaid ? parseInt(formData.price, 10) : NaN;
+            if (formData.isPaid && (Number.isNaN(parsedPrice) || parsedPrice <= 0)) {
+                setError("Valid price is required for paid appointments");
+                setIsSaving(false);
+                return;
+            }
+
             // Convert duration to minutes
             const durationMinutes =
                 formData.durationUnit === "hours"
@@ -196,8 +204,8 @@ export function EditAppointment({ appointmentId, onBack }: EditAppointmentProps)
                 description: formData.description || null,
                 durationMinutes: Math.round(durationMinutes),
                 location: formData.location || null,
-                price: formData.isPaid && formData.price ? parseFloat(formData.price) : null,
-                cancellationHours: 0,
+                isPaid: formData.isPaid,
+                price: formData.isPaid ? parsedPrice : null,
                 schedule,
                 questions,
                 introMessage: formData.introMessage || null,

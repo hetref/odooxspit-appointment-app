@@ -19,6 +19,7 @@ async function createAppointment(req, res) {
             bookType,
             assignmentType,
             allowMultipleSlots,
+            isPaid,
             price,
             cancellationHours,
             schedule,
@@ -77,6 +78,16 @@ async function createAppointment(req, res) {
                 success: false,
                 message: 'Assignment type must be either AUTOMATIC or BY_VISITOR.',
             });
+        }
+
+        // If marked as paid, ensure a valid price is provided
+        if (isPaid) {
+            if (price === undefined || price === null || Number.isNaN(Number(price)) || Number(price) <= 0) {
+                return res.status(400).json({
+                    success: false,
+                    message: 'Valid price is required for paid appointments.',
+                });
+            }
         }
 
         // Validate schedule structure
@@ -185,7 +196,8 @@ async function createAppointment(req, res) {
                 bookType,
                 assignmentType,
                 allowMultipleSlots: allowMultipleSlots || false,
-                price,
+                isPaid: !!isPaid,
+                price: price !== undefined && price !== null ? Number(price) : null,
                 cancellationHours: cancellationHours || 0,
                 schedule,
                 questions,
@@ -399,6 +411,7 @@ async function getPublicAppointments(req, res) {
                 bookType: true,
                 assignmentType: true,
                 allowMultipleSlots: true,
+                isPaid: true,
                 price: true,
                 cancellationHours: true,
                 schedule: true,
@@ -621,6 +634,7 @@ async function updateAppointment(req, res) {
             title,
             description,
             durationMinutes,
+            isPaid,
             price,
             cancellationHours,
             schedule,
@@ -661,7 +675,8 @@ async function updateAppointment(req, res) {
         if (title) updateData.title = title;
         if (description !== undefined) updateData.description = description;
         if (durationMinutes) updateData.durationMinutes = durationMinutes;
-        if (price !== undefined) updateData.price = price;
+        if (typeof isPaid === 'boolean') updateData.isPaid = isPaid;
+        if (price !== undefined) updateData.price = price !== null ? Number(price) : null;
         if (cancellationHours !== undefined) updateData.cancellationHours = cancellationHours;
         if (schedule) updateData.schedule = schedule;
         if (questions) updateData.questions = questions;

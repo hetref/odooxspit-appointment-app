@@ -109,6 +109,7 @@ export default function OrganizationAppointmentsList() {
     const [error, setError] = React.useState("");
     const [selectedBooking, setSelectedBooking] = React.useState<Booking | null>(null);
     const [isDialogOpen, setIsDialogOpen] = React.useState(false);
+    const [cancellingBookingId, setCancellingBookingId] = React.useState<string | null>(null);
 
     React.useEffect(() => {
         fetchBookings();
@@ -156,6 +157,36 @@ export default function OrganizationAppointmentsList() {
     const handleRowClick = (booking: Booking) => {
         setSelectedBooking(booking);
         setIsDialogOpen(true);
+    };
+
+    const handleCancelBooking = async (bookingId: string) => {
+        if (!confirm("Are you sure you want to cancel this booking? This action will cancel immediately without policy checks.")) {
+            return;
+        }
+
+        try {
+            setCancellingBookingId(bookingId);
+            const token = authStorage.getAccessToken();
+            if (!token) {
+                alert("Authentication required");
+                return;
+            }
+
+            const response = await bookingApi.cancelBookingByOrganization(token, bookingId);
+            if (response.success) {
+                // Refresh bookings list
+                await fetchBookings();
+                setIsDialogOpen(false);
+                setSelectedBooking(null);
+            } else {
+                alert(response.message || "Failed to cancel booking");
+            }
+        } catch (err: any) {
+            console.error("Error cancelling booking:", err);
+            alert(err.message || "Failed to cancel booking");
+        } finally {
+            setCancellingBookingId(null);
+        }
     };
 
     if (isLoading) {
@@ -547,6 +578,24 @@ export default function OrganizationAppointmentsList() {
                                         </div>
                                     </div>
                                 </div>
+
+                                {/* Cancel Button */}
+                                {selectedBooking.bookingStatus !== "CANCELLED" && selectedBooking.bookingStatus !== "COMPLETED" && (
+                                    <div className="border-t pt-4">
+                                        <Button
+                                            variant="destructive"
+                                            className="w-full"
+                                            onClick={() => handleCancelBooking(selectedBooking.id)}
+                                            disabled={cancellingBookingId === selectedBooking.id}
+                                        >
+                                            <XCircle className="w-4 h-4 mr-2" />
+                                            {cancellingBookingId === selectedBooking.id ? "Cancelling..." : "Cancel Booking"}
+                                        </Button>
+                                        <p className="text-xs text-center text-muted-foreground mt-2">
+                                            Organization cancellations are immediate and bypass policy checks
+                                        </p>
+                                    </div>
+                                )}
                             </div>
                         </>
                     )}
