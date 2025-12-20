@@ -27,6 +27,7 @@ model User {
   allowedAppointments     Appointment[]            @relation("AppointmentAllowedUsers")
   bookings                Booking[]
   assignedBookings        Booking[]                @relation("AssignedBookings")
+  notifications           Notification[]
 
   @@index([organizationId])
 }
@@ -173,6 +174,44 @@ enum PaymentStatus {
   PAID
   FAILED
   REFUNDED
+}
+
+enum NotificationType {
+  APPOINTMENT_CREATED
+  APPOINTMENT_UPDATED
+  APPOINTMENT_CANCELLED
+  APPOINTMENT_REMINDER
+  MEMBER_ADDED
+  MEMBER_REMOVED
+  RESOURCE_CREATED
+  RESOURCE_DELETED
+  ORGANIZATION_UPDATED
+  INVITATION_RECEIVED
+  BOOKING_CONFIRMED
+  BOOKING_REJECTED
+  PAYMENT_RECEIVED
+  PAYMENT_FAILED
+  SYSTEM_ANNOUNCEMENT
+}
+
+model Notification {
+  id          String           @id @default(cuid())
+  type        NotificationType
+  title       String
+  message     String
+  read        Boolean          @default(false)
+  userId      String
+  relatedId   String?
+  relatedType String?
+  actionUrl   String?
+  metadata    Json?
+  createdAt   DateTime         @default(now())
+  readAt      DateTime?
+  user        User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([userId, read])
+  @@index([createdAt])
 }
 
 model Booking {
