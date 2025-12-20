@@ -39,7 +39,7 @@ const COOKIE_OPTIONS = {
  */
 async function register(req, res) {
   try {
-    const { email, password, name } = req.body;
+    const { email, password, name, role, business } = req.body;
 
     // Validate input
     if (!email || !password) {
@@ -66,6 +66,25 @@ async function register(req, res) {
       });
     }
 
+    // Validate role
+    const userRole = role || 'USER';
+    if (!['USER', 'ORGANIZATION'].includes(userRole)) {
+      return res.status(400).json({
+        success: false,
+        message: 'Role must be either USER or ORGANIZATION.',
+      });
+    }
+
+    // Validate business data for ORGANIZATION role
+    if (userRole === 'ORGANIZATION') {
+      if (!business || !business.name || !business.location) {
+        return res.status(400).json({
+          success: false,
+          message: 'Business name and location are required for ORGANIZATION role.',
+        });
+      }
+    }
+
     // Check if user already exists
     const existingUser = await prisma.user.findUnique({
       where: { email },
@@ -81,29 +100,60 @@ async function register(req, res) {
     // Hash password
     const hashedPassword = await hashPassword(password);
 
-    // Create user
-    const user = await prisma.user.create({
-      data: {
-        email,
-        password: hashedPassword,
-        name: name || null,
-      },
+    // Create user and business in a transaction
+    const result = await prisma.$transaction(async (tx) => {
+      // Create user
+      const user = await tx.user.create({
+        data: {
+          email,
+          password: hashedPassword,
+          name: name || null,
+          role: userRole,
+        },
+      });
+
+      // Create business if role is ORGANIZATION
+      let businessData = null;
+      if (userRole === 'ORGANIZATION') {
+        businessData = await tx.business.create({
+          data: {
+            name: business.name,
+            location: business.location,
+            workingHours: business.workingHours || null,
+            description: business.description || null,
+            userId: user.id,
+          },
+        });
+      }
+
+      return { user, business: businessData };
     });
 
     // Generate email verification token
-    const verificationToken = await createEmailVerificationToken(user.id, email);
+    const verificationToken = await createEmailVerificationToken(result.user.id, email);
 
     // Send verification email
     await sendVerificationEmail(email, verificationToken);
 
+    const responseData = {
+      userId: result.user.id,
+      email: result.user.email,
+      name: result.user.name,
+      role: result.user.role,
+    };
+
+    if (result.business) {
+      responseData.business = {
+        id: result.business.id,
+        name: result.business.name,
+        location: result.business.location,
+      };
+    }
+
     res.status(201).json({
       success: true,
       message: 'User registered successfully. Please check your email to verify your account.',
-      data: {
-        userId: user.id,
-        email: user.email,
-        name: user.name,
-      },
+      data: responseData,
     });
   } catch (error) {
     console.error('Register error:', error);

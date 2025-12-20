@@ -16,9 +16,9 @@ const PORT = process.env.PORT || 4000;
 // Security middleware
 app.use(helmet());
 
-// CORS configuration
+// CORS configuration - Allow all origins
 app.use(cors({
-  origin: process.env.CORS_ORIGIN || 'http://localhost:3000',
+  origin: true, // Allow all origins
   credentials: true,
 }));
 

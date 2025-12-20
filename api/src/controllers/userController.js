@@ -12,11 +12,35 @@ const { sendVerificationEmail } = require('../lib/mailer');
  */
 async function getProfile(req, res) {
   try {
-    // User is already attached to req by requireAuth middleware
+    // Fetch user with business information
+    const user = await prisma.user.findUnique({
+      where: { id: req.user.id },
+      select: {
+        id: true,
+        email: true,
+        name: true,
+        role: true,
+        emailVerified: true,
+        createdAt: true,
+        updatedAt: true,
+        business: {
+          select: {
+            id: true,
+            name: true,
+            location: true,
+            workingHours: true,
+            description: true,
+            createdAt: true,
+            updatedAt: true,
+          },
+        },
+      },
+    });
+
     res.status(200).json({
       success: true,
       data: {
-        user: req.user,
+        user: user,
       },
     });
   } catch (error) {
@@ -26,6 +50,13 @@ async function getProfile(req, res) {
       message: 'An error occurred while fetching profile.',
     });
   }
+}
+
+/**
+ * Get current user profile (alias for getProfile)
+ */
+async function getMe(req, res) {
+  return getProfile(req, res);
 }
 
 /**
@@ -210,8 +241,90 @@ async function deleteAccount(req, res) {
   }
 }
 
+/**
+ * Convert USER to ORGANIZATION
+ */
+async function convertToOrganization(req, res) {
+  try {
+    const { business } = req.body;
+    const userId = req.user.id;
+
+    // Fetch current user
+    const currentUser = await prisma.user.findUnique({
+      where: { id: userId },
+      include: { business: true },
+    });
+
+    // Check if user is already an ORGANIZATION
+    if (currentUser.role === 'ORGANIZATION') {
+      return res.status(400).json({
+        success: false,
+        message: 'User is already an ORGANIZATION.',
+      });
+    }
+
+    // Validate business data
+    if (!business || !business.name || !business.location) {
+      return res.status(400).json({
+        success: false,
+        message: 'Business name and location are required.',
+      });
+    }
+
+    // Convert user to ORGANIZATION and create business in a transaction
+    const result = await prisma.$transaction(async (tx) => {
+      // Update user role
+      const updatedUser = await tx.user.update({
+        where: { id: userId },
+        data: { role: 'ORGANIZATION' },
+      });
+
+      // Create business
+      const newBusiness = await tx.business.create({
+        data: {
+          name: business.name,
+          location: business.location,
+          workingHours: business.workingHours || null,
+          description: business.description || null,
+          userId: userId,
+        },
+      });
+
+      return { user: updatedUser, business: newBusiness };
+    });
+
+    res.status(200).json({
+      success: true,
+      message: 'Successfully converted to ORGANIZATION.',
+      data: {
+        user: {
+          id: result.user.id,
+          email: result.user.email,
+          name: result.user.name,
+          role: result.user.role,
+        },
+        business: {
+          id: result.business.id,
+          name: result.business.name,
+          location: result.business.location,
+          workingHours: result.business.workingHours,
+          description: result.business.description,
+        },
+      },
+    });
+  } catch (error) {
+    console.error('Convert to organization error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'An error occurred during conversion.',
+    });
+  }
+}
+
 module.exports = {
   getProfile,
+  getMe,
   updateProfile,
   deleteAccount,
+  convertToOrganization,
 };
