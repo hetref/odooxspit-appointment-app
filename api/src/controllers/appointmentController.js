@@ -1,6 +1,5 @@
 const prisma = require('../lib/prisma');
 const crypto = require('crypto');
-const { createNotification, notifyOrganizationMembers } = require('../lib/notificationHelper');
 
 // Generate secret link for unpublished appointments
 const generateSecretLink = () => {
@@ -215,18 +214,6 @@ async function createAppointment(req, res) {
             },
         });
 
-        // Notify organization members about new appointment
-        await notifyOrganizationMembers({
-            organizationId,
-            type: 'APPOINTMENT_CREATED',
-            title: 'New Appointment Created',
-            message: `A new appointment "${title}" has been created.`,
-            relatedId: appointment.id,
-            relatedType: 'appointment',
-            actionUrl: `/dashboard/org/appointments/${appointment.id}`,
-            excludeUserId: userId,
-        });
-
         res.status(201).json({
             success: true,
             message: 'Appointment created successfully.',
@@ -287,13 +274,25 @@ async function getOrganizationAppointments(req, res) {
                         capacity: true,
                     },
                 },
+                _count: {
+                    select: {
+                        bookings: true,
+                    },
+                },
             },
             orderBy: { createdAt: 'desc' },
         });
 
+        // Map appointments to include bookingsCount
+        const appointmentsWithCount = appointments.map(apt => ({
+            ...apt,
+            bookingsCount: apt._count.bookings,
+            _count: undefined,
+        }));
+
         res.status(200).json({
             success: true,
-            data: { appointments },
+            data: { appointments: appointmentsWithCount },
         });
     } catch (error) {
         console.error('Get organization appointments error:', error);
@@ -430,151 +429,6 @@ async function getPublicAppointments(req, res) {
 }
 
 /**
- * Get available slots for an appointment (NO AUTH)
- */
-async function getAvailableSlots(req, res) {
-    try {
-        const { appointmentId } = req.params;
-        const { date } = req.query; // Expected format: YYYY-MM-DD
-
-        if (!date) {
-            return res.status(400).json({
-                success: false,
-                message: 'Date query parameter is required (format: YYYY-MM-DD).',
-            });
-        }
-
-        // Fetch appointment with related data
-        const appointment = await prisma.appointment.findUnique({
-            where: { id: appointmentId },
-            include: {
-                organization: true,
-                allowedUsers: {
-                    select: {
-                        id: true,
-                        name: true,
-                    },
-                },
-                allowedResources: {
-                    select: {
-                        id: true,
-                        name: true,
-                        capacity: true,
-                    },
-                },
-            },
-        });
-
-        if (!appointment) {
-            return res.status(404).json({
-                success: false,
-                message: 'Appointment not found.',
-            });
-        }
-
-        // Get day of week from date (parse as local date to avoid timezone issues)
-        const [year, month, day] = date.split('-').map(Number);
-        const dateObj = new Date(year, month - 1, day);
-        const dayNames = ['SUNDAY', 'MONDAY', 'TUESDAY', 'WEDNESDAY', 'THURSDAY', 'FRIDAY', 'SATURDAY'];
-        const dayOfWeek = dayNames[dateObj.getDay()];
-
-        // Find schedule for this day
-        const daySchedule = appointment.schedule.find((s) => s.day === dayOfWeek);
-
-        if (!daySchedule) {
-            return res.status(200).json({
-                success: true,
-                data: {
-                    date,
-                    dayOfWeek,
-                    slots: [],
-                    message: 'No appointments available on this day.',
-                },
-            });
-        }
-
-        // Generate time slots
-        const slots = [];
-        const startTime = daySchedule.from; // e.g., "09:00"
-        const endTime = daySchedule.to; // e.g., "17:00"
-        const duration = appointment.durationMinutes;
-
-        const [startHour, startMinute] = startTime.split(':').map(Number);
-        const [endHour, endMinute] = endTime.split(':').map(Number);
-
-        let currentMinutes = startHour * 60 + startMinute;
-        const endMinutes = endHour * 60 + endMinute;
-
-        while (currentMinutes + duration <= endMinutes) {
-            const slotHour = Math.floor(currentMinutes / 60);
-            const slotMinute = currentMinutes % 60;
-            const slotTime = `${String(slotHour).padStart(2, '0')}:${String(slotMinute).padStart(2, '0')}`;
-
-            // Check availability based on bookType and assignmentType
-            let availableResources = [];
-            let availableUsers = [];
-
-            if (appointment.bookType === 'RESOURCE') {
-                availableResources = appointment.allowedResources.map((resource) => ({
-                    id: resource.id,
-                    name: resource.name,
-                    capacity: resource.capacity,
-                    available: true, // In real implementation, check against bookings
-                }));
-            } else if (appointment.bookType === 'USER') {
-                availableUsers = appointment.allowedUsers.map((user) => ({
-                    id: user.id,
-                    name: user.name,
-                    available: true, // In real implementation, check against bookings
-                }));
-            }
-
-            const hasAvailability =
-                (appointment.bookType === 'RESOURCE' && availableResources.length > 0) ||
-                (appointment.bookType === 'USER' && availableUsers.length > 0);
-
-            if (hasAvailability) {
-                slots.push({
-                    time: slotTime,
-                    available: true,
-                    ...(appointment.assignmentType === 'BY_VISITOR' && appointment.bookType === 'RESOURCE'
-                        ? { resources: availableResources }
-                        : {}),
-                    ...(appointment.assignmentType === 'BY_VISITOR' && appointment.bookType === 'USER'
-                        ? { users: availableUsers }
-                        : {}),
-                });
-            }
-
-            currentMinutes += duration;
-        }
-
-        res.status(200).json({
-            success: true,
-            data: {
-                appointment: {
-                    id: appointment.id,
-                    title: appointment.title,
-                    durationMinutes: appointment.durationMinutes,
-                    price: appointment.price,
-                    bookType: appointment.bookType,
-                    assignmentType: appointment.assignmentType,
-                },
-                date,
-                dayOfWeek,
-                slots,
-            },
-        });
-    } catch (error) {
-        console.error('Get available slots error:', error);
-        res.status(500).json({
-            success: false,
-            message: 'An error occurred while fetching available slots.',
-        });
-    }
-}
-
-/**
  * Publish appointment (ORGANIZATION admin only)
  */
 async function publishAppointment(req, res) {
@@ -616,18 +470,6 @@ async function publishAppointment(req, res) {
                 expiryTime: null,
                 expiryCapacity: null,
             },
-        });
-
-        // Notify organization members about published appointment
-        await notifyOrganizationMembers({
-            organizationId: user.adminOrganization.id,
-            type: 'APPOINTMENT_PUBLISHED',
-            title: 'Appointment Published',
-            message: `The appointment "${appointment.title}" is now publicly available.`,
-            relatedId: appointment.id,
-            relatedType: 'appointment',
-            actionUrl: `/dashboard/org/appointments/${appointment.id}`,
-            excludeUserId: userId,
         });
 
         res.json({
@@ -859,18 +701,6 @@ async function updateAppointment(req, res) {
             },
         });
 
-        // Notify organization members about appointment update
-        await notifyOrganizationMembers({
-            organizationId: user.adminOrganization.id,
-            type: 'APPOINTMENT_UPDATED',
-            title: 'Appointment Updated',
-            message: `The appointment "${updatedAppointment.title}" has been updated.`,
-            relatedId: updatedAppointment.id,
-            relatedType: 'appointment',
-            actionUrl: `/dashboard/org/appointments/${updatedAppointment.id}`,
-            excludeUserId: userId,
-        });
-
         res.json({
             success: true,
             message: 'Appointment updated successfully.',
@@ -890,7 +720,6 @@ module.exports = {
     getOrganizationAppointments,
     getSingleAppointment,
     getPublicAppointments,
-    getAvailableSlots,
     publishAppointment,
     unpublishAppointment,
     generateSecretLinkForAppointment,

@@ -1,12 +1,12 @@
 const express = require('express');
 const {
     getPublicAppointments,
-    getAvailableSlots,
     publishAppointment,
     unpublishAppointment,
     generateSecretLinkForAppointment,
     updateAppointment,
 } = require('../controllers/appointmentController');
+const { getAvailableSlots } = require('../controllers/bookingController');
 const requireAuth = require('../middlewares/requireAuth');
 
 const router = express.Router();
@@ -19,7 +19,7 @@ router.get('/public/organizations/:organizationId/appointments', getPublicAppoin
 /**
  * Get available slots for an appointment (NO AUTH)
  */
-router.get('/public/appointments/:appointmentId/slots', getAvailableSlots);
+router.get('/public/appointments/:id/slots', getAvailableSlots);
 
 /**
  * Publish appointment (ORGANIZATION admin only)

@@ -17,6 +17,13 @@ import {
     TableRow,
 } from "@/components/ui/table";
 import {
+    Dialog,
+    DialogContent,
+    DialogDescription,
+    DialogHeader,
+    DialogTitle,
+} from "@/components/ui/dialog";
+import {
     Calendar,
     Clock,
     User,
@@ -26,6 +33,10 @@ import {
     CheckCircle2,
     XCircle,
     AlertCircle,
+    DollarSign,
+    Mail,
+    Phone,
+    FileText,
 } from "lucide-react";
 import { format } from "date-fns";
 import { bookingApi } from "@/lib/api";
@@ -96,6 +107,8 @@ export default function OrganizationAppointmentsList() {
     const [isLoading, setIsLoading] = React.useState(true);
     const [searchQuery, setSearchQuery] = React.useState("");
     const [error, setError] = React.useState("");
+    const [selectedBooking, setSelectedBooking] = React.useState<Booking | null>(null);
+    const [isDialogOpen, setIsDialogOpen] = React.useState(false);
 
     React.useEffect(() => {
         fetchBookings();
@@ -138,6 +151,11 @@ export default function OrganizationAppointmentsList() {
         revenue: bookings
             .filter((b) => b.paymentStatus === "PAID")
             .reduce((sum, b) => sum + b.totalAmount, 0),
+    };
+
+    const handleRowClick = (booking: Booking) => {
+        setSelectedBooking(booking);
+        setIsDialogOpen(true);
     };
 
     if (isLoading) {
@@ -272,7 +290,11 @@ export default function OrganizationAppointmentsList() {
                             <TableBody>
                                 {filteredBookings.length > 0 ? (
                                     filteredBookings.map((booking) => (
-                                        <TableRow key={booking.id}>
+                                        <TableRow
+                                            key={booking.id}
+                                            className="cursor-pointer hover:bg-muted/50 transition-colors"
+                                            onClick={() => handleRowClick(booking)}
+                                        >
                                             <TableCell>
                                                 <div className="flex flex-col">
                                                     <span className="font-medium">{booking.user.name}</span>
@@ -328,15 +350,19 @@ export default function OrganizationAppointmentsList() {
                                             </TableCell>
                                             <TableCell>
                                                 <div className="flex flex-col gap-1">
-                                                    <Badge
-                                                        className={getPaymentStatusColor(booking.paymentStatus)}
-                                                        variant="secondary"
-                                                    >
-                                                        {booking.paymentStatus}
-                                                    </Badge>
-                                                    <span className="text-xs text-muted-foreground">
-                                                        ${booking.totalAmount.toFixed(2)}
-                                                    </span>
+                                                    {booking.paymentStatus === "PAID" && (
+                                                        <Badge
+                                                            className={getPaymentStatusColor(booking.paymentStatus)}
+                                                            variant="secondary"
+                                                        >
+                                                            {booking.paymentStatus}
+                                                        </Badge>
+                                                    )}
+                                                    {booking.totalAmount > 0 && (
+                                                        <span className="text-xs text-muted-foreground">
+                                                            ${booking.totalAmount.toFixed(2)}
+                                                        </span>
+                                                    )}
                                                 </div>
                                             </TableCell>
                                         </TableRow>
@@ -359,6 +385,173 @@ export default function OrganizationAppointmentsList() {
                     </div>
                 </CardContent>
             </Card>
+
+            {/* Booking Details Dialog */}
+            <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+                <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+                    {selectedBooking && (
+                        <>
+                            <DialogHeader>
+                                <DialogTitle className="text-2xl">Booking Details</DialogTitle>
+                                <DialogDescription>
+                                    Booking ID: {selectedBooking.id}
+                                </DialogDescription>
+                            </DialogHeader>
+
+                            <div className="space-y-6 py-4">
+                                {/* Customer Information */}
+                                <div className="space-y-3">
+                                    <h3 className="text-lg font-semibold flex items-center gap-2">
+                                        <User className="w-5 h-5" />
+                                        Customer Information
+                                    </h3>
+                                    <div className="bg-muted/50 rounded-lg p-4 space-y-2">
+                                        <div className="flex items-start gap-3">
+                                            <User className="w-4 h-4 text-muted-foreground mt-0.5" />
+                                            <div>
+                                                <p className="text-sm text-muted-foreground">Name</p>
+                                                <p className="font-medium">{selectedBooking.user.name}</p>
+                                            </div>
+                                        </div>
+                                        <div className="flex items-start gap-3">
+                                            <Mail className="w-4 h-4 text-muted-foreground mt-0.5" />
+                                            <div>
+                                                <p className="text-sm text-muted-foreground">Email</p>
+                                                <p className="font-medium">{selectedBooking.user.email}</p>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                {/* Appointment Information */}
+                                <div className="space-y-3">
+                                    <h3 className="text-lg font-semibold flex items-center gap-2">
+                                        <Calendar className="w-5 h-5" />
+                                        Appointment Details
+                                    </h3>
+                                    <div className="bg-muted/50 rounded-lg p-4 space-y-2">
+                                        <div className="flex items-start gap-3">
+                                            <FileText className="w-4 h-4 text-muted-foreground mt-0.5" />
+                                            <div>
+                                                <p className="text-sm text-muted-foreground">Service</p>
+                                                <p className="font-medium">{selectedBooking.appointment.title}</p>
+                                            </div>
+                                        </div>
+                                        <div className="flex items-start gap-3">
+                                            <Clock className="w-4 h-4 text-muted-foreground mt-0.5" />
+                                            <div>
+                                                <p className="text-sm text-muted-foreground">Duration</p>
+                                                <p className="font-medium">
+                                                    {selectedBooking.appointment.durationMinutes} minutes × {selectedBooking.numberOfSlots} slot(s)
+                                                </p>
+                                            </div>
+                                        </div>
+                                        <div className="flex items-start gap-3">
+                                            <Calendar className="w-4 h-4 text-muted-foreground mt-0.5" />
+                                            <div>
+                                                <p className="text-sm text-muted-foreground">Date</p>
+                                                <p className="font-medium">
+                                                    {format(new Date(selectedBooking.startTime), "EEEE, MMMM d, yyyy")}
+                                                </p>
+                                            </div>
+                                        </div>
+                                        <div className="flex items-start gap-3">
+                                            <Clock className="w-4 h-4 text-muted-foreground mt-0.5" />
+                                            <div>
+                                                <p className="text-sm text-muted-foreground">Time</p>
+                                                <p className="font-medium">
+                                                    {format(new Date(selectedBooking.startTime), "h:mm a")} - {format(new Date(selectedBooking.endTime), "h:mm a")}
+                                                </p>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                {/* Provider/Resource Information */}
+                                {(selectedBooking.assignedUser || selectedBooking.resource) && (
+                                    <div className="space-y-3">
+                                        <h3 className="text-lg font-semibold flex items-center gap-2">
+                                            {selectedBooking.assignedUser ? <User className="w-5 h-5" /> : <MapPin className="w-5 h-5" />}
+                                            {selectedBooking.assignedUser ? "Assigned Provider" : "Resource"}
+                                        </h3>
+                                        <div className="bg-muted/50 rounded-lg p-4 space-y-2">
+                                            {selectedBooking.assignedUser && (
+                                                <div className="flex items-start gap-3">
+                                                    <User className="w-4 h-4 text-muted-foreground mt-0.5" />
+                                                    <div>
+                                                        <p className="text-sm text-muted-foreground">Provider</p>
+                                                        <p className="font-medium">{selectedBooking.assignedUser.name}</p>
+                                                    </div>
+                                                </div>
+                                            )}
+                                            {selectedBooking.resource && (
+                                                <div className="flex items-start gap-3">
+                                                    <MapPin className="w-4 h-4 text-muted-foreground mt-0.5" />
+                                                    <div>
+                                                        <p className="text-sm text-muted-foreground">Resource</p>
+                                                        <p className="font-medium">{selectedBooking.resource.name}</p>
+                                                    </div>
+                                                </div>
+                                            )}
+                                        </div>
+                                    </div>
+                                )}
+
+                                {/* Status and Payment */}
+                                <div className="space-y-3">
+                                    <h3 className="text-lg font-semibold flex items-center gap-2">
+                                        <CheckCircle2 className="w-5 h-5" />
+                                        Status & Payment
+                                    </h3>
+                                    <div className="bg-muted/50 rounded-lg p-4 space-y-3">
+                                        <div className="flex items-center justify-between">
+                                            <span className="text-sm text-muted-foreground">Booking Status</span>
+                                            <Badge
+                                                className={getStatusColor(selectedBooking.bookingStatus)}
+                                                variant="outline"
+                                            >
+                                                {selectedBooking.bookingStatus}
+                                            </Badge>
+                                        </div>
+                                        {selectedBooking.paymentStatus === "PAID" && (
+                                            <div className="flex items-center justify-between">
+                                                <span className="text-sm text-muted-foreground">Payment Status</span>
+                                                <Badge
+                                                    className={getPaymentStatusColor(selectedBooking.paymentStatus)}
+                                                    variant="secondary"
+                                                >
+                                                    {selectedBooking.paymentStatus}
+                                                </Badge>
+                                            </div>
+                                        )}
+                                        {selectedBooking.totalAmount > 0 && (
+                                            <div className="flex items-center justify-between pt-2 border-t">
+                                                <span className="font-medium">Total Amount</span>
+                                                <span className="text-xl font-bold">
+                                                    ${selectedBooking.totalAmount.toFixed(2)}
+                                                </span>
+                                            </div>
+                                        )}
+                                    </div>
+                                </div>
+
+                                {/* Timestamps */}
+                                <div className="space-y-3">
+                                    <h3 className="text-lg font-semibold">Booking Information</h3>
+                                    <div className="bg-muted/50 rounded-lg p-4 space-y-2">
+                                        <div className="flex items-center justify-between text-sm">
+                                            <span className="text-muted-foreground">Booked on</span>
+                                            <span className="font-medium">
+                                                {format(new Date(selectedBooking.createdAt), "MMM d, yyyy 'at' h:mm a")}
+                                            </span>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </>
+                    )}
+                </DialogContent>
+            </Dialog>
         </div>
     );
 }

@@ -249,9 +249,9 @@ export default function OrgAppointments() {
                       <Clock className="h-3.5 w-3.5" />
                       {formatDuration(appointment.durationMinutes)}
                     </span>
-                    {appointment.isPaid && appointment.price && (
-                      <Badge variant="secondary" className="w-fit">
-                        ${appointment.price}
+                    {appointment.isPaid && (
+                      <Badge variant="default" className="w-fit bg-green-500/10 text-green-700 dark:text-green-400 hover:bg-green-500/20 border border-green-500/20">
+                        💰 Paid${appointment.price ? ` - $${appointment.price}` : ''}
                       </Badge>
                     )}
                   </div>
