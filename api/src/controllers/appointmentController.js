@@ -1,5 +1,6 @@
 const prisma = require('../lib/prisma');
 const crypto = require('crypto');
+const { createNotification, notifyOrganizationMembers } = require('../lib/notificationHelper');
 
 // Generate secret link for unpublished appointments
 const generateSecretLink = () => {
@@ -212,6 +213,18 @@ async function createAppointment(req, res) {
                     },
                 },
             },
+        });
+
+        // Notify organization members about new appointment
+        await notifyOrganizationMembers({
+            organizationId,
+            type: 'APPOINTMENT_CREATED',
+            title: 'New Appointment Created',
+            message: `A new appointment "${title}" has been created.`,
+            relatedId: appointment.id,
+            relatedType: 'appointment',
+            actionUrl: `/dashboard/org/appointments/${appointment.id}`,
+            excludeUserId: userId,
         });
 
         res.status(201).json({
@@ -605,6 +618,18 @@ async function publishAppointment(req, res) {
             },
         });
 
+        // Notify organization members about published appointment
+        await notifyOrganizationMembers({
+            organizationId: user.adminOrganization.id,
+            type: 'APPOINTMENT_PUBLISHED',
+            title: 'Appointment Published',
+            message: `The appointment "${appointment.title}" is now publicly available.`,
+            relatedId: appointment.id,
+            relatedType: 'appointment',
+            actionUrl: `/dashboard/org/appointments/${appointment.id}`,
+            excludeUserId: userId,
+        });
+
         res.json({
             success: true,
             message: 'Appointment published successfully.',
@@ -832,6 +857,18 @@ async function updateAppointment(req, res) {
                     },
                 },
             },
+        });
+
+        // Notify organization members about appointment update
+        await notifyOrganizationMembers({
+            organizationId: user.adminOrganization.id,
+            type: 'APPOINTMENT_UPDATED',
+            title: 'Appointment Updated',
+            message: `The appointment "${updatedAppointment.title}" has been updated.`,
+            relatedId: updatedAppointment.id,
+            relatedType: 'appointment',
+            actionUrl: `/dashboard/org/appointments/${updatedAppointment.id}`,
+            excludeUserId: userId,
         });
 
         res.json({
