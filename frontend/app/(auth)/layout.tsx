@@ -1,10 +1,62 @@
-import { Package } from "lucide-react"
+"use client";
 
-export default function RootLayout({
+import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
+import { Package, Loader2 } from "lucide-react";
+import { authStorage } from "@/lib/auth";
+import { userApi } from "@/lib/api";
+import { getRedirectUrl } from "@/lib/routes";
+
+export default function AuthLayout({
   children,
 }: Readonly<{
   children: React.ReactNode
 }>) {
+  const router = useRouter();
+  const [isChecking, setIsChecking] = useState(true);
+
+  useEffect(() => {
+    const checkAuth = async () => {
+      const accessToken = authStorage.getAccessToken();
+      
+      if (!accessToken) {
+        // Not authenticated, allow access to auth pages
+        setIsChecking(false);
+        return;
+      }
+
+      try {
+        // Validate token with API
+        const response = await userApi.getMe(accessToken);
+
+        if (response.success && response.data?.user) {
+          // User is authenticated, redirect away from auth pages
+          const redirectUrl = getRedirectUrl(response.data.user.role);
+          router.push(redirectUrl);
+          return;
+        }
+      } catch (error) {
+        // Token invalid, clear auth data
+        authStorage.clearAll();
+      }
+      
+      setIsChecking(false);
+    };
+
+    checkAuth();
+  }, [router]);
+
+  if (isChecking) {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-zinc-50 dark:bg-black">
+        <div className="flex flex-col items-center gap-4">
+          <Loader2 className="size-8 animate-spin" />
+          <p className="text-muted-foreground">Loading...</p>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="grid min-h-svh lg:grid-cols-2">
       <div className="flex flex-col gap-4 p-6 md:p-10">
