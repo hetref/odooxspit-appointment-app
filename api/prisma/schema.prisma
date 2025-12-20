@@ -1,0 +1,147 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  USER
+  ORGANIZATION
+}
+
+enum AppointmentBookType {
+  USER
+  RESOURCE
+}
+
+enum AssignmentType {
+  AUTOMATIC
+  BY_VISITOR
+}
+
+model User {
+  id                      String                   @id @default(cuid())
+  email                   String                   @unique
+  password                String
+  name                    String?
+  role                    Role                     @default(USER)
+  isMember                Boolean                  @default(false)
+  emailVerified           Boolean                  @default(false)
+  organizationId          String?
+  createdAt               DateTime                 @default(now())
+  updatedAt               DateTime                 @updatedAt
+  refreshTokens           RefreshToken[]
+  emailVerificationTokens EmailVerificationToken[]
+  passwordResetTokens     PasswordResetToken[]
+  organization            Organization?            @relation("OrganizationMembers", fields: [organizationId], references: [id])
+  adminOrganization       Organization?            @relation("OrganizationAdmin")
+  allowedAppointments     Appointment[]            @relation("AppointmentAllowedUsers")
+
+  @@index([organizationId])
+}
+
+model RefreshToken {
+  id         String   @id @default(cuid())
+  token      String   @unique
+  userId     String
+  expiresAt  DateTime
+  revoked    Boolean  @default(false)
+  createdAt  DateTime @default(now())
+  lastUsedAt DateTime @default(now())
+  ipAddress  String?
+  userAgent  String?
+  deviceName String?
+  deviceType String?
+  browser    String?
+  os         String?
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([userId, revoked])
+}
+
+model EmailVerificationToken {
+  id        String   @id @default(cuid())
+  token     String   @unique
+  userId    String
+  email     String
+  expiresAt DateTime
+  used      Boolean  @default(false)
+  createdAt DateTime @default(now())
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([email])
+}
+
+model PasswordResetToken {
+  id        String   @id @default(cuid())
+  token     String   @unique
+  userId    String
+  email     String
+  expiresAt DateTime
+  used      Boolean  @default(false)
+  createdAt DateTime @default(now())
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([email])
+}
+
+model Organization {
+  id            String        @id @default(cuid())
+  name          String
+  location      String
+  description   String?
+  businessHours Json
+  adminId       String        @unique
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
+  admin         User          @relation("OrganizationAdmin", fields: [adminId], references: [id], onDelete: Cascade)
+  members       User[]        @relation("OrganizationMembers")
+  resources     Resource[]
+  appointments  Appointment[]
+
+  @@index([adminId])
+}
+
+model Resource {
+  id                  String        @id @default(cuid())
+  name                String
+  capacity            Int
+  organizationId      String
+  createdAt           DateTime      @default(now())
+  updatedAt           DateTime      @updatedAt
+  organization        Organization  @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  allowedAppointments Appointment[] @relation("AppointmentAllowedResources")
+
+  @@index([organizationId])
+}
+
+model Appointment {
+  id                 String              @id @default(cuid())
+  title              String
+  description        String?
+  durationMinutes    Int
+  bookType           AppointmentBookType
+  assignmentType     AssignmentType
+  allowMultipleSlots Boolean             @default(false)
+  price              Int?
+  cancellationHours  Int
+  schedule           Json
+  questions          Json
+  organizationId     String
+  createdAt          DateTime            @default(now())
+  updatedAt          DateTime            @updatedAt
+  organization       Organization        @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  allowedUsers       User[]              @relation("AppointmentAllowedUsers")
+  allowedResources   Resource[]          @relation("AppointmentAllowedResources")
+
+  @@index([organizationId])
+}
