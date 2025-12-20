@@ -53,7 +53,7 @@ export function LoginForm({
         data?.accessToken &&
         data?.refreshToken
       ) {
-        // Save auth data to localStorage and cookies
+        // Save complete auth data to cookies (includes role, organizationId, organization/adminOrganization)
         saveAuthData({
           accessToken: data.accessToken,
           refreshToken: data.refreshToken,
@@ -62,7 +62,7 @@ export function LoginForm({
 
         // Get redirect URL from query params or use default based on role
         const redirectParam = searchParams.get('redirect');
-        const defaultRedirect = getRedirectUrl(response.data.user.role);
+        const defaultRedirect = getRedirectUrl(data.user.role);
         const redirectUrl = redirectParam || defaultRedirect;
 
         // Redirect to appropriate page

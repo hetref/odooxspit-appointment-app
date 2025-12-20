@@ -7,6 +7,7 @@ import { useUser } from "@/contexts/UserContext";
 import { authStorage } from "@/lib/auth";
 import { userApi } from "@/lib/api";
 import { User } from "@/lib/types";
+import Link from "next/link";
 
 export default function DashboardPage() {
     const router = useRouter();
@@ -152,6 +153,7 @@ export default function DashboardPage() {
                                     : "bg-purple-100 text-purple-700 dark:bg-purple-900/20 dark:text-purple-400"
                                     }`}>
                                     {user.role === "USER" ? "User Account" : "Organization Account"}
+                                    <Link href={user.role === "USER" ? "/dashboard/user" : "/dashboard/org"}>Go to Account</Link>
                                 </span>
                             </div>
                         </div>

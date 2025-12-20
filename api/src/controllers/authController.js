@@ -298,6 +298,40 @@ async function login(req, res) {
       os: deviceInfo.os,
     });
 
+    // Fetch complete user data with organization information
+    const userData = await prisma.user.findUnique({
+      where: { id: user.id },
+      select: {
+        id: true,
+        email: true,
+        name: true,
+        role: true,
+        isMember: true,
+        emailVerified: true,
+        organizationId: true,
+        createdAt: true,
+        updatedAt: true,
+        organization: {
+          select: {
+            id: true,
+            name: true,
+            location: true,
+            businessHours: true,
+            description: true,
+          },
+        },
+        adminOrganization: {
+          select: {
+            id: true,
+            name: true,
+            location: true,
+            businessHours: true,
+            description: true,
+          },
+        },
+      },
+    });
+
     // Set refresh token in cookie
     res.cookie("refreshToken", refreshToken, COOKIE_OPTIONS);
 
@@ -307,12 +341,7 @@ async function login(req, res) {
       data: {
         accessToken,
         refreshToken, // Include refresh token in response for non-cookie clients
-        user: {
-          id: user.id,
-          email: user.email,
-          name: user.name,
-          emailVerified: user.emailVerified,
-        },
+        user: userData,
       },
     });
   } catch (error) {
