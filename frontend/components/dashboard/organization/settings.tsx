@@ -239,7 +239,7 @@ export default function OrganizationSettings() {
   }
 
   return (
-    <div className="p-4 md:p-6 space-y-6">
+    <div className="p-4 md:p-6 space-y-6 animate-in fade-in duration-500">
       {/* Header */}
       <div>
         <h1 className="text-3xl font-bold tracking-tight">Organization Settings</h1>
@@ -272,7 +272,7 @@ export default function OrganizationSettings() {
 
         {/* General Tab */}
         <TabsContent value="general">
-          <Card>
+          <Card className="hover:shadow-md transition-shadow duration-200">
             <CardHeader>
               <CardTitle>Organization Details</CardTitle>
               <CardDescription>Basic information about your organization</CardDescription>
@@ -327,7 +327,7 @@ export default function OrganizationSettings() {
 
         {/* Business Hours Tab */}
         <TabsContent value="hours">
-          <Card>
+          <Card className="hover:shadow-md transition-shadow duration-200">
             <CardHeader>
               <CardTitle>Business Hours</CardTitle>
               <CardDescription>Set your operating hours</CardDescription>

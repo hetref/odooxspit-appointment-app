@@ -83,7 +83,7 @@ export default function DashboardPage() {
 
     if (isLoading || contextLoading) {
         return (
-            <div className="mx-auto p-6 space-y-8">
+            <div className="mx-auto p-6 space-y-8 animate-in fade-in duration-300">
                 <div className="space-y-2">
                     <Skeleton className="h-9 w-80" />
                     <Skeleton className="h-4 w-64" />
@@ -136,7 +136,7 @@ export default function DashboardPage() {
     }
 
     return (
-        <div className="mx-auto py-6 ">
+        <div className="mx-auto p-6 animate-in fade-in duration-500">
             {/* Welcome Header */}
             <div className="mb-8">
                 <h1 className="text-3xl font-bold mb-2">
@@ -150,7 +150,7 @@ export default function DashboardPage() {
             {/* User Profile Card */}
             <div className="grid gap-6 md:grid-cols-2 mb-8">
                 {/* Account Information */}
-                <div className="bg-card border rounded-lg p-6">
+                <div className="bg-card border rounded-lg p-6 hover:shadow-md transition-all duration-200">
                     <div className="flex items-center gap-3 mb-6">
                         {user.role === "USER" ? (
                             <div className="p-3 bg-blue-100 dark:bg-blue-900/20 rounded-full">
@@ -376,14 +376,14 @@ export default function DashboardPage() {
             </div>
 
             {/* Quick Actions */}
-            <div className="bg-card border rounded-lg p-6">
+            <div className="bg-card border rounded-lg p-6 hover:shadow-md transition-shadow duration-200">
                 <h2 className="text-xl font-semibold mb-4">Quick Actions</h2>
                 <div className="grid gap-4 md:grid-cols-3">
                     {user.role === "USER" ? (
                         <>
                             <button
                                 onClick={() => router.push("/dashboard/user/appointments")}
-                                className="p-4 border rounded-lg hover:bg-accent transition-colors text-left"
+                                className="p-4 border rounded-lg hover:bg-accent hover:shadow-md hover:scale-[1.02] transition-all duration-200 text-left"
                             >
                                 <Calendar className="size-6 mb-2 text-primary" />
                                 <h3 className="font-semibold">My Appointments</h3>
@@ -393,7 +393,7 @@ export default function DashboardPage() {
                             </button>
                             <button
                                 onClick={() => router.push("/dashboard/user/profile")}
-                                className="p-4 border rounded-lg hover:bg-accent transition-colors text-left"
+                                className="p-4 border rounded-lg hover:bg-accent hover:shadow-md hover:scale-[1.02] transition-all duration-200 text-left"
                             >
                                 <UserIcon className="size-6 mb-2 text-primary" />
                                 <h3 className="font-semibold">Edit Profile</h3>
@@ -406,7 +406,7 @@ export default function DashboardPage() {
                         <>
                             <button
                                 onClick={() => router.push("/dashboard/org/appointments")}
-                                className="p-4 border rounded-lg hover:bg-accent transition-colors text-left"
+                                className="p-4 border rounded-lg hover:bg-accent hover:shadow-md hover:scale-[1.02] transition-all duration-200 text-left"
                             >
                                 <Calendar className="size-6 mb-2 text-primary" />
                                 <h3 className="font-semibold">Manage Appointments</h3>
@@ -416,7 +416,7 @@ export default function DashboardPage() {
                             </button>
                             <button
                                 onClick={() => router.push("/dashboard/org/resources")}
-                                className="p-4 border rounded-lg hover:bg-accent transition-colors text-left"
+                                className="p-4 border rounded-lg hover:bg-accent hover:shadow-md hover:scale-[1.02] transition-all duration-200 text-left"
                             >
                                 <Building2 className="size-6 mb-2 text-primary" />
                                 <h3 className="font-semibold">Resources</h3>
@@ -426,7 +426,7 @@ export default function DashboardPage() {
                             </button>
                             <button
                                 onClick={() => router.push("/dashboard/org/settings")}
-                                className="p-4 border rounded-lg hover:bg-accent transition-colors text-left"
+                                className="p-4 border rounded-lg hover:bg-accent hover:shadow-md hover:scale-[1.02] transition-all duration-200 text-left"
                             >
                                 <Shield className="size-6 mb-2 text-primary" />
                                 <h3 className="font-semibold">Organization Settings</h3>

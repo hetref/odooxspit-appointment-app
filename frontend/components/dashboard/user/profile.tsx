@@ -67,7 +67,7 @@ export default function UserProfile() {
   };
 
   return (
-    <div className="p-4 md:p-6 space-y-6">
+    <div className="p-4 md:p-6 space-y-6 animate-in fade-in duration-500">
       {/* Header */}
       <div>
         <h1 className="text-3xl font-bold tracking-tight">Profile Settings</h1>
@@ -77,7 +77,7 @@ export default function UserProfile() {
       </div>
 
       {/* Profile Card */}
-      <Card>
+      <Card className="hover:shadow-md transition-all duration-200">
         <CardContent className="pt-6">
           <div className="flex flex-col md:flex-row items-center md:items-start gap-6">
             <Avatar className="w-20 h-20">

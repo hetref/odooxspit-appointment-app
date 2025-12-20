@@ -49,7 +49,7 @@ const page = () => {
             </div>
 
             {/* User Information Card */}
-            <div className="bg-card border rounded-lg p-6 space-y-4">
+            <div className="bg-card border rounded-lg p-6 space-y-4 hover:shadow-md transition-all duration-200">
                 <div className="flex items-center gap-2 mb-4">
                     <User className="h-5 w-5" />
                     <h2 className="text-xl font-semibold">Your Information</h2>
@@ -80,7 +80,7 @@ const page = () => {
             </div>
 
             {/* Convert to Organization Card */}
-            <div className="bg-gradient-to-r from-primary/5 to-primary/10 border rounded-lg p-6">
+            <div className="bg-gradient-to-r from-primary/5 to-primary/10 border rounded-lg p-6 hover:shadow-md transition-all duration-200 hover:scale-[1.01]">
                 <div className="flex items-start gap-4">
                     <div className="p-3 bg-card rounded-lg">
                         <Building2 className="h-6 w-6 text-primary" />

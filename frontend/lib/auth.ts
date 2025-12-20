@@ -168,8 +168,8 @@ export const GetUserData = async (): Promise<{
       authStorage.setUser(user);
 
       // Map role: USER -> customer, ORGANIZATION -> organizer
-      // Check if user is admin of an organization
-      const isAdmin = user.adminOrganization != null;
+      // Check if user has isAdmin flag (not adminOrganization)
+      const isAdmin = user.isAdmin === true;
       const isOrgMember = user.role === "ORGANIZATION" || user.organizationId != null;
 
       let mappedRole: "customer" | "organizer" | "admin" = "customer";
@@ -178,6 +178,17 @@ export const GetUserData = async (): Promise<{
       } else if (isOrgMember) {
         mappedRole = "organizer";
       }
+
+      console.log("GetUserData - Debug:", {
+        userName: user.name,
+        userRole: user.role,
+        isAdminFlag: user.isAdmin,
+        hasAdminOrganization: user.adminOrganization != null,
+        organizationId: user.organizationId,
+        isAdmin,
+        isOrgMember,
+        mappedRole
+      });
 
       return {
         name: user.name,
@@ -198,7 +209,7 @@ export const GetUserData = async (): Promise<{
     // Fallback to cached data if available
     const cachedUser = authStorage.getUser();
     if (cachedUser) {
-      const isAdmin = cachedUser.adminOrganization != null;
+      const isAdmin = cachedUser.isAdmin === true;
       const isOrgMember = cachedUser.role === "ORGANIZATION" || cachedUser.organizationId != null;
 
       let mappedRole: "customer" | "organizer" | "admin" = "customer";

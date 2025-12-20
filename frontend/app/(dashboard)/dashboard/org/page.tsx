@@ -61,7 +61,7 @@ const page = () => {
             </div>
 
             {/* User Role Information */}
-            <div className="bg-card border rounded-lg p-6 space-y-4">
+            <div className="bg-card border rounded-lg p-6 space-y-4 hover:shadow-md transition-all duration-200">
                 <div className="flex items-center gap-2 mb-4">
                     <CheckCircle2 className="h-5 w-5 text-primary" />
                     <h2 className="text-xl font-semibold">Account Information</h2>
@@ -97,7 +97,7 @@ const page = () => {
 
             {/* Organization Information */}
             {organization && (
-                <div className="bg-gradient-to-r from-primary/5 to-primary/10 border rounded-lg p-6">
+                <div className="bg-gradient-to-r from-primary/5 to-primary/10 border rounded-lg p-6 hover:shadow-md transition-all duration-200">
                     <div className="flex items-center gap-2 mb-4">
                         <Building2 className="h-5 w-5 text-primary" />
                         <h2 className="text-xl font-semibold">Organization Details</h2>
