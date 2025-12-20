@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import {
   Field,
@@ -10,50 +10,105 @@ import {
   FieldLabel,
 } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
-import { Loader, AlertCircle } from "lucide-react";
+import { Loader, AlertCircle, CheckCircle, Mail } from "lucide-react";
 import { authApi } from "@/lib/api";
 import { saveAuthData } from "@/lib/auth";
+import { getRedirectUrl } from "@/lib/routes";
 
 export function LoginForm({
   className,
   ...props
 }: React.ComponentProps<"form">) {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [isPending, setIsPending] = useState(false);
   const [error, setError] = useState("");
+  const [showResendVerification, setShowResendVerification] = useState(false);
+  const [isResending, setIsResending] = useState(false);
+  const [resendSuccess, setResendSuccess] = useState("");
 
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
     setIsPending(true);
     setError("");
+    setShowResendVerification(false);
+    setResendSuccess("");
 
     try {
       const response = await authApi.login({ email, password });
 
+      // Explicitly type response.data to avoid type errors
+      type LoginResponseData = {
+        user?: any;
+        accessToken?: string;
+        refreshToken?: string;
+      };
+      const data = response.data as LoginResponseData;
+
       if (
         response.success &&
-        response.data?.user &&
-        response.data?.accessToken &&
-        response.data?.refreshToken
+        data?.user &&
+        data?.accessToken &&
+        data?.refreshToken
       ) {
-        // Save auth data to localStorage
+        // Save auth data to localStorage and cookies
         saveAuthData({
-          accessToken: response.data.accessToken,
-          refreshToken: response.data.refreshToken,
-          user: response.data.user,
+          accessToken: data.accessToken,
+          refreshToken: data.refreshToken,
+          user: data.user,
         });
 
-        // Redirect to home page
-        router.push("/");
+        // Get redirect URL from query params or use default based on role
+        const redirectParam = searchParams.get('redirect');
+        const defaultRedirect = getRedirectUrl(response.data.user.role);
+        const redirectUrl = redirectParam || defaultRedirect;
+
+        // Redirect to appropriate page
+        router.push(redirectUrl);
       } else {
         setError(response.message || "Login failed");
+        // Check if error is about email verification
+        if (response.message?.toLowerCase().includes("verify your email")) {
+          setShowResendVerification(true);
+        }
       }
     } catch (err: any) {
-      setError(err.message || "An error occurred during login");
+      const errorMessage = err.message || "An error occurred during login";
+      setError(errorMessage);
+      // Check if error is about email verification
+      if (errorMessage.toLowerCase().includes("verify your email")) {
+        setShowResendVerification(true);
+      }
     } finally {
       setIsPending(false);
+    }
+  }
+
+  async function handleResendVerification() {
+    if (!email) {
+      setError("Please enter your email address");
+      return;
+    }
+
+    setIsResending(true);
+    setResendSuccess("");
+    setError("");
+
+    try {
+      const response = await authApi.resendVerification(email);
+
+      if (response.success) {
+        setResendSuccess("Verification email sent! Please check your inbox.");
+        setShowResendVerification(false);
+      } else {
+        setError(response.message || "Failed to resend verification email");
+      }
+    } catch (err: any) {
+      setError(err.message || "An error occurred while resending verification email");
+    } finally {
+      setIsResending(false);
     }
   }
 
@@ -72,6 +127,49 @@ export function LoginForm({
           <div className="flex items-center gap-2 p-3 text-sm text-red-600 bg-red-50 border border-red-200 rounded-md">
             <AlertCircle className="size-4 shrink-0" />
             <span>{error}</span>
+          </div>
+        )}
+
+        {/* Success Message */}
+        {resendSuccess && (
+          <div className="flex items-center gap-2 p-3 text-sm text-green-600 bg-green-50 border border-green-200 rounded-md">
+            <CheckCircle className="size-4 shrink-0" />
+            <span>{resendSuccess}</span>
+          </div>
+        )}
+
+        {/* Resend Verification Button */}
+        {showResendVerification && (
+          <div className="flex items-start gap-2 p-3 text-sm bg-blue-50 border border-blue-200 rounded-md">
+            <Mail className="size-4 shrink-0 mt-0.5 text-blue-600" />
+            <div className="flex-1">
+              <p className="text-blue-900 font-medium mb-2">
+                Email verification required
+              </p>
+              <p className="text-blue-700 mb-3">
+                Your email address needs to be verified before you can log in.
+              </p>
+              <Button
+                type="button"
+                size="sm"
+                variant="outline"
+                onClick={handleResendVerification}
+                disabled={isResending}
+                className="w-full border-blue-300 text-blue-700 hover:bg-blue-100"
+              >
+                {isResending ? (
+                  <>
+                    <Loader className="size-4 animate-spin mr-2" />
+                    Sending...
+                  </>
+                ) : (
+                  <>
+                    <Mail className="size-4 mr-2" />
+                    Resend Verification Email
+                  </>
+                )}
+              </Button>
+            </div>
           </div>
         )}
 

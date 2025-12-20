@@ -11,17 +11,46 @@ const ACCESS_TOKEN_KEY = "accessToken";
 const REFRESH_TOKEN_KEY = "refreshToken";
 const USER_KEY = "user";
 
+// Cookie helper functions
+export const setCookie = (name: string, value: string, days: number = 30) => {
+  if (typeof window !== "undefined") {
+    const expires = new Date();
+    expires.setTime(expires.getTime() + days * 24 * 60 * 60 * 1000);
+    document.cookie = `${name}=${value};expires=${expires.toUTCString()};path=/;SameSite=Strict`;
+  }
+};
+
+export const getCookie = (name: string): string | null => {
+  if (typeof window !== "undefined") {
+    const nameEQ = name + "=";
+    const ca = document.cookie.split(';');
+    for (let i = 0; i < ca.length; i++) {
+      let c = ca[i];
+      while (c.charAt(0) === ' ') c = c.substring(1, c.length);
+      if (c.indexOf(nameEQ) === 0) return c.substring(nameEQ.length, c.length);
+    }
+  }
+  return null;
+};
+
+export const deleteCookie = (name: string) => {
+  if (typeof window !== "undefined") {
+    document.cookie = `${name}=;expires=Thu, 01 Jan 1970 00:00:00 UTC;path=/;`;
+  }
+};
+
 export const authStorage = {
   // Access Token
   setAccessToken: (token: string) => {
     if (typeof window !== "undefined") {
       localStorage.setItem(ACCESS_TOKEN_KEY, token);
+      setCookie(ACCESS_TOKEN_KEY, token, 1); // 1 day for access token
     }
   },
 
   getAccessToken: (): string | null => {
     if (typeof window !== "undefined") {
-      return localStorage.getItem(ACCESS_TOKEN_KEY);
+      return localStorage.getItem(ACCESS_TOKEN_KEY) || getCookie(ACCESS_TOKEN_KEY);
     }
     return null;
   },
@@ -29,6 +58,7 @@ export const authStorage = {
   removeAccessToken: () => {
     if (typeof window !== "undefined") {
       localStorage.removeItem(ACCESS_TOKEN_KEY);
+      deleteCookie(ACCESS_TOKEN_KEY);
     }
   },
 
@@ -36,12 +66,13 @@ export const authStorage = {
   setRefreshToken: (token: string) => {
     if (typeof window !== "undefined") {
       localStorage.setItem(REFRESH_TOKEN_KEY, token);
+      setCookie(REFRESH_TOKEN_KEY, token, 30); // 30 days for refresh token
     }
   },
 
   getRefreshToken: (): string | null => {
     if (typeof window !== "undefined") {
-      return localStorage.getItem(REFRESH_TOKEN_KEY);
+      return localStorage.getItem(REFRESH_TOKEN_KEY) || getCookie(REFRESH_TOKEN_KEY);
     }
     return null;
   },
@@ -49,20 +80,23 @@ export const authStorage = {
   removeRefreshToken: () => {
     if (typeof window !== "undefined") {
       localStorage.removeItem(REFRESH_TOKEN_KEY);
+      deleteCookie(REFRESH_TOKEN_KEY);
     }
   },
 
   // User Data
   setUser: (user: User) => {
     if (typeof window !== "undefined") {
-      localStorage.setItem(USER_KEY, JSON.stringify(user));
+      const userString = JSON.stringify(user);
+      localStorage.setItem(USER_KEY, userString);
+      setCookie(USER_KEY, userString, 30);
     }
   },
 
   getUser: (): User | null => {
     if (typeof window !== "undefined") {
-      const user = localStorage.getItem(USER_KEY);
-      return user ? JSON.parse(user) : null;
+      const userString = localStorage.getItem(USER_KEY) || getCookie(USER_KEY);
+      return userString ? JSON.parse(userString) : null;
     }
     return null;
   },
@@ -70,6 +104,7 @@ export const authStorage = {
   removeUser: () => {
     if (typeof window !== "undefined") {
       localStorage.removeItem(USER_KEY);
+      deleteCookie(USER_KEY);
     }
   },
 
@@ -104,5 +139,5 @@ export const clearAuthData = () => {
 
  export const GetUserData = async () => {
     await new Promise(resolve => setTimeout(resolve, 2000));
-    return { name: "John Doe", email: "john.doe@example.com", role: "admin" }; 
+    return { name: "John Doe", email: "john.doe@example.com", role: "organizer" }; 
   }
