@@ -33,7 +33,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         if (response.success && response.data?.user) {
           const userData = response.data.user;
           setUser(userData);
-          
+
           // Update cached user data
           authStorage.setUser(userData);
 

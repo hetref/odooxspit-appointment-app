@@ -18,7 +18,7 @@ export default function AuthLayout({
   useEffect(() => {
     const checkAuth = async () => {
       const accessToken = authStorage.getAccessToken();
-      
+
       if (!accessToken) {
         // Not authenticated, allow access to auth pages
         setIsChecking(false);
@@ -39,7 +39,7 @@ export default function AuthLayout({
         // Token invalid, clear auth data
         authStorage.clearAll();
       }
-      
+
       setIsChecking(false);
     };
 
