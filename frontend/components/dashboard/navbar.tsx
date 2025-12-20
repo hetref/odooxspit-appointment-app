@@ -60,7 +60,7 @@ const navigationByRole = {
   organizer: [
     { href: "/dashboard", label: "Dashboard", icon: Home },
     { href: "/dashboard/org/all-appointments", label: "Appointments", icon: CalendarCheck },
-    { href: "/dashboard/org/services", label: "Services", icon: Briefcase },
+    { href: "/dashboard/org/resources", label: "Resources", icon: Briefcase },
     { href: "/dashboard/org/users", label: "Users", icon: UserCog },
     { href: "/dashboard/payments", label: "Payments", icon: CreditCard },
     { href: "/dashboard/org/settings", label: "Settings", icon: Settings },
@@ -68,7 +68,7 @@ const navigationByRole = {
   admin: [
     { href: "/dashboard", label: "Dashboard", icon: Home },
     { href: "/dashboard/org/all-appointments", label: "Appointments", icon: CalendarCheck },
-    { href: "/dashboard/org/services", label: "Services", icon: Briefcase },
+    { href: "/dashboard/org/resources", label: "Resources", icon: Briefcase },
     { href: "/dashboard/org/users", label: "Users", icon: UserCog },
     { href: "/dashboard/payments", label: "Payments", icon: CreditCard },
     { href: "/dashboard/org/settings", label: "Settings", icon: Settings },
@@ -240,12 +240,7 @@ function UserProfileDropdown({
             </Link>
           </DropdownMenuItem>
 
-          <DropdownMenuItem asChild className="flex items-center cursor-pointer">
-            <Link href="/dashboard/settings">
-              <Settings className="mr-2 h-4 w-4" />
-              <span>Settings</span>
-            </Link>
-          </DropdownMenuItem>
+       
         </DropdownMenuGroup>
 
         <DropdownMenuSeparator />

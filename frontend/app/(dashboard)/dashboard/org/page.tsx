@@ -18,7 +18,7 @@ const page = () => {
     const organization = user?.adminOrganization || user?.organization;
 
     return (
-        <div className="space-y-6">
+        <div className="w-full px-4 xl:px-6 py-6 space-y-6">
             <div className="border-b pb-4">
                 <h1 className="text-3xl font-bold">Organization Dashboard</h1>
                 <p className="text-muted-foreground mt-1">
@@ -27,9 +27,9 @@ const page = () => {
             </div>
 
             {/* User Role Information */}
-            <div className="bg-white dark:bg-gray-800 border rounded-lg p-6 space-y-4">
+            <div className="bg-card border rounded-lg p-6 space-y-4">
                 <div className="flex items-center gap-2 mb-4">
-                    <CheckCircle2 className="h-5 w-5 text-green-600" />
+                    <CheckCircle2 className="h-5 w-5 text-primary" />
                     <h2 className="text-xl font-semibold">Account Information</h2>
                 </div>
 
@@ -45,7 +45,7 @@ const page = () => {
                     <div>
                         <span className="text-sm text-muted-foreground">Role:</span>
                         <p className="font-medium">
-                            <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-purple-100 text-purple-800">
+                            <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-primary/10 text-primary">
                                 {user?.role}
                             </span>
                         </p>
@@ -63,9 +63,9 @@ const page = () => {
 
             {/* Organization Information */}
             {organization && (
-                <div className="bg-gradient-to-r from-purple-50 to-blue-50 dark:from-purple-900/20 dark:to-blue-900/20 border rounded-lg p-6">
+                <div className="bg-gradient-to-r from-primary/5 to-primary/10 border rounded-lg p-6">
                     <div className="flex items-center gap-2 mb-4">
-                        <Building2 className="h-5 w-5 text-purple-600" />
+                        <Building2 className="h-5 w-5 text-primary" />
                         <h2 className="text-xl font-semibold">Organization Details</h2>
                     </div>
 
