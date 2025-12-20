@@ -121,7 +121,7 @@ const getStatusColor = (status: string) => {
   }
 }
 
-export default function AppointmentsPage() {
+export default function UserAppointmentsPage() {
   const today = new Date()
   today.setHours(0, 0, 0, 0)
 

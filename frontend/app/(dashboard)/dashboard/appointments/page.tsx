@@ -1,10 +1,10 @@
-import AppointmentsPage from "@/components/dashboard/user/appointments-list";
+import UserAppointmentsPage from "@/components/dashboard/user/appointments-list";
 
 
 export default function AppointmentPage() {
   return (
     <>
-  <AppointmentsPage />
+  <UserAppointmentsPage />
     </>
   );
 }

@@ -165,7 +165,7 @@ const dummyCustomQuestions: CustomQuestion[] = [
 ];
 
 // Main Component
-export default function BookAppointment() {
+export default function UserBookAppointment() {
   const [step, setStep] = React.useState(1);
   const [isLoading, setIsLoading] = React.useState(false);
   const [error, setError] = React.useState<string | null>(null);
