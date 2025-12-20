@@ -774,7 +774,7 @@ export default function UserBookAppointment() {
 
   return (
     <div className="min-h-screen bg-background py-8">
-      <div className="container mx-auto px-4 max-w-6xl">
+      <div className="mx-auto px-4 ">
         {step < 7 && renderStepIndicator()}
 
         {step > 1 && step < 7 && (
