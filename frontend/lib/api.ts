@@ -273,6 +273,9 @@ export const organizationApi = {
   createAppointment: (token: string, data: any) =>
     api.post("/organization/appointments", data, token),
 
+  getAppointments: (token: string): Promise<ApiResponse<{ appointments: Appointment[] }>> =>
+    api.get<{ appointments: Appointment[] }>("/organization/appointments", token),
+
   getOrganizationAppointments: (token: string): Promise<ApiResponse<{ appointments: Appointment[] }>> =>
     api.get<{ appointments: Appointment[] }>("/organization/appointments", token),
 
