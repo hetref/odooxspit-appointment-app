@@ -1,6 +1,6 @@
 import { User, Organization } from "./types";
 
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:4000";
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "https://jeanene-unexposed-ingrid.ngrok-free.dev";
 
 export interface ApiResponse<T = any> {
   success: boolean;
@@ -209,6 +209,12 @@ export const authApi = {
 
   refreshToken: (refreshToken: string) =>
     api.post("/auth/refresh-token", { refreshToken }),
+
+  requestPasswordReset: (email: string) =>
+    api.post("/auth/request-password-reset", { email }),
+
+  resetPassword: (token: string, email: string, newPassword: string) =>
+    api.post("/auth/reset-password", { token, email, newPassword }),
 };
 
 // User API functions
@@ -231,6 +237,19 @@ export const userApi = {
 
 // Organization API functions
 export const organizationApi = {
+  // Member Management
+  getMembers: (token: string) =>
+    api.get("/organization/members", token),
+
+  addMember: (token: string, email: string) =>
+    api.post("/organization/members", { email }, token),
+
+  removeMember: (token: string, memberId: string) =>
+    api.delete(`/organization/members/${memberId}`, token),
+
+  leaveOrganization: (token: string) =>
+    api.post("/organization/leave", {}, token),
+
   // Resource Management
   createResource: (token: string, data: { name: string; capacity: number }): Promise<ApiResponse<ResourceResponse>> =>
     api.post<ResourceResponse>("/organization/resources", data, token),

@@ -1,419 +1,424 @@
 "use client";
 
-import { useState } from "react";
-import { Button } from "@/components/ui/button";
-import { Card } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Badge } from "@/components/ui/badge";
+import { useState, useEffect } from "react";
+import { authStorage } from "@/lib/auth";
+import { organizationApi } from "@/lib/api";
+import { useUser } from "@/contexts/UserContext";
 import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
+  Plus,
+  Trash2,
+  Loader2,
+  AlertCircle,
+  Users,
+  Mail,
+  Shield,
+  CheckCircle2,
+  UserCog,
+} from "lucide-react";
+import { Button } from "@/components/ui/button";
 import {
   Dialog,
   DialogContent,
   DialogDescription,
+  DialogFooter,
   DialogHeader,
   DialogTitle,
-  DialogFooter,
 } from "@/components/ui/dialog";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import {
-  UserPlus,
-  MoreHorizontal,
-  Search,
-  Edit,
-  Trash2,
-  AlertCircle,
-} from "lucide-react";
+import { Input } from "@/components/ui/input";
+import { Field, FieldLabel } from "@/components/ui/field";
 
-interface OrgUser {
+interface Member {
   id: string;
-  name: string;
   email: string;
-  role: "admin" | "manager" | "staff" | "provider";
-}
-
-interface UserFormData {
   name: string;
-  email: string;
-  role: "admin" | "manager" | "staff" | "provider";
+  role: string;
+  isMember: boolean;
+  createdAt: string;
+  isDeleting?: boolean;
 }
-
-const dummyUsers: OrgUser[] = [
-  {
-    id: "1",
-    name: "Vipin Jindal",
-    email: "vipin@jindal.com",
-    role: "admin",
-  },
-  {
-    id: "2",
-    name: "Sarah Johnson",
-    email: "sarah.johnson@example.com",
-    role: "provider",
-  },
-  {
-    id: "3",
-    name: "Michael Chen",
-    email: "michael.chen@example.com",
-    role: "manager",
-  },
-  {
-    id: "4",
-    name: "Emily Brown",
-    email: "emily.brown@example.com",
-    role: "staff",
-  },
-  {
-    id: "5",
-    name: "David Lee",
-    email: "david.lee@example.com",
-    role: "provider",
-  },
-];
 
 export default function UsersManagement() {
-  const [users, setUsers] = useState<OrgUser[]>(dummyUsers);
-  const [searchQuery, setSearchQuery] = useState("");
-  const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
-  const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
-  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
-  const [selectedUser, setSelectedUser] = useState<OrgUser | null>(null);
-  const [formData, setFormData] = useState<UserFormData>({
-    name: "",
-    email: "",
-    role: "staff",
-  });
+  const { user } = useUser();
+  const [members, setMembers] = useState<Member[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [isInviteDialogOpen, setIsInviteDialogOpen] = useState(false);
+  const [isInviting, setIsInviting] = useState(false);
+  const [inviteError, setInviteError] = useState<string | null>(null);
+  const [inviteSuccess, setInviteSuccess] = useState<string | null>(null);
+  const [inviteEmail, setInviteEmail] = useState("");
 
-  const filteredUsers = users.filter((user) =>
-    user.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    user.email.toLowerCase().includes(searchQuery.toLowerCase())
-  );
+  const isAdmin = user && !user.isMember;
 
-  const handleAddUser = () => {
-    if (!formData.name || !formData.email) return;
+  useEffect(() => {
+    fetchMembers();
+  }, []);
 
-    const newUser: OrgUser = {
-      id: String(users.length + 1),
-      ...formData,
-    };
+  const fetchMembers = async () => {
+    try {
+      setIsLoading(true);
+      setError(null);
 
-    setUsers([...users, newUser]);
-    setIsAddDialogOpen(false);
-    setFormData({ name: "", email: "", role: "staff" });
+      const accessToken = authStorage.getAccessToken();
+      if (!accessToken) {
+        setError("Not authenticated");
+        return;
+      }
+
+      const response = await organizationApi.getMembers(accessToken);
+
+      if (response.success && response.data) {
+        const data = response.data as { members: Member[] };
+        setMembers(data.members);
+      } else {
+        setError(response.message || "Failed to load members");
+      }
+    } catch (err: any) {
+      console.error("Fetch members error:", err);
+      setError(err.message || "Failed to load members");
+    } finally {
+      setIsLoading(false);
+    }
   };
 
-  const handleEditUser = () => {
-    if (!selectedUser || !formData.name || !formData.email) return;
+  const handleInviteMember = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setInviteError(null);
+    setInviteSuccess(null);
 
-    setUsers(
-      users.map((user) =>
-        user.id === selectedUser.id ? { ...user, ...formData } : user
+    if (!inviteEmail.trim()) {
+      setInviteError("Email is required");
+      return;
+    }
+
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(inviteEmail)) {
+      setInviteError("Please enter a valid email address");
+      return;
+    }
+
+    // Check if trying to add self
+    if (user && inviteEmail.trim().toLowerCase() === user.email.toLowerCase()) {
+      setInviteError("You cannot add yourself as a member");
+      return;
+    }
+
+    try {
+      setIsInviting(true);
+
+      const accessToken = authStorage.getAccessToken();
+      if (!accessToken) {
+        setInviteError("Not authenticated");
+        return;
+      }
+
+      const response = await organizationApi.addMember(
+        accessToken,
+        inviteEmail.trim()
+      );
+
+      if (response.success && response.data) {
+        const data = response.data as { member: Member };
+        setMembers([...members, data.member]);
+        setInviteSuccess(
+          response.message ||
+          "Member invited successfully! They will receive an email with login credentials."
+        );
+        setInviteEmail("");
+
+        setTimeout(() => {
+          setIsInviteDialogOpen(false);
+          setInviteSuccess(null);
+        }, 2500);
+      } else {
+        setInviteError(response.message || "Failed to invite member");
+      }
+    } catch (err: any) {
+      console.error("Invite member error:", err);
+      setInviteError(err.message || "Failed to invite member");
+    } finally {
+      setIsInviting(false);
+    }
+  };
+
+  const handleRemoveMember = async (memberId: string, memberName: string) => {
+    if (
+      !confirm(
+        `Are you sure you want to remove ${memberName}? They will lose access to all organization resources.`
       )
+    ) {
+      return;
+    }
+
+    try {
+      setMembers((prev) =>
+        prev.map((m) => (m.id === memberId ? { ...m, isDeleting: true } : m))
+      );
+
+      const accessToken = authStorage.getAccessToken();
+      if (!accessToken) {
+        alert("Not authenticated");
+        return;
+      }
+
+      const response = await organizationApi.removeMember(accessToken, memberId);
+
+      if (response.success) {
+        setMembers((prev) => prev.filter((m) => m.id !== memberId));
+      } else {
+        alert(response.message || "Failed to remove member");
+        setMembers((prev) =>
+          prev.map((m) => (m.id === memberId ? { ...m, isDeleting: false } : m))
+        );
+      }
+    } catch (err: any) {
+      console.error("Remove member error:", err);
+      alert(err.message || "Failed to remove member");
+      setMembers((prev) =>
+        prev.map((m) => (m.id === memberId ? { ...m, isDeleting: false } : m))
+      );
+    }
+  };
+
+  const openInviteDialog = () => {
+    setInviteEmail("");
+    setInviteError(null);
+    setInviteSuccess(null);
+    setIsInviteDialogOpen(true);
+  };
+
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center min-h-[400px]">
+        <div className="text-center">
+          <Loader2 className="h-8 w-8 animate-spin mx-auto mb-4 text-purple-600" />
+          <p className="text-muted-foreground">Loading members...</p>
+        </div>
+      </div>
     );
+  }
 
-    setIsEditDialogOpen(false);
-    setSelectedUser(null);
-    setFormData({ name: "", email: "", role: "staff" });
-  };
-
-  const handleDeleteUser = () => {
-    if (!selectedUser) return;
-    setUsers(users.filter((user) => user.id !== selectedUser.id));
-    setIsDeleteDialogOpen(false);
-    setSelectedUser(null);
-  };
-
-  const openEditDialog = (user: OrgUser) => {
-    setSelectedUser(user);
-    setFormData({ name: user.name, email: user.email, role: user.role });
-    setIsEditDialogOpen(true);
-  };
-
-  const getRoleBadgeColor = (role: string) => {
-    const colors = {
-      admin: "bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200",
-      manager: "bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200",
-      provider: "bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-200",
-      staff: "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200",
-    };
-    return colors[role as keyof typeof colors] || "";
-  };
+  if (error && members.length === 0) {
+    return (
+      <div className="flex items-center justify-center min-h-[400px]">
+        <div className="text-center max-w-md">
+          <AlertCircle className="h-12 w-12 text-red-500 mx-auto mb-4" />
+          <h3 className="text-lg font-semibold mb-2">Failed to Load Members</h3>
+          <p className="text-muted-foreground mb-4">{error}</p>
+          <Button onClick={fetchMembers}>Try Again</Button>
+        </div>
+      </div>
+    );
+  }
 
   return (
-    <div className="p-4 md:p-6 space-y-6">
-      {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+    <div className="space-y-6">
+      <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight">Users</h1>
-          <p className="text-sm text-muted-foreground mt-1">
-            Manage your team members
+          <h1 className="text-3xl font-bold flex items-center gap-2">
+            <UserCog className="h-8 w-8" />
+            Team Members
+          </h1>
+          <p className="text-muted-foreground mt-1">
+            {isAdmin
+              ? "Manage your organization's team members"
+              : "View your organization's team members"}
           </p>
         </div>
-        <Button onClick={() => setIsAddDialogOpen(true)}>
-          <UserPlus className="w-4 h-4 mr-2" />
-          Add User
-        </Button>
+        {isAdmin && (
+          <Button onClick={openInviteDialog} className="gap-2">
+            <Plus className="h-4 w-4" />
+            Invite Member
+          </Button>
+        )}
       </div>
 
-      {/* Search */}
-      <Card className="p-4">
-        <div className="relative">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-          <Input
-            placeholder="Search users by name or email..."
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            className="pl-9"
-          />
+      {members.length === 0 ? (
+        <div className="border-2 border-dashed rounded-lg p-12 text-center">
+          <Users className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
+          <h3 className="text-lg font-semibold mb-2">No Members Yet</h3>
+          <p className="text-muted-foreground mb-4">
+            Start building your team by inviting members
+          </p>
+          {isAdmin && (
+            <Button onClick={openInviteDialog} className="gap-2">
+              <Plus className="h-4 w-4" />
+              Invite Your First Member
+            </Button>
+          )}
         </div>
-      </Card>
+      ) : (
+        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+          {members.map((member) => (
+            <MemberCard
+              key={member.id}
+              member={member}
+              isAdmin={!!isAdmin}
+              currentUserId={user?.id}
+              onRemove={handleRemoveMember}
+            />
+          ))}
+        </div>
+      )}
 
-      {/* Desktop Table */}
-      <Card className="hidden md:block">
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>Name</TableHead>
-              <TableHead>Email</TableHead>
-              <TableHead>Role</TableHead>
-              <TableHead className="text-right">Actions</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {filteredUsers.map((user) => (
-              <TableRow key={user.id}>
-                <TableCell className="font-medium">{user.name}</TableCell>
-                <TableCell className="text-muted-foreground">{user.email}</TableCell>
-                <TableCell>
-                  <Badge variant="outline" className={getRoleBadgeColor(user.role)}>
-                    {user.role}
-                  </Badge>
-                </TableCell>
-                <TableCell className="text-right">
-                  <DropdownMenu>
-                    <DropdownMenuTrigger asChild>
-                      <Button variant="ghost" size="icon">
-                        <MoreHorizontal className="h-4 w-4" />
-                      </Button>
-                    </DropdownMenuTrigger>
-                    <DropdownMenuContent align="end">
-                      <DropdownMenuItem onClick={() => openEditDialog(user)}>
-                        <Edit className="w-4 h-4 mr-2" />
-                        Edit
-                      </DropdownMenuItem>
-                      <DropdownMenuItem
-                        onClick={() => {
-                          setSelectedUser(user);
-                          setIsDeleteDialogOpen(true);
-                        }}
-                        className="text-red-600"
-                      >
-                        <Trash2 className="w-4 h-4 mr-2" />
-                        Delete
-                      </DropdownMenuItem>
-                    </DropdownMenuContent>
-                  </DropdownMenu>
-                </TableCell>
-              </TableRow>
-            ))}
-          </TableBody>
-        </Table>
-      </Card>
-
-      {/* Mobile Cards */}
-      <div className="md:hidden space-y-3">
-        {filteredUsers.map((user) => (
-          <Card key={user.id} className="p-4">
-            <div className="flex items-start justify-between">
-              <div className="space-y-2 flex-1">
-                <div className="font-medium">{user.name}</div>
-                <div className="text-sm text-muted-foreground">{user.email}</div>
-                <Badge variant="outline" className={getRoleBadgeColor(user.role)}>
-                  {user.role}
-                </Badge>
-              </div>
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <Button variant="ghost" size="icon">
-                    <MoreHorizontal className="h-4 w-4" />
-                  </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="end">
-                  <DropdownMenuItem onClick={() => openEditDialog(user)}>
-                    <Edit className="w-4 h-4 mr-2" />
-                    Edit
-                  </DropdownMenuItem>
-                  <DropdownMenuItem
-                    onClick={() => {
-                      setSelectedUser(user);
-                      setIsDeleteDialogOpen(true);
-                    }}
-                    className="text-red-600"
-                  >
-                    <Trash2 className="w-4 h-4 mr-2" />
-                    Delete
-                  </DropdownMenuItem>
-                </DropdownMenuContent>
-              </DropdownMenu>
-            </div>
-          </Card>
-        ))}
-      </div>
-
-      {/* Add User Dialog */}
-      <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Add New User</DialogTitle>
-            <DialogDescription>
-              Add a new team member to your organization
-            </DialogDescription>
-          </DialogHeader>
-          <div className="space-y-4 py-4">
-            <div className="space-y-2">
-              <Label htmlFor="add-name">Name</Label>
-              <Input
-                id="add-name"
-                value={formData.name}
-                onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                placeholder="Enter name"
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="add-email">Email</Label>
-              <Input
-                id="add-email"
-                type="email"
-                value={formData.email}
-                onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                placeholder="Enter email"
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="add-role">Role</Label>
-              <Select
-                value={formData.role}
-                onValueChange={(value: any) => setFormData({ ...formData, role: value })}
-              >
-                <SelectTrigger id="add-role">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="admin">Admin</SelectItem>
-                  <SelectItem value="manager">Manager</SelectItem>
-                  <SelectItem value="staff">Staff</SelectItem>
-                  <SelectItem value="provider">Provider</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-          </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setIsAddDialogOpen(false)}>
-              Cancel
-            </Button>
-            <Button onClick={handleAddUser}>Add User</Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
-      {/* Edit User Dialog */}
-      <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Edit User</DialogTitle>
-            <DialogDescription>
-              Update user information
-            </DialogDescription>
-          </DialogHeader>
-          <div className="space-y-4 py-4">
-            <div className="space-y-2">
-              <Label htmlFor="edit-name">Name</Label>
-              <Input
-                id="edit-name"
-                value={formData.name}
-                onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                placeholder="Enter name"
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="edit-email">Email</Label>
-              <Input
-                id="edit-email"
-                type="email"
-                value={formData.email}
-                onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                placeholder="Enter email"
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="edit-role">Role</Label>
-              <Select
-                value={formData.role}
-                onValueChange={(value: any) => setFormData({ ...formData, role: value })}
-              >
-                <SelectTrigger id="edit-role">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="admin">Admin</SelectItem>
-                  <SelectItem value="manager">Manager</SelectItem>
-                  <SelectItem value="staff">Staff</SelectItem>
-                  <SelectItem value="provider">Provider</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-          </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setIsEditDialogOpen(false)}>
-              Cancel
-            </Button>
-            <Button onClick={handleEditUser}>Save Changes</Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
-      {/* Delete Confirmation Dialog */}
-      <Dialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
-        <DialogContent>
+      <Dialog open={isInviteDialogOpen} onOpenChange={setIsInviteDialogOpen}>
+        <DialogContent className="sm:max-w-[500px]">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
-              <AlertCircle className="h-5 w-5 text-red-600" />
-              Delete User
+              <Mail className="h-5 w-5" />
+              Invite Team Member
             </DialogTitle>
             <DialogDescription>
-              Are you sure you want to delete {selectedUser?.name}? This action cannot be
-              undone.
+              Send an invitation to join your organization. They'll receive an
+              email with login credentials.
             </DialogDescription>
           </DialogHeader>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setIsDeleteDialogOpen(false)}>
-              Cancel
-            </Button>
-            <Button variant="destructive" onClick={handleDeleteUser}>
-              Delete
-            </Button>
-          </DialogFooter>
+
+          <form onSubmit={handleInviteMember} className="space-y-4">
+            {inviteError && (
+              <div className="flex items-center gap-2 p-3 text-sm text-red-600 bg-red-50 border border-red-200 rounded-md">
+                <AlertCircle className="h-4 w-4 shrink-0" />
+                <span>{inviteError}</span>
+              </div>
+            )}
+
+            {inviteSuccess && (
+              <div className="flex items-center gap-2 p-3 text-sm text-green-600 bg-green-50 border border-green-200 rounded-md">
+                <CheckCircle2 className="h-4 w-4 shrink-0" />
+                <span>{inviteSuccess}</span>
+              </div>
+            )}
+
+            <Field>
+              <FieldLabel>Email Address *</FieldLabel>
+              <Input
+                type="email"
+                placeholder="colleague@example.com"
+                value={inviteEmail}
+                onChange={(e) => setInviteEmail(e.target.value)}
+                disabled={isInviting || !!inviteSuccess}
+                required
+              />
+              <p className="text-sm text-muted-foreground mt-1">
+                If the user doesn't exist, we'll create an account and send them
+                their login credentials
+              </p>
+            </Field>
+
+            <DialogFooter>
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => setIsInviteDialogOpen(false)}
+                disabled={isInviting || !!inviteSuccess}
+              >
+                Cancel
+              </Button>
+              <Button
+                type="submit"
+                disabled={isInviting || !!inviteSuccess}
+                className="gap-2"
+              >
+                {isInviting ? (
+                  <>
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                    Sending Invitation...
+                  </>
+                ) : (
+                  <>
+                    <Mail className="h-4 w-4" />
+                    Send Invitation
+                  </>
+                )}
+              </Button>
+            </DialogFooter>
+          </form>
         </DialogContent>
       </Dialog>
+    </div>
+  );
+}
+
+function MemberCard({
+  member,
+  isAdmin,
+  currentUserId,
+  onRemove,
+}: {
+  member: Member;
+  isAdmin: boolean;
+  currentUserId?: string;
+  onRemove: (id: string, name: string) => void;
+}) {
+  const formatDate = (dateString: string) => {
+    return new Date(dateString).toLocaleDateString("en-US", {
+      year: "numeric",
+      month: "short",
+      day: "numeric",
+    });
+  };
+
+  const isCurrentUser = member.id === currentUserId;
+  const isMemberAdmin = !member.isMember;
+
+  return (
+    <div className="border rounded-lg p-6 hover:shadow-lg transition-shadow bg-white dark:bg-gray-800">
+      <div className="flex items-start justify-between mb-4">
+        <div className="flex items-center gap-3">
+          <div
+            className={`p-2 rounded-lg ${isMemberAdmin
+                ? "bg-purple-100 dark:bg-purple-900/20"
+                : "bg-blue-100 dark:bg-blue-900/20"
+              }`}
+          >
+            {isMemberAdmin ? (
+              <Shield className="h-5 w-5 text-purple-600" />
+            ) : (
+              <Users className="h-5 w-5 text-blue-600" />
+            )}
+          </div>
+          <div>
+            <h3 className="font-semibold text-lg flex items-center gap-2">
+              {member.name}
+              {isCurrentUser && (
+                <span className="text-xs bg-green-100 text-green-700 px-2 py-0.5 rounded-full">
+                  You
+                </span>
+              )}
+            </h3>
+            <p className="text-sm text-muted-foreground">
+              {isMemberAdmin ? "Administrator" : "Member"}
+            </p>
+          </div>
+        </div>
+
+        {isAdmin && !isMemberAdmin && !isCurrentUser && (
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => onRemove(member.id, member.name)}
+            disabled={member.isDeleting}
+            className="text-red-600 hover:text-red-700 hover:bg-red-50"
+          >
+            {member.isDeleting ? (
+              <Loader2 className="h-4 w-4 animate-spin" />
+            ) : (
+              <Trash2 className="h-4 w-4" />
+            )}
+          </Button>
+        )}
+      </div>
+
+      <div className="space-y-2">
+        <div className="flex items-center gap-2 text-sm">
+          <Mail className="h-4 w-4 text-muted-foreground" />
+          <span className="text-muted-foreground truncate">{member.email}</span>
+        </div>
+
+        <div className="pt-2 border-t text-xs text-muted-foreground">
+          Joined {formatDate(member.createdAt)}
+        </div>
+      </div>
     </div>
   );
 }

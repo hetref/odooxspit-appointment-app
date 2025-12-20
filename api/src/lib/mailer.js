@@ -187,10 +187,75 @@ async function sendWelcomeEmail(email, name) {
   return await sendEmail(email, 'Welcome!', html);
 }
 
+/**
+ * Send member invitation email
+ */
+async function sendMemberInvitationEmail(email, organizationName, password, adminName) {
+  const loginUrl = `${BASE_URL.replace(':4000', ':3000')}/login`;
+
+  const html = `
+    <!DOCTYPE html>
+    <html>
+    <head>
+      <style>
+        body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
+        .container { max-width: 600px; margin: 0 auto; padding: 20px; }
+        .header { background-color: #9333ea; color: white; padding: 20px; text-align: center; }
+        .content { background-color: #f9f9f9; padding: 30px; }
+        .button { display: inline-block; padding: 12px 30px; background-color: #9333ea; color: white; text-decoration: none; border-radius: 5px; margin: 20px 0; }
+        .credentials { background-color: #fff; border: 2px solid #9333ea; padding: 20px; margin: 20px 0; border-radius: 5px; }
+        .footer { text-align: center; padding: 20px; color: #666; font-size: 12px; }
+        .highlight { background-color: #fef3c7; padding: 2px 6px; border-radius: 3px; font-family: monospace; }
+      </style>
+    </head>
+    <body>
+      <div class="container">
+        <div class="header">
+          <h1>🎉 You've Been Invited!</h1>
+        </div>
+        <div class="content">
+          <h2>Welcome to ${organizationName}</h2>
+          <p>Hello!</p>
+          <p><strong>${adminName}</strong> has invited you to join <strong>${organizationName}</strong> as a team member.</p>
+          
+          <div class="credentials">
+            <h3 style="margin-top: 0; color: #9333ea;">📧 Your Login Credentials</h3>
+            <p><strong>Email:</strong> <span class="highlight">${email}</span></p>
+            <p><strong>Password:</strong> <span class="highlight">${password}</span></p>
+          </div>
+          
+          <p><strong>⚠️ Important:</strong> Please change your password after your first login for security.</p>
+          
+          <div style="text-align: center;">
+            <a href="${loginUrl}" class="button">Login to Dashboard</a>
+          </div>
+          
+          <p>As a member of ${organizationName}, you'll have access to:</p>
+          <ul>
+            <li>View and manage organization resources</li>
+            <li>Access appointment schedules</li>
+            <li>Collaborate with other team members</li>
+            <li>View organization settings</li>
+          </ul>
+          
+          <p>If you have any questions, please contact your organization administrator.</p>
+        </div>
+        <div class="footer">
+          <p>&copy; ${new Date().getFullYear()} ${FROM_NAME}. All rights reserved.</p>
+        </div>
+      </div>
+    </body>
+    </html>
+  `;
+
+  return await sendEmail(email, `Invitation to Join ${organizationName}`, html);
+}
+
 module.exports = {
   initializeMailer,
   sendEmail,
   sendVerificationEmail,
   sendPasswordResetEmail,
   sendWelcomeEmail,
+  sendMemberInvitationEmail,
 };
