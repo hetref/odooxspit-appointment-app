@@ -27,7 +27,7 @@ export function useAuth() {
                 // Try to get user from cache first
                 const cachedUser = authStorage.getUser();
 
-                // Fetch fresh user data from API
+                // Fetch fresh user data from API (includes role, organizationId, organization/adminOrganization)
                 const response = await userApi.getMe(accessToken);
 
                 if (response.success && response.data?.user) {
@@ -35,7 +35,7 @@ export function useAuth() {
                     setUser(userData);
                     setIsAuthenticated(true);
 
-                    // Update cached user data
+                    // Update cached user data in cookies with complete information
                     authStorage.setUser(userData);
                 } else {
                     // Invalid token, clear auth

@@ -1,4 +1,6 @@
-const API_BASE_URL = process.env.API_URL || "https://jeanene-unexposed-ingrid.ngrok-free.dev";
+import { User, Organization } from "./types";
+
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:4000";
 
 export interface ApiResponse<T = any> {
   success: boolean;
@@ -7,6 +9,44 @@ export interface ApiResponse<T = any> {
   user?: any;
   accessToken?: string;
   refreshToken?: string;
+}
+
+// Specific response types for better type safety
+export interface UserMeResponse {
+  user: User;
+}
+
+export interface LoginResponse {
+  accessToken: string;
+  refreshToken: string;
+  user: User;
+}
+
+export interface ConvertToOrganizationResponse {
+  user: User;
+  organization: Organization;
+}
+
+export interface ResourcesResponse {
+  resources: Array<{
+    id: string;
+    name: string;
+    capacity: number;
+    organizationId: string;
+    createdAt: string;
+    updatedAt: string;
+  }>;
+}
+
+export interface ResourceResponse {
+  resource: {
+    id: string;
+    name: string;
+    capacity: number;
+    organizationId: string;
+    createdAt: string;
+    updatedAt: string;
+  };
 }
 
 class ApiClient {
@@ -32,15 +72,59 @@ class ApiClient {
 
     try {
       const response = await fetch(url, config);
-      const data = await response.json();
+
+      // Get content type to check if it's JSON
+      const contentType = response.headers.get("content-type");
+      const isJson = contentType && contentType.includes("application/json");
+
+      let data: any;
+
+      if (isJson) {
+        try {
+          data = await response.json();
+        } catch (parseError) {
+          // JSON parsing failed
+          const error: any = new Error("Invalid JSON response from server");
+          error.status = response.status;
+          error.isNetworkError = true;
+          throw error;
+        }
+      } else {
+        // Not JSON - likely HTML error page or ngrok page
+        const textResponse = await response.text();
+        console.error("Non-JSON response received:", textResponse.substring(0, 200));
+
+        const error: any = new Error(
+          response.status === 404
+            ? "API endpoint not found. Please check your API server is running."
+            : "Server returned non-JSON response. API may be unreachable."
+        );
+        error.status = response.status;
+        error.isUnauthorized = response.status === 401 || response.status === 403;
+        error.isNetworkError = response.status >= 500 || !isJson;
+        throw error;
+      }
 
       if (!response.ok) {
-        throw new Error(data.message || "Something went wrong");
+        const error: any = new Error(data.message || "Something went wrong");
+        error.status = response.status;
+        error.isUnauthorized = response.status === 401 || response.status === 403;
+        throw error;
       }
 
       return data;
     } catch (error: any) {
-      throw new Error(error.message || "Network error");
+      // If error already has status, re-throw it
+      if (error.status !== undefined) {
+        throw error;
+      }
+
+      // Network error (fetch failed)
+      const networkError: any = new Error(
+        error.message || "Network error. Please check your internet connection and API server."
+      );
+      networkError.isNetworkError = true;
+      throw networkError;
     }
   }
 
@@ -110,8 +194,8 @@ export const authApi = {
   register: (data: { name: string; email: string; password: string; role?: string }) =>
     api.post("/auth/register", data),
 
-  login: (data: { email: string; password: string }) =>
-    api.post("/auth/login", data),
+  login: (data: { email: string; password: string }): Promise<ApiResponse<LoginResponse>> =>
+    api.post<LoginResponse>("/auth/login", data),
 
   verifyEmail: (token: string, email: string) =>
     api.get(`/auth/verify-email?token=${token}&email=${email}`),
@@ -128,7 +212,8 @@ export const authApi = {
 
 // User API functions
 export const userApi = {
-  getMe: (token: string) => api.get("/user/me", token),
+  getMe: (token: string): Promise<ApiResponse<UserMeResponse>> =>
+    api.get<UserMeResponse>("/user/me", token),
 
   updateProfile: (token: string, data: any) =>
     api.put("/user/update", data, token),
@@ -138,4 +223,20 @@ export const userApi = {
 
   logout: (refreshToken: string) =>
     api.post("/auth/logout", { refreshToken }),
+
+  convertToOrganization: (token: string, business: any): Promise<ApiResponse<ConvertToOrganizationResponse>> =>
+    api.post<ConvertToOrganizationResponse>("/user/convert-to-organization", { business }, token),
+};
+
+// Organization API functions
+export const organizationApi = {
+  // Resource Management
+  createResource: (token: string, data: { name: string; capacity: number }): Promise<ApiResponse<ResourceResponse>> =>
+    api.post<ResourceResponse>("/organization/resources", data, token),
+
+  getResources: (token: string): Promise<ApiResponse<ResourcesResponse>> =>
+    api.get<ResourcesResponse>("/organization/resources", token),
+
+  deleteResource: (token: string, resourceId: string) =>
+    api.delete(`/organization/resources/${resourceId}`, token),
 };
