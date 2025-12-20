@@ -1,7 +1,8 @@
 const prisma = require('./prisma');
+const { sendNotificationEmail } = require('./mailer');
 
 /**
- * Create a notification for a user
+ * Create a notification for a user (in-app + email)
  */
 async function createNotification({
   userId,
@@ -12,8 +13,10 @@ async function createNotification({
   relatedType = null,
   actionUrl = null,
   metadata = null,
+  sendEmail = true, // Option to disable email
 }) {
   try {
+    // Create in-app notification
     const notification = await prisma.notification.create({
       data: {
         userId,
@@ -25,7 +28,30 @@ async function createNotification({
         actionUrl,
         metadata,
       },
+      include: {
+        user: {
+          select: {
+            email: true,
+            name: true,
+          },
+        },
+      },
     });
+
+    // Send email notification (async, don't wait)
+    if (sendEmail && notification.user.email) {
+      sendNotificationEmail(
+        notification.user.email,
+        type,
+        title,
+        message,
+        actionUrl
+      ).catch(error => {
+        console.error('Error sending notification email:', error);
+        // Don't fail the notification creation if email fails
+      });
+    }
+
     return notification;
   } catch (error) {
     console.error('Error creating notification:', error);
@@ -34,13 +60,47 @@ async function createNotification({
 }
 
 /**
- * Create notifications for multiple users
+ * Create notifications for multiple users (in-app + email)
  */
-async function createBulkNotifications(notifications) {
+async function createBulkNotifications(notifications, sendEmail = true) {
   try {
+    // Create in-app notifications
     const result = await prisma.notification.createMany({
       data: notifications,
     });
+
+    // Send email notifications (async, don't wait)
+    if (sendEmail && notifications.length > 0) {
+      // Get user emails for all notifications
+      const userIds = [...new Set(notifications.map(n => n.userId))];
+      const users = await prisma.user.findMany({
+        where: { id: { in: userIds } },
+        select: { id: true, email: true, name: true },
+      });
+
+      const userMap = {};
+      users.forEach(user => {
+        userMap[user.id] = user;
+      });
+
+      // Send emails in parallel (but don't wait for them)
+      notifications.forEach(notification => {
+        const user = userMap[notification.userId];
+        if (user && user.email) {
+          sendNotificationEmail(
+            user.email,
+            notification.type,
+            notification.title,
+            notification.message,
+            notification.actionUrl
+          ).catch(error => {
+            console.error(`Error sending email to ${user.email}:`, error.message);
+            // Don't fail the notification creation if email fails
+          });
+        }
+      });
+    }
+
     return result;
   } catch (error) {
     console.error('Error creating bulk notifications:', error);
@@ -49,7 +109,7 @@ async function createBulkNotifications(notifications) {
 }
 
 /**
- * Notify all organization members
+ * Notify all organization members (in-app + email)
  */
 async function notifyOrganizationMembers({
   organizationId,
@@ -61,6 +121,7 @@ async function notifyOrganizationMembers({
   actionUrl = null,
   metadata = null,
   excludeUserId = null,
+  sendEmail = true, // Option to disable email
 }) {
   try {
     // Get all organization members
@@ -93,7 +154,7 @@ async function notifyOrganizationMembers({
       metadata,
     }));
 
-    return await createBulkNotifications(notifications);
+    return await createBulkNotifications(notifications, sendEmail);
   } catch (error) {
     console.error('Error notifying organization members:', error);
     return null;
