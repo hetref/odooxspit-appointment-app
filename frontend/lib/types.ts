@@ -1,8 +1,9 @@
 export interface User {
+  phone: string;
+  isAdmin: boolean;
   id: string;
   email: string;
   name: string;
-  phone?: string;
   role: "USER" | "ORGANIZATION";
   emailVerified: boolean;
   createdAt: string;
