@@ -10,7 +10,7 @@ const page = () => {
 
     if (isLoading) {
         return (
-            <div className="w-full px-4 xl:px-6 py-6 space-y-6">
+            <div className="w-full py-6 space-y-6">
                 <div className="border-b pb-4 space-y-2">
                     <Skeleton className="h-9 w-80" />
                     <Skeleton className="h-4 w-96" />
@@ -52,7 +52,7 @@ const page = () => {
     const organization = user?.adminOrganization || user?.organization;
 
     return (
-        <div className="w-full px-4 xl:px-6 py-6 space-y-6">
+        <div className="w-full py-6 space-y-6">
             <div className="border-b pb-4">
                 <h1 className="text-3xl font-bold">Organization Dashboard</h1>
                 <p className="text-muted-foreground mt-1">

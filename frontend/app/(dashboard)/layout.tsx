@@ -26,7 +26,7 @@ function DashboardSkeleton() {
           </div>
         </div>
 
-        <div className="hidden md:flex w-full items-center gap-2 px-4 xl:px-6 pb-1.5">
+        <div className="hidden md:flex w-full items-center gap-2 pb-1.5">
           {Array.from({ length: 5 }).map((_, i) => (
             <Skeleton key={i} className="h-8 w-24 rounded-md" />
           ))}
@@ -125,7 +125,7 @@ export default function DashboardLayout({
   return (
     <>
     <UserProvider user={user} isLoading={isChecking}>
-      <div className="max-w-[1600px] mx-auto">
+      <div className="max-w-[1600px] mx-auto px-4">
       <Navbar />
       <div className="">{children}</div>
       </div>

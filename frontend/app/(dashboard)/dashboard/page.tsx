@@ -136,7 +136,7 @@ export default function DashboardPage() {
     }
 
     return (
-        <div className="mx-auto p-6 ">
+        <div className="mx-auto py-6 ">
             {/* Welcome Header */}
             <div className="mb-8">
                 <h1 className="text-3xl font-bold mb-2">
