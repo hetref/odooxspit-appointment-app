@@ -224,7 +224,7 @@ function UserProfileDropdown({
           aria-label="Open user menu"
         >
           <Avatar className={cn("h-full w-full")}>
-            <AvatarImage src="/avatar-1.png" alt="User avatar" />
+            <AvatarImage src={`https://api.dicebear.com/7.x/initials/svg?seed=${userName || 'User'}`} alt="User avatar" />
             <AvatarFallback>{initials}</AvatarFallback>
           </Avatar>
         </button>
@@ -253,7 +253,7 @@ function UserProfileDropdown({
             </Link>
           </DropdownMenuItem>
 
-       
+
         </DropdownMenuGroup>
 
         <DropdownMenuSeparator />

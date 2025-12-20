@@ -1,6 +1,3 @@
-// This is your Prisma schema file,
-// learn more about it in the docs: https://pris.ly/d/prisma-schema
-
 generator client {
   provider = "prisma-client-js"
 }
@@ -10,39 +7,26 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-enum Role {
-  USER
-  ORGANIZATION
-}
-
-enum AppointmentBookType {
-  USER
-  RESOURCE
-}
-
-enum AssignmentType {
-  AUTOMATIC
-  BY_VISITOR
-}
-
 model User {
   id                      String                   @id @default(cuid())
   email                   String                   @unique
   password                String
   name                    String?
-  phone                   String?
-  role                    Role                     @default(USER)
-  isMember                Boolean                  @default(false)
   emailVerified           Boolean                  @default(false)
-  organizationId          String?
   createdAt               DateTime                 @default(now())
   updatedAt               DateTime                 @updatedAt
-  refreshTokens           RefreshToken[]
+  role                    Role                     @default(USER)
+  isMember                Boolean                  @default(false)
+  organizationId          String?
+  phone                   String?
   emailVerificationTokens EmailVerificationToken[]
-  passwordResetTokens     PasswordResetToken[]
-  organization            Organization?            @relation("OrganizationMembers", fields: [organizationId], references: [id])
   adminOrganization       Organization?            @relation("OrganizationAdmin")
+  passwordResetTokens     PasswordResetToken[]
+  refreshTokens           RefreshToken[]
+  organization            Organization?            @relation("OrganizationMembers", fields: [organizationId], references: [id])
   allowedAppointments     Appointment[]            @relation("AppointmentAllowedUsers")
+  bookings                Booking[]
+  assignedBookings        Booking[]                @relation("AssignedBookings")
 
   @@index([organizationId])
 }
@@ -104,10 +88,10 @@ model Organization {
   adminId       String        @unique
   createdAt     DateTime      @default(now())
   updatedAt     DateTime      @updatedAt
-  admin         User          @relation("OrganizationAdmin", fields: [adminId], references: [id], onDelete: Cascade)
-  members       User[]        @relation("OrganizationMembers")
-  resources     Resource[]
   appointments  Appointment[]
+  admin         User          @relation("OrganizationAdmin", fields: [adminId], references: [id], onDelete: Cascade)
+  resources     Resource[]
+  members       User[]        @relation("OrganizationMembers")
 
   @@index([adminId])
 }
@@ -121,33 +105,101 @@ model Resource {
   updatedAt           DateTime      @updatedAt
   organization        Organization  @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   allowedAppointments Appointment[] @relation("AppointmentAllowedResources")
+  bookings            Booking[]
 
   @@index([organizationId])
 }
 
 model Appointment {
-  id                   String              @id @default(cuid())
-  title                String
-  description          String?
-  location             String?
-  durationMinutes      Int
-  bookType             AppointmentBookType
-  assignmentType       AssignmentType
-  allowMultipleSlots   Boolean             @default(false)
-  isPaid               Boolean             @default(false)
-  price                Int?
-  cancellationHours    Int
-  schedule             Json
-  questions            Json
-  picture              String?
-  introMessage         String?
-  confirmationMessage  String?
-  organizationId       String
-  createdAt            DateTime            @default(now())
-  updatedAt            DateTime            @updatedAt
-  organization         Organization        @relation(fields: [organizationId], references: [id], onDelete: Cascade)
-  allowedUsers         User[]              @relation("AppointmentAllowedUsers")
-  allowedResources     Resource[]          @relation("AppointmentAllowedResources")
+  id                  String              @id @default(cuid())
+  title               String
+  description         String?
+  durationMinutes     Int
+  bookType            AppointmentBookType
+  assignmentType      AssignmentType
+  allowMultipleSlots  Boolean             @default(false)
+  maxSlotsPerBooking  Int?
+  price               Int?
+  cancellationHours   Int
+  schedule            Json
+  questions           Json
+  isPublished         Boolean             @default(false)
+  secretLink          String?             @unique
+  expiryTime          DateTime?
+  expiryCapacity      Int?
+  bookingsCount       Int                 @default(0)
+  confirmationMessage String?
+  introMessage        String?
+  isPaid              Boolean             @default(false)
+  location            String?
+  picture             String?
+  organizationId      String
+  createdAt           DateTime            @default(now())
+  updatedAt           DateTime            @updatedAt
+  organization        Organization        @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  allowedResources    Resource[]          @relation("AppointmentAllowedResources")
+  allowedUsers        User[]              @relation("AppointmentAllowedUsers")
+  bookings            Booking[]
 
   @@index([organizationId])
+  @@index([isPublished])
+  @@index([secretLink])
+}
+
+enum Role {
+  USER
+  ORGANIZATION
+}
+
+enum AppointmentBookType {
+  USER
+  RESOURCE
+}
+
+enum AssignmentType {
+  AUTOMATIC
+  BY_VISITOR
+}
+
+enum BookingStatus {
+  PENDING
+  CONFIRMED
+  CANCELLED
+  COMPLETED
+}
+
+enum PaymentStatus {
+  PENDING
+  PAID
+  FAILED
+  REFUNDED
+}
+
+model Booking {
+  id             String        @id @default(cuid())
+  appointmentId  String
+  userId         String
+  resourceId     String?
+  assignedUserId String?
+  startTime      DateTime
+  endTime        DateTime
+  numberOfSlots  Int           @default(1)
+  userResponses  Json?
+  paymentStatus  PaymentStatus @default(PENDING)
+  bookingStatus  BookingStatus @default(PENDING)
+  totalAmount    Int?
+  notes          String?
+  createdAt      DateTime      @default(now())
+  updatedAt      DateTime      @updatedAt
+  appointment    Appointment   @relation(fields: [appointmentId], references: [id], onDelete: Cascade)
+  user           User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  resource       Resource?     @relation(fields: [resourceId], references: [id])
+  assignedUser   User?         @relation("AssignedBookings", fields: [assignedUserId], references: [id])
+
+  @@index([appointmentId])
+  @@index([userId])
+  @@index([resourceId])
+  @@index([assignedUserId])
+  @@index([startTime])
+  @@index([bookingStatus])
 }

@@ -9,13 +9,23 @@ A complete, production-ready authentication API built with Express, Prisma 7, JW
 - ✅ **Organization management with admin and member roles**
 - ✅ **Automatic organization creation on role upgrade**
 - ✅ **USER to ORGANIZATION conversion**
-- ✅ **Member management (add/view members)**
+- ✅ **Member management (add/view/add/remove members)**
 - ✅ **Resource management (create/view/delete resources)**
 - ✅ **Appointment system with complex booking logic**
-- ✅ **Public appointment discovery (no auth)**
-- ✅ **Available time slot calculation**
+- ✅ **Appointment Publish/Unpublish functionality**
+- ✅ **Secret link generation for private appointments with expiry**
+- ✅ **Expiry by time or capacity for appointments**
+- ✅ **Public appointment discovery and search**
+- ✅ **Complete booking system with time slot management**
+- ✅ **Available time slot calculation with conflict detection**
 - ✅ **USER and RESOURCE book types**
 - ✅ **Automatic and visitor-based assignment**
+- ✅ **Booking cancellation with policy enforcement**
+- ✅ **User and organization booking history**
+- ✅ **Custom questions for appointment bookings**
+- ✅ **Introduction and confirmation messages**
+- ✅ **Payment status tracking (PENDING/PAID/FAILED/REFUNDED)**
+- ✅ **Booking status management (PENDING/CONFIRMED/CANCELLED/COMPLETED)**
 - ✅ JWT-based access tokens (15 minutes expiry)
 - ✅ Rotating refresh tokens (30 days expiry, stored as HttpOnly cookies)
 - ✅ Password reset via email

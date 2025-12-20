@@ -60,3 +60,59 @@ export interface Resource {
   createdAt: string;
   updatedAt: string;
 }
+
+export interface Appointment {
+  id: string;
+  title: string;
+  description?: string;
+  durationMinutes: number;
+  bookType: "USER" | "RESOURCE";
+  assignmentType: "AUTOMATIC" | "BY_VISITOR";
+  allowMultipleSlots: boolean;
+  maxSlotsPerBooking?: number; // Maximum continuous slots a user can book
+  price?: number;
+  cancellationHours: number;
+  schedule: any; // JSON
+  questions: any; // JSON
+  isPublished: boolean;
+  secretLink?: string;
+  expiryTime?: string;
+  expiryCapacity?: number;
+  bookingsCount: number;
+  introMessage?: string;
+  confirmationMessage?: string;
+  organizationId: string;
+  createdAt: string;
+  updatedAt: string;
+  organization?: Organization;
+  allowedUsers?: User[];
+  allowedResources?: Resource[];
+}
+
+export interface Booking {
+  id: string;
+  appointmentId: string;
+  userId: string;
+  resourceId?: string;
+  assignedUserId?: string;
+  startTime: string;
+  endTime: string;
+  numberOfSlots?: number; // Number of continuous slots booked
+  userResponses?: any;
+  paymentStatus: "PENDING" | "PAID" | "FAILED" | "REFUNDED";
+  bookingStatus: "PENDING" | "CONFIRMED" | "CANCELLED" | "COMPLETED";
+  totalAmount?: number;
+  notes?: string;
+  createdAt: string;
+  updatedAt: string;
+  appointment?: Appointment;
+  user?: User;
+  resource?: Resource;
+  assignedUser?: User;
+}
+
+export interface TimeSlot {
+  start: string;
+  end: string;
+  availableCount?: number; // Number of available spots in this slot
+}
