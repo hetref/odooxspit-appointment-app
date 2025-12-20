@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -9,6 +9,14 @@ import { Textarea } from "@/components/ui/textarea";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import {
   Calendar as CalendarIcon,
   Clock,
@@ -28,6 +36,8 @@ import {
   HelpCircle,
   X,
 } from "lucide-react";
+import { organizationApi } from "@/lib/api";
+import { authStorage } from "@/lib/auth";
 
 interface TimeSlot {
   id: string;
@@ -36,14 +46,24 @@ interface TimeSlot {
   to: string;
 }
 
+interface Question {
+  id: string;
+  question: string;
+  type: "text" | "textarea" | "radio" | "checkbox" | "select";
+  required: boolean;
+  options?: string[]; // For radio, checkbox, select
+}
+
 interface User {
   id: string;
   name: string;
+  email: string;
 }
 
 interface Resource {
   id: string;
   name: string;
+  capacity: number;
 }
 
 interface AppointmentTypeFormData {
@@ -57,31 +77,27 @@ interface AppointmentTypeFormData {
   selectedResources: string[];
   manageCapacity: boolean;
   capacity: number;
+  isPaid: boolean;
   price: string;
   description: string;
   picture: File | null;
   picturePreview: string | null;
   timeSlots: TimeSlot[];
+  questions: Question[];
+  introMessage: string;
+  confirmationMessage: string;
 }
-
-const dummyUsers: User[] = [
-  { id: "1", name: "User 1" },
-  { id: "2", name: "User 2" },
-  { id: "3", name: "User 3" },
-  { id: "4", name: "User 4" },
-];
-
-const dummyResources: Resource[] = [
-  { id: "1", name: "Conference Room A" },
-  { id: "2", name: "Conference Room B" },
-  { id: "3", name: "Meeting Room 1" },
-  { id: "4", name: "Equipment Set A" },
-];
 
 const daysOfWeek = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"];
 
 export function CreateAppointment({ onBack }: { onBack?: () => void }) {
   const [currentTab, setCurrentTab] = useState("schedule");
+  const [isQuestionModalOpen, setIsQuestionModalOpen] = useState(false);
+  const [editingQuestion, setEditingQuestion] = useState<Question | null>(null);
+  const [users, setUsers] = useState<User[]>([]);
+  const [resources, setResources] = useState<Resource[]>([]);
+  const [isLoadingData, setIsLoadingData] = useState(true);
+  const [dataError, setDataError] = useState("");
   const [formData, setFormData] = useState<AppointmentTypeFormData>({
     title: "",
     duration: "30",
@@ -93,6 +109,7 @@ export function CreateAppointment({ onBack }: { onBack?: () => void }) {
     selectedResources: [],
     manageCapacity: false,
     capacity: 1,
+    isPaid: false,
     price: "",
     description: "",
     picture: null,
@@ -101,11 +118,51 @@ export function CreateAppointment({ onBack }: { onBack?: () => void }) {
       { id: "1", day: "Monday", from: "09:00", to: "12:00" },
       { id: "2", day: "Monday", from: "14:00", to: "17:00" },
     ],
+    questions: [],
+    introMessage: "",
+    confirmationMessage: "",
   });
 
   const [isLoading, setIsLoading] = useState(false);
   const [success, setSuccess] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
+
+  // Fetch users and resources on mount
+  useEffect(() => {
+    const fetchData = async () => {
+      try {
+        const token = authStorage.getAccessToken();
+        if (!token) {
+          setDataError("Authentication required");
+          setIsLoadingData(false);
+          return;
+        }
+
+        const [membersResponse, resourcesResponse] = await Promise.all([
+          organizationApi.getMembers(token),
+          organizationApi.getResources(token),
+        ]);
+
+        if (membersResponse.success && membersResponse.data) {
+          const membersData = membersResponse.data as { members: User[] };
+          setUsers(membersData.members || []);
+        }
+
+        if (resourcesResponse.success && resourcesResponse.data) {
+          const resourcesData = resourcesResponse.data as { resources: Resource[] };
+          setResources(resourcesData.resources || []);
+        }
+
+        setIsLoadingData(false);
+      } catch (error: any) {
+        console.error("Error fetching data:", error);
+        setDataError(error.message || "Failed to load data");
+        setIsLoadingData(false);
+      }
+    };
+
+    fetchData();
+  }, []);
 
   const validateForm = (): boolean => {
     const newErrors: Record<string, string> = {};
@@ -139,18 +196,89 @@ export function CreateAppointment({ onBack }: { onBack?: () => void }) {
     }
 
     setIsLoading(true);
+    setErrors({});
 
-    // Simulate API call
-    await new Promise((resolve) => setTimeout(resolve, 2000));
+    try {
+      const token = authStorage.getAccessToken();
+      if (!token) {
+        setErrors({ submit: "Authentication required. Please log in again." });
+        setIsLoading(false);
+        return;
+      }
 
-    setIsLoading(false);
-    setSuccess(true);
+      // Upload image if present
+      let pictureUrl: string | undefined = undefined;
+      if (formData.picture) {
+        try {
+          const uploadResponse = await mediaApi.uploadFile(token, formData.picture, 'appointments');
+          if (uploadResponse.success && uploadResponse.data) {
+            pictureUrl = uploadResponse.data.url;
+          }
+        } catch (uploadError: any) {
+          console.error('Image upload error:', uploadError);
+          setErrors({ submit: "Failed to upload image. Please try again." });
+          setIsLoading(false);
+          return;
+        }
+      }
 
-    // Reset form after success
-    setTimeout(() => {
-      setSuccess(false);
-      if (onBack) onBack();
-    }, 2000);
+      // Convert duration to minutes
+      const durationMinutes =
+        formData.durationUnit === "hours"
+          ? parseFloat(formData.duration) * 60
+          : parseFloat(formData.duration);
+
+      // Convert time slots to backend format (uppercase day names)
+      const schedule = formData.timeSlots.map((slot) => ({
+        day: slot.day.toUpperCase(),
+        from: slot.from,
+        to: slot.to,
+      }));
+
+      // Prepare appointment data
+      const appointmentData = {
+        title: formData.title,
+        description: formData.description || undefined,
+        location: formData.location,
+        durationMinutes: Math.round(durationMinutes),
+        bookType: formData.bookingType === "user" ? "USER" as const : "RESOURCE" as const,
+        assignmentType:
+          formData.assignmentType === "automatic" ? "AUTOMATIC" as const : "BY_VISITOR" as const,
+        allowMultipleSlots: formData.manageCapacity,
+        isPaid: formData.isPaid,
+        price: formData.isPaid && formData.price ? parseFloat(formData.price) : undefined,
+        cancellationHours: 0,
+        schedule,
+        questions: formData.questions,
+        picture: pictureUrl,
+        introMessage: formData.introMessage || undefined,
+        confirmationMessage: formData.confirmationMessage || undefined,
+        allowedUserIds:
+          formData.bookingType === "user" ? formData.selectedUsers : undefined,
+        allowedResourceIds:
+          formData.bookingType === "resource" ? formData.selectedResources : undefined,
+      };
+
+      const response = await organizationApi.createAppointment(token, appointmentData);
+
+      if (response.success) {
+        setSuccess(true);
+        // Reset form after success
+        setTimeout(() => {
+          setSuccess(false);
+          if (onBack) onBack();
+        }, 2000);
+      } else {
+        setErrors({ submit: response.message || "Failed to create appointment" });
+      }
+    } catch (error: any) {
+      console.error("Error creating appointment:", error);
+      setErrors({
+        submit: error.message || "An error occurred while creating the appointment",
+      });
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   const handlePictureUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -208,6 +336,38 @@ export function CreateAppointment({ onBack }: { onBack?: () => void }) {
         ? formData.selectedResources.filter((id) => id !== resourceId)
         : [...formData.selectedResources, resourceId],
     });
+  };
+
+  const addQuestion = (question: Question) => {
+    if (editingQuestion) {
+      // Update existing question
+      setFormData({
+        ...formData,
+        questions: formData.questions.map((q) =>
+          q.id === editingQuestion.id ? question : q
+        ),
+      });
+    } else {
+      // Add new question
+      setFormData({
+        ...formData,
+        questions: [...formData.questions, question],
+      });
+    }
+    setIsQuestionModalOpen(false);
+    setEditingQuestion(null);
+  };
+
+  const deleteQuestion = (id: string) => {
+    setFormData({
+      ...formData,
+      questions: formData.questions.filter((q) => q.id !== id),
+    });
+  };
+
+  const openQuestionModal = (question?: Question) => {
+    setEditingQuestion(question || null);
+    setIsQuestionModalOpen(true);
   };
 
   if (success) {
@@ -268,6 +428,21 @@ export function CreateAppointment({ onBack }: { onBack?: () => void }) {
 
       {/* Main Content */}
       <div className="max-w-[1800px] mx-auto p-4 sm:p-6 lg:p-8">
+        {/* Error Messages */}
+        {dataError && (
+          <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-lg flex items-center gap-2 text-red-800">
+            <AlertCircle className="w-5 h-5" />
+            <span>{dataError}</span>
+          </div>
+        )}
+
+        {errors.submit && (
+          <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-lg flex items-center gap-2 text-red-800">
+            <AlertCircle className="w-5 h-5" />
+            <span>{errors.submit}</span>
+          </div>
+        )}
+
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           {/* Left Column - Form */}
           <div className="lg:col-span-2 space-y-6">
@@ -436,22 +611,30 @@ export function CreateAppointment({ onBack }: { onBack?: () => void }) {
                     <Label>
                       Select Users <span className="text-red-500">*</span>
                     </Label>
-                    <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2">
-                      {dummyUsers.map((user) => (
-                        <Button
-                          key={user.id}
-                          type="button"
-                          variant={
-                            formData.selectedUsers.includes(user.id) ? "default" : "outline"
-                          }
-                          size="sm"
-                          onClick={() => toggleUser(user.id)}
-                          className="justify-start"
-                        >
-                          {user.name}
-                        </Button>
-                      ))}
-                    </div>
+                    {isLoadingData ? (
+                      <p className="text-sm text-muted-foreground">Loading users...</p>
+                    ) : users.length === 0 ? (
+                      <p className="text-sm text-muted-foreground">
+                        No users available. Add members to your organization first.
+                      </p>
+                    ) : (
+                      <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2">
+                        {users.map((user) => (
+                          <Button
+                            key={user.id}
+                            type="button"
+                            variant={
+                              formData.selectedUsers.includes(user.id) ? "default" : "outline"
+                            }
+                            size="sm"
+                            onClick={() => toggleUser(user.id)}
+                            className="justify-start"
+                          >
+                            {user.name}
+                          </Button>
+                        ))}
+                      </div>
+                    )}
                     {errors.users && (
                       <p className="text-xs text-red-500 flex items-center gap-1">
                         <AlertCircle className="w-3 h-3" />
@@ -467,24 +650,32 @@ export function CreateAppointment({ onBack }: { onBack?: () => void }) {
                     <Label>
                       Select Resources <span className="text-red-500">*</span>
                     </Label>
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                      {dummyResources.map((resource) => (
-                        <Button
-                          key={resource.id}
-                          type="button"
-                          variant={
-                            formData.selectedResources.includes(resource.id)
-                              ? "default"
-                              : "outline"
-                          }
-                          size="sm"
-                          onClick={() => toggleResource(resource.id)}
-                          className="justify-start"
-                        >
-                          {resource.name}
-                        </Button>
-                      ))}
-                    </div>
+                    {isLoadingData ? (
+                      <p className="text-sm text-muted-foreground">Loading resources...</p>
+                    ) : resources.length === 0 ? (
+                      <p className="text-sm text-muted-foreground">
+                        No resources available. Create resources first.
+                      </p>
+                    ) : (
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                        {resources.map((resource) => (
+                          <Button
+                            key={resource.id}
+                            type="button"
+                            variant={
+                              formData.selectedResources.includes(resource.id)
+                                ? "default"
+                                : "outline"
+                            }
+                            size="sm"
+                            onClick={() => toggleResource(resource.id)}
+                            className="justify-start"
+                          >
+                            {resource.name}
+                          </Button>
+                        ))}
+                      </div>
+                    )}
                     {errors.resources && (
                       <p className="text-xs text-red-500 flex items-center gap-1">
                         <AlertCircle className="w-3 h-3" />
@@ -661,31 +852,114 @@ export function CreateAppointment({ onBack }: { onBack?: () => void }) {
                   </TabsContent>
 
                   <TabsContent value="questions" className="mt-0">
-                    <div className="text-center py-12 text-muted-foreground">
-                      <HelpCircle className="w-12 h-12 mx-auto mb-4 opacity-50" />
-                      <p>Custom questions can be added here</p>
-                      <Button variant="outline" className="mt-4 gap-2">
-                        <Plus className="w-4 h-4" />
-                        Add Question
-                      </Button>
+                    <div className="space-y-4">
+                      {formData.questions.length === 0 ? (
+                        <div className="text-center py-12 text-muted-foreground">
+                          <HelpCircle className="w-12 h-12 mx-auto mb-4 opacity-50" />
+                          <p>No questions added yet</p>
+                          <Button
+                            variant="outline"
+                            className="mt-4 gap-2"
+                            onClick={() => openQuestionModal()}
+                          >
+                            <Plus className="w-4 h-4" />
+                            Add Question
+                          </Button>
+                        </div>
+                      ) : (
+                        <>
+                          <div className="space-y-3">
+                            {formData.questions.map((question, index) => (
+                              <div
+                                key={question.id}
+                                className="border rounded-lg p-4 hover:border-primary/50 transition-colors"
+                              >
+                                <div className="flex items-start justify-between gap-3">
+                                  <div className="flex-1 space-y-1">
+                                    <div className="flex items-center gap-2">
+                                      <span className="text-sm font-medium">
+                                        {index + 1}. {question.question}
+                                      </span>
+                                      {question.required && (
+                                        <Badge variant="destructive" className="text-xs">
+                                          Required
+                                        </Badge>
+                                      )}
+                                    </div>
+                                    <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                                      <Badge variant="outline" className="text-xs">
+                                        {question.type}
+                                      </Badge>
+                                      {question.options && question.options.length > 0 && (
+                                        <span>• {question.options.length} options</span>
+                                      )}
+                                    </div>
+                                  </div>
+                                  <div className="flex items-center gap-1">
+                                    <Button
+                                      variant="ghost"
+                                      size="icon"
+                                      className="h-8 w-8"
+                                      onClick={() => openQuestionModal(question)}
+                                    >
+                                      <Settings className="w-4 h-4" />
+                                    </Button>
+                                    <Button
+                                      variant="ghost"
+                                      size="icon"
+                                      className="h-8 w-8 text-destructive hover:text-destructive"
+                                      onClick={() => deleteQuestion(question.id)}
+                                    >
+                                      <Trash2 className="w-4 h-4" />
+                                    </Button>
+                                  </div>
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                          <Button
+                            variant="outline"
+                            className="w-full gap-2"
+                            onClick={() => openQuestionModal()}
+                          >
+                            <Plus className="w-4 h-4" />
+                            Add Another Question
+                          </Button>
+                        </>
+                      )}
                     </div>
                   </TabsContent>
 
                   <TabsContent value="options" className="mt-0 space-y-4">
-                    <div className="space-y-2">
-                      <Label htmlFor="price">Price</Label>
-                      <div className="relative">
-                        <DollarSign className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-                        <Input
-                          id="price"
-                          type="number"
-                          placeholder="0.00"
-                          value={formData.price}
-                          onChange={(e) => setFormData({ ...formData, price: e.target.value })}
-                          className="pl-10"
-                        />
-                      </div>
+                    <div className="flex items-center gap-3">
+                      <input
+                        type="checkbox"
+                        id="isPaid"
+                        checked={formData.isPaid}
+                        onChange={(e) => setFormData({ ...formData, isPaid: e.target.checked })}
+                        className="w-4 h-4"
+                      />
+                      <Label htmlFor="isPaid" className="cursor-pointer font-normal">
+                        This is a paid appointment
+                      </Label>
                     </div>
+
+                    {formData.isPaid && (
+                      <div className="space-y-2">
+                        <Label htmlFor="price">Price</Label>
+                        <div className="relative">
+                          <DollarSign className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                          <Input
+                            id="price"
+                            type="number"
+                            placeholder="0.00"
+                            value={formData.price}
+                            onChange={(e) => setFormData({ ...formData, price: e.target.value })}
+                            className="pl-10"
+                          />
+                        </div>
+                      </div>
+                    )}
 
                     <div className="space-y-2">
                       <Label htmlFor="description">Description</Label>
@@ -699,10 +973,37 @@ export function CreateAppointment({ onBack }: { onBack?: () => void }) {
                     </div>
                   </TabsContent>
 
-                  <TabsContent value="misc" className="mt-0">
-                    <div className="text-center py-12 text-muted-foreground">
-                      <Settings className="w-12 h-12 mx-auto mb-4 opacity-50" />
-                      <p>Additional settings and configurations</p>
+                  <TabsContent value="misc" className="mt-0 space-y-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="introMessage">Introduction Page Message</Label>
+                      <Textarea
+                        id="introMessage"
+                        placeholder="Welcome message shown to visitors before booking..."
+                        value={formData.introMessage}
+                        onChange={(e) =>
+                          setFormData({ ...formData, introMessage: e.target.value })
+                        }
+                        rows={4}
+                      />
+                      <p className="text-xs text-muted-foreground">
+                        This message will be displayed on the booking page before the form
+                      </p>
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label htmlFor="confirmationMessage">Confirmation Page Message</Label>
+                      <Textarea
+                        id="confirmationMessage"
+                        placeholder="Thank you message shown after successful booking..."
+                        value={formData.confirmationMessage}
+                        onChange={(e) =>
+                          setFormData({ ...formData, confirmationMessage: e.target.value })
+                        }
+                        rows={4}
+                      />
+                      <p className="text-xs text-muted-foreground">
+                        This message will be displayed after the appointment is successfully booked
+                      </p>
                     </div>
                   </TabsContent>
                 </CardContent>
@@ -780,7 +1081,7 @@ export function CreateAppointment({ onBack }: { onBack?: () => void }) {
                       </div>
                       <div className="flex flex-wrap gap-1">
                         {formData.selectedUsers.map((userId) => {
-                          const user = dummyUsers.find((u) => u.id === userId);
+                          const user = users.find((u) => u.id === userId);
                           return (
                             <Badge key={userId} variant="secondary" className="text-xs">
                               {user?.name}
@@ -802,7 +1103,7 @@ export function CreateAppointment({ onBack }: { onBack?: () => void }) {
                       </div>
                       <div className="flex flex-wrap gap-1">
                         {formData.selectedResources.map((resourceId) => {
-                          const resource = dummyResources.find((r) => r.id === resourceId);
+                          const resource = resources.find((r) => r.id === resourceId);
                           return (
                             <Badge key={resourceId} variant="secondary" className="text-xs">
                               {resource?.name}
@@ -855,6 +1156,198 @@ export function CreateAppointment({ onBack }: { onBack?: () => void }) {
           </div>
         </div>
       </div>
+
+      {/* Question Modal */}
+      <QuestionModal
+        isOpen={isQuestionModalOpen}
+        onClose={() => {
+          setIsQuestionModalOpen(false);
+          setEditingQuestion(null);
+        }}
+        onSave={addQuestion}
+        editingQuestion={editingQuestion}
+      />
     </div>
+  );
+}
+
+// Question Modal Component
+function QuestionModal({
+  isOpen,
+  onClose,
+  onSave,
+  editingQuestion,
+}: {
+  isOpen: boolean;
+  onClose: () => void;
+  onSave: (question: Question) => void;
+  editingQuestion: Question | null;
+}) {
+  const [questionText, setQuestionText] = useState("");
+  const [questionType, setQuestionType] = useState<Question["type"]>("text");
+  const [isRequired, setIsRequired] = useState(false);
+  const [options, setOptions] = useState<string[]>([]);
+  const [newOption, setNewOption] = useState("");
+
+  const resetForm = () => {
+    setQuestionText("");
+    setQuestionType("text");
+    setIsRequired(false);
+    setOptions([]);
+    setNewOption("");
+  };
+
+ 
+  useEffect(() => {
+    if (editingQuestion) {
+      setQuestionText(editingQuestion.question);
+      setQuestionType(editingQuestion.type);
+      setIsRequired(editingQuestion.required);
+      setOptions(editingQuestion.options || []);
+    } else {
+      resetForm();
+    }
+  }, [editingQuestion, isOpen]);
+
+  const handleSave = () => {
+    if (!questionText.trim()) return;
+
+    const question: Question = {
+      id: editingQuestion?.id || Date.now().toString(),
+      question: questionText.trim(),
+      type: questionType,
+      required: isRequired,
+      options: ["radio", "checkbox", "select"].includes(questionType) ? options : undefined,
+    };
+
+    onSave(question);
+    resetForm();
+  };
+
+  const addOption = () => {
+    if (newOption.trim() && !options.includes(newOption.trim())) {
+      setOptions([...options, newOption.trim()]);
+      setNewOption("");
+    }
+  };
+
+  const removeOption = (index: number) => {
+    setOptions(options.filter((_, i) => i !== index));
+  };
+
+  const needsOptions = ["radio", "checkbox", "select"].includes(questionType);
+
+  return (
+    <Dialog open={isOpen} onOpenChange={onClose}>
+      <DialogContent className="sm:max-w-[600px] max-h-[100vh] overflow-y-auto">
+        <DialogHeader>
+          <DialogTitle className="flex items-center gap-2">
+            <HelpCircle className="w-5 h-5" />
+            {editingQuestion ? "Edit Question" : "Add Question"}
+          </DialogTitle>
+          <DialogDescription>
+            Create a custom question for visitors to answer when booking
+          </DialogDescription>
+        </DialogHeader>
+
+        <div className="space-y-4 py-4">
+          <div className="space-y-2">
+            <Label htmlFor="questionText">
+              Question <span className="text-red-500">*</span>
+            </Label>
+            <Input
+              id="questionText"
+              placeholder="e.g., What is your concern?"
+              value={questionText}
+              onChange={(e) => setQuestionText(e.target.value)}
+            />
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="questionType">Field Type</Label>
+            <select
+              id="questionType"
+              value={questionType}
+              onChange={(e) => setQuestionType(e.target.value as Question["type"])}
+              className="w-full px-3 py-2 border rounded-md bg-background"
+            >
+              <option value="text">Short Text</option>
+              <option value="textarea">Long Text</option>
+              <option value="radio">Radio Buttons</option>
+              <option value="checkbox">Checkboxes</option>
+              <option value="select">Dropdown</option>
+            </select>
+          </div>
+
+          {needsOptions && (
+            <div className="space-y-3">
+              <Label>Options</Label>
+              <div className="space-y-2">
+                {options.map((option, index) => (
+                  <div key={index} className="flex items-center gap-2">
+                    <Input value={option} disabled className="flex-1" />
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      onClick={() => removeOption(index)}
+                      className="text-destructive hover:text-destructive"
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </Button>
+                  </div>
+                ))}
+                <div className="flex gap-2">
+                  <Input
+                    placeholder="Add an option"
+                    value={newOption}
+                    onChange={(e) => setNewOption(e.target.value)}
+                    onKeyPress={(e) => {
+                      if (e.key === "Enter") {
+                        e.preventDefault();
+                        addOption();
+                      }
+                    }}
+                  />
+                  <Button type="button" variant="outline" onClick={addOption}>
+                    <Plus className="w-4 h-4" />
+                  </Button>
+                </div>
+              </div>
+              {options.length === 0 && (
+                <p className="text-xs text-red-500 flex items-center gap-1">
+                  <AlertCircle className="w-3 h-3" />
+                  Please add at least one option
+                </p>
+              )}
+            </div>
+          )}
+
+          <div className="flex items-center gap-3">
+            <input
+              type="checkbox"
+              id="isRequired"
+              checked={isRequired}
+              onChange={(e) => setIsRequired(e.target.checked)}
+              className="w-4 h-4"
+            />
+            <Label htmlFor="isRequired" className="cursor-pointer font-normal">
+              Make this question required
+            </Label>
+          </div>
+        </div>
+
+        <DialogFooter>
+          <Button variant="outline" onClick={onClose}>
+            Cancel
+          </Button>
+          <Button
+            onClick={handleSave}
+            disabled={!questionText.trim() || (needsOptions && options.length === 0)}
+          >
+            {editingQuestion ? "Update Question" : "Add Question"}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   );
 }
