@@ -80,7 +80,7 @@ export function ResetPasswordForm({
   // Show error if no token or email in URL
   if (!token || !email) {
     return (
-      <div className="flex flex-col gap-6">
+      <div className="flex flex-col gap-6 animate-in fade-in duration-500">
         <div className="flex flex-col items-center gap-1 text-center">
           <h1 className="text-2xl font-bold">Invalid Reset Link</h1>
           <p className="text-muted-foreground text-sm text-balance">
@@ -88,14 +88,14 @@ export function ResetPasswordForm({
           </p>
         </div>
 
-        <div className="flex items-center gap-2 p-3 text-sm text-red-600 bg-red-50 border border-red-200 rounded-md">
+        <div className="flex items-center gap-2 p-3 text-sm text-red-600 bg-red-50 dark:bg-red-950/20 border border-red-200 dark:border-red-900/30 rounded-md animate-in slide-in-from-top-2 duration-300">
           <AlertCircle className="size-4 shrink-0" />
           <span>Please request a new password reset link</span>
         </div>
 
         <Button
           onClick={() => router.push("/forgot-password")}
-          className="w-full"
+          className="w-full hover:shadow-md transition-all duration-200"
         >
           Request new reset link
         </Button>
@@ -111,7 +111,7 @@ export function ResetPasswordForm({
   }
 
   return (
-    <form onSubmit={handleSubmit} className="flex flex-col gap-6">
+    <form onSubmit={handleSubmit} className="flex flex-col gap-6 animate-in fade-in duration-500">
       <FieldGroup>
         <div className="flex flex-col items-center gap-1 text-center">
           <h1 className="text-2xl font-bold">Reset your password</h1>
@@ -122,7 +122,7 @@ export function ResetPasswordForm({
 
         {/* Error Message */}
         {error && (
-          <div className="flex items-center gap-2 p-3 text-sm text-red-600 bg-red-50 border border-red-200 rounded-md">
+          <div className="flex items-center gap-2 p-3 text-sm text-red-600 bg-red-50 dark:bg-red-950/20 border border-red-200 dark:border-red-900/30 rounded-md animate-in slide-in-from-top-2 duration-300">
             <AlertCircle className="size-4 shrink-0" />
             <span>{error}</span>
           </div>
@@ -130,7 +130,7 @@ export function ResetPasswordForm({
 
         {/* Success Message */}
         {success && (
-          <div className="flex items-start gap-2 p-3 text-sm bg-green-50 border border-green-200 rounded-md">
+          <div className="flex items-start gap-2 p-3 text-sm bg-green-50 dark:bg-green-950/20 border border-green-200 dark:border-green-900/30 rounded-md animate-in slide-in-from-top-2 duration-300">
             <CheckCircle className="size-4 shrink-0 mt-0.5 text-green-600" />
             <div className="flex-1">
               <p className="text-green-900 font-medium mb-1">
@@ -155,6 +155,7 @@ export function ResetPasswordForm({
               disabled={isPending || success}
               minLength={8}
               placeholder="Enter new password"
+              className="transition-all duration-200 focus:ring-2"
             />
             <button
               type="button"
@@ -186,6 +187,7 @@ export function ResetPasswordForm({
               disabled={isPending || success}
               minLength={8}
               placeholder="Confirm new password"
+              className="transition-all duration-200 focus:ring-2"
             />
             <button
               type="button"
@@ -206,7 +208,7 @@ export function ResetPasswordForm({
         <Field>
           <Button
             type="submit"
-            className="w-full"
+            className="w-full hover:shadow-md transition-all duration-200"
             disabled={isPending || success}
           >
             {isPending ? (

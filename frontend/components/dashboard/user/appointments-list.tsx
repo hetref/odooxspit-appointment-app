@@ -134,7 +134,7 @@ export default function UserAppointmentsPage() {
   )
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="min-h-screen bg-background animate-in fade-in duration-500">
       <div className=" mx-auto px-4 py-8 ">
         <div className="mb-8">
           <h1 className="text-4xl font-bold mb-2">My Appointments</h1>

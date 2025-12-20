@@ -438,9 +438,9 @@ export function CreateAppointment({ onBack }: { onBack?: () => void }) {
   }
 
   return (
-    <div className="min-h-[calc(100vh-4rem)] bg-background">
+    <div className="min-h-[calc(100vh-4rem)] pt-4 bg-background">
       {/* Top Bar */}
-      <div className="border-b bg-card">
+      <div className="border rounded-xl bg-card">
         <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 p-4  mx-auto">
           <div className="flex items-center gap-3">
             <div>
@@ -469,7 +469,7 @@ export function CreateAppointment({ onBack }: { onBack?: () => void }) {
       </div>
 
       {/* Main Content */}
-      <div className="max-w-[1800px] mx-auto p-4 sm:p-6 lg:p-8">
+      <div className=" mx-auto py-4 sm:py-6 lg:py-8">
         {/* Error Messages */}
         {dataError && (
           <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-lg flex items-center gap-2 text-red-800">

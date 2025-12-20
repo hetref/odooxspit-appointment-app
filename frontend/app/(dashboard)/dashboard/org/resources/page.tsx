@@ -4,7 +4,7 @@ import ResourcesManagement from "@/components/dashboard/organization/resources-m
 
 export default function ResourcesPage() {
   return (
-    <div className="px-4 xl:px-6 py-6">
+    <div className=" py-6">
       <ResourcesManagement />
     </div>
   );

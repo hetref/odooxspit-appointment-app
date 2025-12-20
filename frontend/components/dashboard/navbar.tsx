@@ -46,6 +46,7 @@ import { Skeleton } from "@/components/ui/skeleton"
 import { GetUserData, clearAuthData } from "@/lib/auth";
 import NotificationDropdown from "./notification-dropdown";
 import { useRouter } from "next/navigation";
+import { ModeToggle } from "../theme-toggle";
 
 // ---------------------- Types ----------------------
 type UserRole = "customer" | "organizer" | "admin";
@@ -59,17 +60,20 @@ const navigationByRole = {
   ],
   organizer: [
     { href: "/dashboard", label: "Dashboard", icon: Home },
-    { href: "/dashboard/org/all-appointments", label: "Appointments", icon: CalendarCheck },
+    { href: "/dashboard/org/appointments", label: "Appointments", icon: CalendarCheck },
+    { href: "/dashboard/org/all-appointments", label: "All Appointments", icon: CalendarCheck },
     { href: "/dashboard/org/resources", label: "Resources", icon: Briefcase },
-    { href: "/dashboard/org/users", label: "Users", icon: UserCog },
+    { href: "/dashboard/org/users", label: "Team", icon: Users },
     { href: "/dashboard/payments", label: "Payments", icon: CreditCard },
     { href: "/dashboard/org/settings", label: "Settings", icon: Settings },
   ],
   admin: [
-    { href: "/dashboard", label: "Dashboard", icon: Home },
+    { href: "/dashboard/admin", label: "Admin Dashboard", icon: Home },
+    { href: "/dashboard/admin/users", label: "User Management", icon: UserCog },
+    { href: "/dashboard/admin/reports", label: "Reports & Analytics", icon: BarChart3 },
     { href: "/dashboard/org/all-appointments", label: "Appointments", icon: CalendarCheck },
     { href: "/dashboard/org/resources", label: "Resources", icon: Briefcase },
-    { href: "/dashboard/org/users", label: "Users", icon: UserCog },
+    { href: "/dashboard/org/users", label: "Team", icon: Users },
     { href: "/dashboard/payments", label: "Payments", icon: CreditCard },
     { href: "/dashboard/org/settings", label: "Settings", icon: Settings },
   ],
@@ -82,12 +86,21 @@ const getMobileNav = (role: UserRole) => {
   if (role === "admin") {
     return [
       {
-        name: "Main",
-        items: items.slice(0, 5).map(item => ({ label: item.label, href: item.href })),
+        name: "Administration",
+        items: items.slice(0, 3).map(item => ({ label: item.label, href: item.href })),
       },
       {
-        name: "Management",
-        items: items.slice(5).map(item => ({ label: item.label, href: item.href })),
+        name: "Organization",
+        items: items.slice(3).map(item => ({ label: item.label, href: item.href })),
+      },
+    ];
+  }
+
+  if (role === "organizer") {
+    return [
+      {
+        name: "Organization",
+        items: items.map(item => ({ label: item.label, href: item.href })),
       },
     ];
   }
@@ -285,6 +298,7 @@ export default function Navbar() {
       try {
         const data = await GetUserData();
         if (data) {
+          console.log("Navbar - User data:", data); // Debug log
           setUserData({
             name: data.name,
             email: data.email,
@@ -306,7 +320,7 @@ export default function Navbar() {
   }, [router]);
 
   return (
-    <header className="sticky top-0 z-50 border-border w-full flex-col items-center justify-between gap-3 border-b bg-background px-4 xl:px-6">
+    <header className="sticky top-0 z-50 border-border w-full flex-col items-center justify-between gap-3 border-b bg-background ">
       <div className="flex w-full items-center justify-between gap-4 h-16">
         <div className="flex flex-1 items-center justify-start gap-2">
           <Link
@@ -334,7 +348,7 @@ export default function Navbar() {
             orientation="vertical"
             className="hidden data-[orientation=vertical]:h-5 md:flex"
           />
-
+            <ModeToggle/>
           <div className="flex items-center gap-1.5">
             <NotificationDropdown />
           </div>

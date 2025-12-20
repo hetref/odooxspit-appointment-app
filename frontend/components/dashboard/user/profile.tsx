@@ -88,11 +88,17 @@ export default function UserProfile() {
       }
 
       const fullName = `${formData.firstName} ${formData.lastName}`.trim();
-      const response = await userApi.updateProfile(token, {
+      const updateData = {
         name: fullName,
         email: formData.email,
         phone: formData.phone,
-      });
+      };
+      
+      console.log("Sending update data:", updateData);
+      
+      const response = await userApi.updateProfile(token, updateData);
+
+      console.log("Update response:", response);
 
       if (response.success) {
         setSuccessMessage(response.message || "Profile updated successfully!");
@@ -172,7 +178,7 @@ export default function UserProfile() {
   };
 
   return (
-    <div className="p-4 md:p-6 space-y-6">
+    <div className="p-4 md:p-6 space-y-6 animate-in fade-in duration-500">
       {/* Header */}
       <div>
         <h1 className="text-3xl font-bold tracking-tight">Profile Settings</h1>
@@ -181,29 +187,8 @@ export default function UserProfile() {
         </p>
       </div>
 
-      {/* Error/Success Messages */}
-      {error && (
-        <div className="p-4 bg-red-50 border border-red-200 rounded-lg flex items-center gap-2 text-red-800">
-          <AlertCircle className="w-5 h-5" />
-          <span>{error}</span>
-        </div>
-      )}
-
-      {successMessage && (
-        <div className="p-4 bg-green-50 border border-green-200 rounded-lg flex items-center gap-2 text-green-800">
-          <AlertCircle className="w-5 h-5" />
-          <span>{successMessage}</span>
-        </div>
-      )}
-
-      {isLoading ? (
-        <div className="flex items-center justify-center py-12">
-          <Loader2 className="w-8 h-8 animate-spin text-muted-foreground" />
-        </div>
-      ) : (
-        <>
-          {/* Profile Card */}
-          <Card>
+      {/* Profile Card */}
+      <Card className="hover:shadow-md transition-all duration-200">
         <CardContent className="pt-6">
           <div className="flex flex-col md:flex-row items-center md:items-start gap-6">
             <Avatar className="w-20 h-20">
@@ -223,7 +208,7 @@ export default function UserProfile() {
 
       {/* Tabs */}
       <Tabs defaultValue="personal" className="space-y-6">
-        <TabsList className="grid w-full grid-cols-3">
+        <TabsList className="grid w-full grid-cols-3 max-w-lg">
           <TabsTrigger value="personal">Personal</TabsTrigger>
           <TabsTrigger value="notifications">Notifications</TabsTrigger>
           <TabsTrigger value="password">Password</TabsTrigger>
@@ -458,8 +443,6 @@ export default function UserProfile() {
           </Card>
         </TabsContent>
       </Tabs>
-        </>
-      )}
     </div>
   );
 }

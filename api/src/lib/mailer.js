@@ -105,7 +105,9 @@ async function sendVerificationEmail(email, token) {
  * Send password reset email
  */
 async function sendPasswordResetEmail(email, token) {
-  const resetUrl = `${BASE_URL}/auth/reset-password?token=${token}&email=${encodeURIComponent(email)}`;
+  // Use frontend URL for password reset (not backend)
+  const FRONTEND_URL = process.env.FRONTEND_URL || 'http://localhost:3000';
+  const resetUrl = `${FRONTEND_URL}/reset-password?token=${token}&email=${encodeURIComponent(email)}`;
 
   const html = `
     <!DOCTYPE html>

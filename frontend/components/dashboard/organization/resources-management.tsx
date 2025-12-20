@@ -219,7 +219,7 @@ export default function ResourcesManagement() {
     }
 
     return (
-        <div className="space-y-6">
+        <div className="space-y-6 animate-in fade-in duration-500">
             {/* Header */}
             <div className="flex items-center justify-between">
                 <div>
@@ -350,7 +350,7 @@ function ResourceCard({
     };
 
     return (
-        <div className="border rounded-lg p-6 hover:shadow-lg transition-shadow bg-white dark:bg-gray-800">
+        <div className="border rounded-lg p-6 hover:shadow-lg transition-shadow bg-card">
             <div className="flex items-start justify-between mb-4">
                 <div className="flex items-center gap-3">
                     <div className="p-2 bg-purple-100 dark:bg-purple-900/20 rounded-lg">

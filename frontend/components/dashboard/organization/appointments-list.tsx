@@ -421,7 +421,7 @@ export default function OrganizationAppointmentsList() {
 
   if (isLoading) {
     return (
-      <div className="p-8 space-y-6">
+      <div className="py-8 space-y-6">
         <Skeleton className="h-12 w-64" />
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
           {[1, 2, 3, 4].map((i) => (
@@ -434,7 +434,7 @@ export default function OrganizationAppointmentsList() {
   }
 
   return (
-    <div className="p-4 md:p-8 space-y-6 mx-auto">
+    <div className="p-4 md:p-8 space-y-6 mx-auto animate-in fade-in duration-500">
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
@@ -455,7 +455,7 @@ export default function OrganizationAppointmentsList() {
 
       {/* Stats Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6">
-        <Card className="border-l-4 border-l-blue-500">
+        <Card className="border-l-4 border-l-blue-500 hover:shadow-md transition-all duration-200 hover:scale-[1.02]">
           <CardHeader className="pb-3">
             <CardDescription>Total Appointments</CardDescription>
             <CardTitle className="text-3xl font-bold">{stats.total}</CardTitle>
@@ -468,7 +468,7 @@ export default function OrganizationAppointmentsList() {
           </CardContent>
         </Card>
 
-        <Card className="border-l-4 border-l-yellow-500">
+        <Card className="border-l-4 border-l-yellow-500 hover:shadow-md transition-all duration-200 hover:scale-[1.02]">
           <CardHeader className="pb-3">
             <CardDescription>Pending Confirmation</CardDescription>
             <CardTitle className="text-3xl font-bold">{stats.pending}</CardTitle>
@@ -481,7 +481,7 @@ export default function OrganizationAppointmentsList() {
           </CardContent>
         </Card>
 
-        <Card className="border-l-4 border-l-green-500">
+        <Card className="border-l-4 border-l-green-500 hover:shadow-md transition-all duration-200 hover:scale-[1.02]">
           <CardHeader className="pb-3">
             <CardDescription>Confirmed</CardDescription>
             <CardTitle className="text-3xl font-bold">{stats.confirmed}</CardTitle>
@@ -494,7 +494,7 @@ export default function OrganizationAppointmentsList() {
           </CardContent>
         </Card>
 
-        <Card className="border-l-4 border-l-purple-500">
+        <Card className="border-l-4 border-l-purple-500 hover:shadow-md transition-all duration-200 hover:scale-[1.02]">
           <CardHeader className="pb-3">
             <CardDescription>Total Revenue</CardDescription>
             <CardTitle className="text-3xl font-bold">${stats.revenue}</CardTitle>
@@ -509,7 +509,7 @@ export default function OrganizationAppointmentsList() {
       </div>
 
       {/* Filters */}
-      <Card>
+      <Card className="hover:shadow-md transition-shadow duration-200">
         <CardHeader>
           <div className="flex flex-col gap-4">
             <div className="relative flex-1">
