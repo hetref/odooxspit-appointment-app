@@ -35,12 +35,22 @@ class ApiClient {
       const data = await response.json();
 
       if (!response.ok) {
-        throw new Error(data.message || "Something went wrong");
+        const error: any = new Error(data.message || "Something went wrong");
+        error.status = response.status;
+        error.isUnauthorized = response.status === 401 || response.status === 403;
+        throw error;
       }
 
       return data;
     } catch (error: any) {
-      throw new Error(error.message || "Network error");
+      if (error.status) {
+        // Re-throw HTTP errors with status
+        throw error;
+      }
+      // Network or parsing error
+      const networkError: any = new Error(error.message || "Network error");
+      networkError.isNetworkError = true;
+      throw networkError;
     }
   }
 

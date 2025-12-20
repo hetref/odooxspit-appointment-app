@@ -43,6 +43,8 @@ export const authStorage = {
   // Access Token
   setAccessToken: (token: string) => {
     if (typeof window !== "undefined") {
+      // Store in all three storage mechanisms for maximum compatibility
+      sessionStorage.setItem(ACCESS_TOKEN_KEY, token);
       localStorage.setItem(ACCESS_TOKEN_KEY, token);
       setCookie(ACCESS_TOKEN_KEY, token, 1); // 1 day for access token
     }
@@ -50,13 +52,21 @@ export const authStorage = {
 
   getAccessToken: (): string | null => {
     if (typeof window !== "undefined") {
-      return localStorage.getItem(ACCESS_TOKEN_KEY) || getCookie(ACCESS_TOKEN_KEY);
+      // Check sessionStorage first (current tab session)
+      // Then localStorage (persistent across tabs)
+      // Finally cookies (for SSR/middleware access)
+      return (
+        sessionStorage.getItem(ACCESS_TOKEN_KEY) ||
+        localStorage.getItem(ACCESS_TOKEN_KEY) ||
+        getCookie(ACCESS_TOKEN_KEY)
+      );
     }
     return null;
   },
 
   removeAccessToken: () => {
     if (typeof window !== "undefined") {
+      // sessionStorage.removeItem(ACCESS_TOKEN_KEY);
       localStorage.removeItem(ACCESS_TOKEN_KEY);
       deleteCookie(ACCESS_TOKEN_KEY);
     }
@@ -65,6 +75,8 @@ export const authStorage = {
   // Refresh Token
   setRefreshToken: (token: string) => {
     if (typeof window !== "undefined") {
+      // Store in all three storage mechanisms
+      sessionStorage.setItem(REFRESH_TOKEN_KEY, token);
       localStorage.setItem(REFRESH_TOKEN_KEY, token);
       setCookie(REFRESH_TOKEN_KEY, token, 30); // 30 days for refresh token
     }
@@ -72,13 +84,19 @@ export const authStorage = {
 
   getRefreshToken: (): string | null => {
     if (typeof window !== "undefined") {
-      return localStorage.getItem(REFRESH_TOKEN_KEY) || getCookie(REFRESH_TOKEN_KEY);
+      // Check all storage locations
+      return (
+        sessionStorage.getItem(REFRESH_TOKEN_KEY) ||
+        localStorage.getItem(REFRESH_TOKEN_KEY) ||
+        getCookie(REFRESH_TOKEN_KEY)
+      );
     }
     return null;
   },
 
   removeRefreshToken: () => {
     if (typeof window !== "undefined") {
+      sessionStorage.removeItem(REFRESH_TOKEN_KEY);
       localStorage.removeItem(REFRESH_TOKEN_KEY);
       deleteCookie(REFRESH_TOKEN_KEY);
     }
@@ -88,6 +106,8 @@ export const authStorage = {
   setUser: (user: User) => {
     if (typeof window !== "undefined") {
       const userString = JSON.stringify(user);
+      // Store in all three storage mechanisms
+      sessionStorage.setItem(USER_KEY, userString);
       localStorage.setItem(USER_KEY, userString);
       setCookie(USER_KEY, userString, 30);
     }
@@ -95,7 +115,11 @@ export const authStorage = {
 
   getUser: (): User | null => {
     if (typeof window !== "undefined") {
-      const userString = localStorage.getItem(USER_KEY) || getCookie(USER_KEY);
+      // Check all storage locations
+      const userString =
+        sessionStorage.getItem(USER_KEY) ||
+        localStorage.getItem(USER_KEY) ||
+        getCookie(USER_KEY);
       return userString ? JSON.parse(userString) : null;
     }
     return null;
@@ -103,6 +127,7 @@ export const authStorage = {
 
   removeUser: () => {
     if (typeof window !== "undefined") {
+      sessionStorage.removeItem(USER_KEY);
       localStorage.removeItem(USER_KEY);
       deleteCookie(USER_KEY);
     }
@@ -137,7 +162,7 @@ export const clearAuthData = () => {
   authStorage.clearAll();
 };
 
- export const GetUserData = async () => {
-    await new Promise(resolve => setTimeout(resolve, 2000));
-    return { name: "John Doe", email: "john.doe@example.com", role: "organizer" }; 
-  }
+export const GetUserData = async () => {
+  await new Promise(resolve => setTimeout(resolve, 2000));
+  return { name: "John Doe", email: "john.doe@example.com", role: "organizer" };
+}

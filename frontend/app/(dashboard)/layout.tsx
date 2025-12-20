@@ -6,7 +6,6 @@ import { Loader2 } from "lucide-react"
 import Navbar from "@/components/dashboard/navbar";
 import { authStorage, clearAuthData } from "@/lib/auth";
 import { userApi } from "@/lib/api";
-import { hasRouteAccess, getRedirectUrl } from "@/lib/routes";
 import { User } from "@/lib/types";
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
@@ -37,27 +36,39 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
           // Update cached user data
           authStorage.setUser(userData);
 
-          // Check if user has access to this route
-          if (!hasRouteAccess(pathname, userData.role, true)) {
-            // Redirect to appropriate dashboard based on role
-            const redirectUrl = getRedirectUrl(userData.role);
-            router.push(redirectUrl);
-            return;
-          }
-
           setIsChecking(false);
         } else {
-          // Invalid token, clear auth and redirect to login
+          // Invalid response, but check if we have cached user
+          const cachedUser = authStorage.getUser();
+          if (cachedUser) {
+            setUser(cachedUser);
+            setIsChecking(false);
+          } else {
+            // No cached data, redirect to login
+            const loginUrl = `/login?redirect=${encodeURIComponent(pathname)}`;
+            router.push(loginUrl);
+          }
+        }
+      } catch (error: any) {
+        console.error("Auth check error:", error);
+
+        // Only clear auth data if it's an unauthorized error (401/403)
+        if (error.isUnauthorized) {
           clearAuthData();
           const loginUrl = `/login?redirect=${encodeURIComponent(pathname)}`;
           router.push(loginUrl);
+        } else {
+          // Network error or temporary issue - use cached data
+          const cachedUser = authStorage.getUser();
+          if (cachedUser) {
+            setUser(cachedUser);
+            setIsChecking(false);
+          } else {
+            // No cached data available
+            const loginUrl = `/login?redirect=${encodeURIComponent(pathname)}`;
+            router.push(loginUrl);
+          }
         }
-      } catch (error) {
-        console.error("Auth check error:", error);
-        // Error fetching user, clear auth and redirect
-        clearAuthData();
-        const loginUrl = `/login?redirect=${encodeURIComponent(pathname)}`;
-        router.push(loginUrl);
       }
     };
 
@@ -69,7 +80,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       <div className="flex min-h-screen items-center justify-center bg-zinc-50 dark:bg-black">
         <div className="flex flex-col items-center gap-4">
           <Loader2 className="size-8 animate-spin" />
-          <p className="text-muted-foreground">Verifying access...</p>
+          <p className="text-muted-foreground">Verifying authentication...</p>
         </div>
       </div>
     );

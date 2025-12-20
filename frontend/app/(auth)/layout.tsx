@@ -34,10 +34,29 @@ export default function AuthLayout({
           const redirectUrl = getRedirectUrl(response.data.user.role);
           router.push(redirectUrl);
           return;
+        } else {
+          // Invalid response, check cached data
+          const cachedUser = authStorage.getUser();
+          if (cachedUser) {
+            // Have cached user, redirect them
+            const redirectUrl = getRedirectUrl(cachedUser.role);
+            router.push(redirectUrl);
+            return;
+          }
         }
-      } catch (error) {
-        // Token invalid, clear auth data
-        authStorage.clearAll();
+      } catch (error: any) {
+        // Only clear auth data on explicit unauthorized error
+        if (error.isUnauthorized) {
+          authStorage.clearAll();
+        } else {
+          // Network error - check cached data
+          const cachedUser = authStorage.getUser();
+          if (cachedUser) {
+            const redirectUrl = getRedirectUrl(cachedUser.role);
+            router.push(redirectUrl);
+            return;
+          }
+        }
       }
 
       setIsChecking(false);
