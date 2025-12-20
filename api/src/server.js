@@ -12,6 +12,7 @@ const mediaRoutes = require('./routes/media');
 const organizationRoutes = require('./routes/organization');
 const appointmentRoutes = require('./routes/appointment');
 const bookingRoutes = require('./routes/booking');
+const notificationRoutes = require('./routes/notification');
 
 const app = express();
 const PORT = process.env.PORT || 4000;
@@ -76,6 +77,7 @@ app.use('/media', mediaRoutes);
 app.use('/organization', organizationRoutes);
 app.use('/', appointmentRoutes); // Public routes
 app.use('/', bookingRoutes); // Booking routes (public + protected)
+app.use('/notifications', notificationRoutes);
 
 // 404 handler
 app.use((req, res) => {

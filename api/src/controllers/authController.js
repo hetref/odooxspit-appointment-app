@@ -26,6 +26,7 @@ const {
   generateDeviceName,
   getClientIp,
 } = require("../utils/deviceParser");
+const { createNotification } = require("../lib/notificationHelper");
 
 const COOKIE_OPTIONS = {
   httpOnly: true,
@@ -216,6 +217,15 @@ async function verifyEmail(req, res) {
 
     // Send welcome email
     await sendWelcomeEmail(email, verificationToken.user.name);
+
+    // Create notification for email verification
+    await createNotification({
+      userId: verificationToken.userId,
+      type: 'EMAIL_VERIFIED',
+      title: 'Email Verified',
+      message: 'Your email has been successfully verified. Welcome!',
+      actionUrl: '/dashboard',
+    });
 
     res.status(200).json({
       success: true,
@@ -566,6 +576,15 @@ async function resetPassword(req, res) {
 
     // Revoke all refresh tokens (force logout everywhere)
     await revokeAllUserRefreshTokens(resetToken.userId);
+
+    // Create notification for password change
+    await createNotification({
+      userId: resetToken.userId,
+      type: 'PASSWORD_CHANGED',
+      title: 'Password Changed',
+      message: 'Your password has been successfully changed. If this wasn\'t you, please contact support immediately.',
+      actionUrl: '/dashboard/profile',
+    });
 
     res.status(200).json({
       success: true,
