@@ -1,6 +1,6 @@
 import { User, Organization } from "./types";
 
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:4000";
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "https://jeanene-unexposed-ingrid.ngrok-free.dev";
 
 export interface ApiResponse<T = any> {
   success: boolean;

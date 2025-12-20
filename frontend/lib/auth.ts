@@ -151,7 +151,82 @@ export const clearAuthData = () => {
   authStorage.clearAll();
 };
 
-export const GetUserData = async () => {
-  await new Promise(resolve => setTimeout(resolve, 2000));
-  return { name: "John Doe", email: "john.doe@example.com", role: "organizer" };
+// Import api functions
+import { userApi } from "./api";
+
+// Helper function to get user data from API
+export const GetUserData = async (): Promise<{
+  name: string;
+  email: string;
+  role: "customer" | "organizer" | "admin";
+} | null> => {
+  try {
+    // First try to get from cookies
+    const cachedUser = authStorage.getUser();
+    const accessToken = authStorage.getAccessToken();
+
+    if (!accessToken) {
+      console.error("No access token found");
+      return null;
+    }
+
+    // Fetch fresh data from API
+    const response = await userApi.getMe(accessToken);
+    
+    if (response.data && response.data.user) {
+      const user = response.data.user;
+      
+      // Update cached user data
+      authStorage.setUser(user);
+      
+      // Map role: USER -> customer, ORGANIZATION -> organizer
+      // Check if user is admin of an organization
+      const isAdmin = user.adminOrganization != null;
+      const isOrgMember = user.role === "ORGANIZATION" || user.organizationId != null;
+      
+      let mappedRole: "customer" | "organizer" | "admin" = "customer";
+      if (isAdmin) {
+        mappedRole = "admin";
+      } else if (isOrgMember) {
+        mappedRole = "organizer";
+      }
+      
+      return {
+        name: user.name,
+        email: user.email,
+        role: mappedRole,
+      };
+    }
+    
+    return null;
+  } catch (error: any) {
+    console.error("Failed to fetch user data:", error);
+    
+    // If unauthorized, clear auth data
+    if (error.isUnauthorized) {
+      clearAuthData();
+    }
+    
+    // Fallback to cached data if available
+    const cachedUser = authStorage.getUser();
+    if (cachedUser) {
+      const isAdmin = cachedUser.adminOrganization != null;
+      const isOrgMember = cachedUser.role === "ORGANIZATION" || cachedUser.organizationId != null;
+      
+      let mappedRole: "customer" | "organizer" | "admin" = "customer";
+      if (isAdmin) {
+        mappedRole = "admin";
+      } else if (isOrgMember) {
+        mappedRole = "organizer";
+      }
+      
+      return {
+        name: cachedUser.name,
+        email: cachedUser.email,
+        role: mappedRole,
+      };
+    }
+    
+    return null;
+  }
 }

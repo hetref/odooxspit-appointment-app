@@ -42,8 +42,9 @@ import {
 } from "@/components/ui/dropdown-menu"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Skeleton } from "@/components/ui/skeleton"
-import { GetUserData } from "@/lib/auth";
+import { GetUserData, clearAuthData } from "@/lib/auth";
 import NotificationDropdown from "./notification-dropdown";
+import { useRouter } from "next/navigation";
 
 // ---------------------- Types ----------------------
 type UserRole = "customer" | "organizer" | "admin";
@@ -178,17 +179,17 @@ function UserProfileDropdown({
   userName,
   userEmail,
   userRole,
+  onLogout,
 }: {
   align: "start" | "center" | "end"
   sizeClass: string
   userName: string
   userEmail: string
   userRole: string
+  onLogout: () => void
 }) {
   const handleLogout = () => {
-    console.log("Logging out...");
-    alert("Logged out successfully!");
-    window.location.href = "/login";
+    onLogout();
   };
 
   const initials = userName
@@ -263,35 +264,50 @@ function UserProfileDropdown({
 // ---------------------- Navbar ----------------------
 export default function Navbar() {
   const pathname = usePathname();
+  const router = useRouter();
   const [userData, setUserData] = React.useState<{
     name: string;
     email: string;
     role: UserRole;
   } | null>(null);
+  const [isLoading, setIsLoading] = React.useState(true);
 
-  const isLoading = userData === null;
   const userRole = userData?.role || "customer";
   const userName = userData?.name || "";
   const userEmail = userData?.email || "";
   const navigationLinks = userData ? navigationByRole[userData.role] : [];
   const mobileNavStructure = userData ? getMobileNav(userData.role) : [{ name: "Main", items: [] }];
 
+  const handleLogout = React.useCallback(() => {
+    clearAuthData();
+    router.push("/login");
+  }, [router]);
+
   React.useEffect(() => {
     const fetchUserData = async () => {
+      setIsLoading(true);
       try {
         const data = await GetUserData();
-        setUserData({
-          name: data.name,
-          email: data.email,
-          role: data.role as UserRole
-        });
+        if (data) {
+          setUserData({
+            name: data.name,
+            email: data.email,
+            role: data.role as UserRole
+          });
+        } else {
+          // No user data, redirect to login
+          router.push("/login");
+        }
       } catch (error) {
         console.error("Failed to fetch user data:", error);
+        router.push("/login");
+      } finally {
+        setIsLoading(false);
       }
     };
 
     fetchUserData();
-  }, []);
+  }, [router]);
 
   return (
     <header className="sticky top-0 z-50 border-border w-full flex-col items-center justify-between gap-3 border-b bg-background px-4 xl:px-6">
@@ -341,6 +357,7 @@ export default function Navbar() {
               userName={userName}
               userEmail={userEmail}
               userRole={userRole}
+              onLogout={handleLogout}
             />
           )}
         </div>
