@@ -135,4 +135,7 @@ export const userApi = {
 
   deleteAccount: (token: string, password: string) =>
     api.delete("/user/delete", token),
+
+  logout: (refreshToken: string) =>
+    api.post("/auth/logout", { refreshToken }),
 };
