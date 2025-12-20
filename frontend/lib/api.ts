@@ -1,3 +1,5 @@
+import { User, Organization } from "./types";
+
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:4000";
 
 export interface ApiResponse<T = any> {
@@ -7,6 +9,44 @@ export interface ApiResponse<T = any> {
   user?: any;
   accessToken?: string;
   refreshToken?: string;
+}
+
+// Specific response types for better type safety
+export interface UserMeResponse {
+  user: User;
+}
+
+export interface LoginResponse {
+  accessToken: string;
+  refreshToken: string;
+  user: User;
+}
+
+export interface ConvertToOrganizationResponse {
+  user: User;
+  organization: Organization;
+}
+
+export interface ResourcesResponse {
+  resources: Array<{
+    id: string;
+    name: string;
+    capacity: number;
+    organizationId: string;
+    createdAt: string;
+    updatedAt: string;
+  }>;
+}
+
+export interface ResourceResponse {
+  resource: {
+    id: string;
+    name: string;
+    capacity: number;
+    organizationId: string;
+    createdAt: string;
+    updatedAt: string;
+  };
 }
 
 class ApiClient {
@@ -154,8 +194,8 @@ export const authApi = {
   register: (data: { name: string; email: string; password: string; role?: string }) =>
     api.post("/auth/register", data),
 
-  login: (data: { email: string; password: string }) =>
-    api.post("/auth/login", data),
+  login: (data: { email: string; password: string }): Promise<ApiResponse<LoginResponse>> =>
+    api.post<LoginResponse>("/auth/login", data),
 
   verifyEmail: (token: string, email: string) =>
     api.get(`/auth/verify-email?token=${token}&email=${email}`),
@@ -172,7 +212,8 @@ export const authApi = {
 
 // User API functions
 export const userApi = {
-  getMe: (token: string) => api.get("/user/me", token),
+  getMe: (token: string): Promise<ApiResponse<UserMeResponse>> =>
+    api.get<UserMeResponse>("/user/me", token),
 
   updateProfile: (token: string, data: any) =>
     api.put("/user/update", data, token),
@@ -182,4 +223,20 @@ export const userApi = {
 
   logout: (refreshToken: string) =>
     api.post("/auth/logout", { refreshToken }),
+
+  convertToOrganization: (token: string, business: any): Promise<ApiResponse<ConvertToOrganizationResponse>> =>
+    api.post<ConvertToOrganizationResponse>("/user/convert-to-organization", { business }, token),
+};
+
+// Organization API functions
+export const organizationApi = {
+  // Resource Management
+  createResource: (token: string, data: { name: string; capacity: number }): Promise<ApiResponse<ResourceResponse>> =>
+    api.post<ResourceResponse>("/organization/resources", data, token),
+
+  getResources: (token: string): Promise<ApiResponse<ResourcesResponse>> =>
+    api.get<ResourcesResponse>("/organization/resources", token),
+
+  deleteResource: (token: string, resourceId: string) =>
+    api.delete(`/organization/resources/${resourceId}`, token),
 };
