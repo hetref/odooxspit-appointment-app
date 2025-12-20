@@ -6,18 +6,27 @@ export interface User {
   emailVerified: boolean;
   createdAt: string;
   updatedAt?: string;
-  business?: Business;
+  isMember?: boolean;
+  organizationId?: string;
+  organization?: Organization;
+  adminOrganization?: Organization;
 }
 
-export interface Business {
+export interface Organization {
   id: string;
   name: string;
   location: string;
-  workingHours?: string;
+  businessHours?: BusinessHour[];
   description?: string;
-  userId: string;
+  adminId: string;
   createdAt: string;
   updatedAt?: string;
+}
+
+export interface BusinessHour {
+  day: string;
+  from: string;
+  to: string;
 }
 
 export interface AuthResponse {

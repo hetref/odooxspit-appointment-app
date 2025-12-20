@@ -34,15 +34,15 @@ export function LoginForm({
 
       if (
         response.success &&
-        response.user &&
-        response.accessToken &&
-        response.refreshToken
+        response.data?.user &&
+        response.data?.accessToken &&
+        response.data?.refreshToken
       ) {
         // Save auth data to localStorage
         saveAuthData({
-          accessToken: response.accessToken,
-          refreshToken: response.refreshToken,
-          user: response.user,
+          accessToken: response.data.accessToken,
+          refreshToken: response.data.refreshToken,
+          user: response.data.user,
         });
 
         // Redirect to home page

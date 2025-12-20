@@ -258,7 +258,8 @@ async function deleteAccount(req, res) {
  */
 async function convertToOrganization(req, res) {
   try {
-    const { organization } = req.body;
+    const { business } = req.body;
+    const organization = business;
     const userId = req.user.id;
 
     // Fetch current user
