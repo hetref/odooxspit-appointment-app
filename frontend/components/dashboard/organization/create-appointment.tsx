@@ -36,7 +36,7 @@ import {
   HelpCircle,
   X,
 } from "lucide-react";
-import { organizationApi } from "@/lib/api";
+import { organizationApi, mediaApi } from "@/lib/api";
 import { authStorage } from "@/lib/auth";
 
 interface TimeSlot {
