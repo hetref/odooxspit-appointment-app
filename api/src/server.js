@@ -15,6 +15,7 @@ const bookingRoutes = require('./routes/booking');
 const publicRoutes = require('./routes/public');
 const notificationRoutes = require('./routes/notification');
 const reminderRoutes = require('./routes/reminder');
+const paymentRoutes = require('./routes/payments');
 
 const app = express();
 const PORT = process.env.PORT || 4000;
@@ -30,7 +31,12 @@ app.use(cors({
 }));
 
 // Body parsing middleware
-app.use(express.json());
+// Attach rawBody for webhook signature verification
+app.use(express.json({
+  verify: (req, res, buf) => {
+    req.rawBody = buf.toString('utf8');
+  },
+}));
 app.use(express.urlencoded({ extended: true }));
 
 // Cookie parser
@@ -80,6 +86,7 @@ app.use('/organization', organizationRoutes);
 app.use('/public', publicRoutes); // Public organization discovery routes
 app.use('/', appointmentRoutes); // Public routes
 app.use('/', bookingRoutes); // Booking routes (public + protected)
+app.use('/', paymentRoutes); // Payments and webhooks
 app.use('/notifications', notificationRoutes);
 app.use('/reminders', reminderRoutes); // Reminder routes for n8n scheduler
 

@@ -19,7 +19,6 @@ async function getProfile(req, res) {
         id: true,
         email: true,
         name: true,
-        phone: true,
         role: true,
         isMember: true,
         emailVerified: true,
@@ -34,6 +33,14 @@ async function getProfile(req, res) {
             description: true,
             createdAt: true,
             updatedAt: true,
+            // Expose only non-sensitive Razorpay info
+            razorpayConnection: {
+              select: {
+                id: true,
+                merchantKeyId: true,
+                createdAt: true,
+              },
+            },
           },
         },
         adminOrganization: {
@@ -45,6 +52,14 @@ async function getProfile(req, res) {
             description: true,
             createdAt: true,
             updatedAt: true,
+            // Expose only non-sensitive Razorpay info
+            razorpayConnection: {
+              select: {
+                id: true,
+                merchantKeyId: true,
+                createdAt: true,
+              },
+            },
           },
         },
       },
@@ -56,6 +71,9 @@ async function getProfile(req, res) {
       organizationName: user.isMember
         ? user.organization?.name
         : user.adminOrganization?.name,
+      razorpayConnected: Boolean(
+        user.adminOrganization?.razorpayConnection || user.organization?.razorpayConnection
+      ),
     };
 
     res.status(200).json({
@@ -85,23 +103,14 @@ async function getMe(req, res) {
  */
 async function updateProfile(req, res) {
   try {
-    const { name, email, phone, password, currentPassword } = req.body;
+    const { name, email, password, currentPassword } = req.body;
     const userId = req.user.id;
-
-    console.log('Update profile request body:', req.body);
-    console.log('Phone value:', phone, 'Type:', typeof phone);
 
     const updateData = {};
 
     // Update name
     if (name !== undefined) {
       updateData.name = name;
-    }
-
-    // Update phone
-    if (phone !== undefined) {
-      updateData.phone = phone || null; // Allow empty string to clear phone
-      console.log('Setting phone in updateData:', updateData.phone);
     }
 
     // Update email
@@ -182,8 +191,6 @@ async function updateProfile(req, res) {
       });
     }
 
-    console.log('Final updateData before prisma update:', updateData);
-
     // Update user
     const updatedUser = await prisma.user.update({
       where: { id: userId },
@@ -192,14 +199,11 @@ async function updateProfile(req, res) {
         id: true,
         email: true,
         name: true,
-        phone: true,
         emailVerified: true,
         createdAt: true,
         updatedAt: true,
       },
     });
-
-    console.log('Updated user from database:', updatedUser);
 
     let message = 'Profile updated successfully.';
     if (password) {

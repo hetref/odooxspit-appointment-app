@@ -81,18 +81,19 @@ model PasswordResetToken {
 }
 
 model Organization {
-  id            String        @id @default(cuid())
-  name          String
-  location      String
-  description   String?
-  businessHours Json
-  adminId       String        @unique
-  createdAt     DateTime      @default(now())
-  updatedAt     DateTime      @updatedAt
-  appointments  Appointment[]
-  admin         User          @relation("OrganizationAdmin", fields: [adminId], references: [id], onDelete: Cascade)
-  resources     Resource[]
-  members       User[]        @relation("OrganizationMembers")
+  id                 String                          @id @default(cuid())
+  name               String
+  location           String
+  description        String?
+  businessHours      Json
+  adminId            String                          @unique
+  createdAt          DateTime                        @default(now())
+  updatedAt          DateTime                        @updatedAt
+  appointments       Appointment[]
+  admin              User                            @relation("OrganizationAdmin", fields: [adminId], references: [id], onDelete: Cascade)
+  resources          Resource[]
+  members            User[]                          @relation("OrganizationMembers")
+  razorpayConnection OrganizationRazorpayConnection?
 
   @@index([adminId])
 }
@@ -246,4 +247,21 @@ model Booking {
   @@index([assignedUserId])
   @@index([startTime])
   @@index([bookingStatus])
+}
+
+model OrganizationRazorpayConnection {
+  id                 String   @id @default(cuid())
+  organizationId     String   @unique
+  razorpayMerchantId String
+  accessToken        String
+  refreshToken       String
+  tokenExpiresAt     DateTime
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+  // Optional public key (safe to expose to frontend for Checkout)
+  merchantKeyId      String?
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  @@index([razorpayMerchantId])
 }

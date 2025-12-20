@@ -9,6 +9,8 @@ const {
   resetPassword,
   resendVerificationEmail,
 } = require('../controllers/authController');
+const { connectRazorpay, razorpayCallback } = require('../controllers/razorpayController');
+const requireAuth = require('../middlewares/requireAuth');
 
 const router = express.Router();
 
@@ -35,5 +37,12 @@ router.post('/request-password-reset', requestPasswordReset);
 
 // Reset password
 router.post('/reset-password', resetPassword);
+
+// Razorpay OAuth connect (organization admin)
+// Authentication is handled inside connectRazorpay to support token via query string
+router.get('/razorpay/connect', connectRazorpay);
+
+// Razorpay OAuth callback
+router.get('/razorpay/callback', razorpayCallback);
 
 module.exports = router;

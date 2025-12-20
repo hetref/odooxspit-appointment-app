@@ -1,6 +1,4 @@
 export interface User {
-  phone: string;
-  isAdmin: boolean;
   id: string;
   email: string;
   name: string;
@@ -13,6 +11,8 @@ export interface User {
   organizationName?: string;
   organization?: Organization;
   adminOrganization?: Organization;
+  // Computed on backend: whether this user's organization has a Razorpay connection
+  razorpayConnected?: boolean;
 }
 
 export interface Organization {

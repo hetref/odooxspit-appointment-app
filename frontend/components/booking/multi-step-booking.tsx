@@ -33,7 +33,7 @@ import {
     CreditCard,
     Check,
 } from "lucide-react";
-import { bookingApi } from "@/lib/api";
+import { bookingApi, paymentsApi } from "@/lib/api";
 import { authStorage } from "@/lib/auth";
 import { format } from "date-fns";
 
@@ -157,6 +157,19 @@ export function MultiStepBooking({ appointment, onSuccess, onCancel }: MultiStep
         }
     };
 
+    const loadRazorpayScript = () => {
+        return new Promise<void>((resolve, reject) => {
+            if (typeof window === "undefined") return reject(new Error("Window is not available"));
+            if ((window as any).Razorpay) return resolve();
+
+            const script = document.createElement("script");
+            script.src = "https://checkout.razorpay.com/v1/checkout.js";
+            script.onload = () => resolve();
+            script.onerror = () => reject(new Error("Failed to load Razorpay SDK"));
+            document.body.appendChild(script);
+        });
+    };
+
     const handleBooking = async () => {
         try {
             setIsBooking(true);
@@ -188,11 +201,64 @@ export function MultiStepBooking({ appointment, onSuccess, onCancel }: MultiStep
 
             const response = await bookingApi.createBooking(token, appointment.id, bookingData);
 
-            if (response.success) {
-                setCurrentStep(totalSteps); // Move to final confirmation step
-                onSuccess?.();
-            } else {
+            if (!response.success || !response.data) {
                 setError(response.message || "Failed to create booking");
+                return;
+            }
+
+            const createdBooking: any = response.data;
+
+            // If appointment is paid, create Razorpay order and open Checkout
+            if (appointment.isPaid) {
+                try {
+                    await loadRazorpayScript();
+
+                    const orderResponse = await paymentsApi.createOrder(token, createdBooking.id);
+
+                    if (!orderResponse.success || !orderResponse.data) {
+                        setError(orderResponse.message || "Failed to initiate payment");
+                        return;
+                    }
+
+                    const { orderId, amount, currency, merchantKeyId } = orderResponse.data as any;
+
+                    if (!merchantKeyId) {
+                        setError("Payment configuration is incomplete for this organization");
+                        return;
+                    }
+
+                    const options: any = {
+                        key: merchantKeyId,
+                        amount,
+                        currency,
+                        order_id: orderId,
+                        name: appointment.organization.name,
+                        description: appointment.title,
+                        notes: {
+                            bookingId: createdBooking.id,
+                        },
+                        handler: function () {
+                            // Final success UI – webhook will update booking/payment status
+                            setCurrentStep(totalSteps);
+                            onSuccess?.();
+                        },
+                        modal: {
+                            ondismiss: function () {
+                                setError("Payment was cancelled. You can retry from your bookings page.");
+                            },
+                        },
+                    };
+
+                    const razorpay = new (window as any).Razorpay(options);
+                    razorpay.open();
+                } catch (err: any) {
+                    console.error("Error during payment:", err);
+                    setError(err.message || "Payment initialization failed");
+                }
+            } else {
+                // Free appointment – just show confirmation
+                setCurrentStep(totalSteps);
+                onSuccess?.();
             }
         } catch (err: any) {
             console.error("Error creating booking:", err);
