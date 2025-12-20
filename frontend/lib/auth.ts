@@ -11,12 +11,16 @@ const ACCESS_TOKEN_KEY = "accessToken";
 const REFRESH_TOKEN_KEY = "refreshToken";
 const USER_KEY = "user";
 
-// Cookie helper functions
-export const setCookie = (name: string, value: string, days: number = 30) => {
+// 15 minutes in days = 15 / (24 * 60) = 0.010416667
+const ACCESS_TOKEN_EXPIRY_MINUTES = 15;
+const ACCESS_TOKEN_EXPIRY_DAYS = ACCESS_TOKEN_EXPIRY_MINUTES / (24 * 60);
+
+// Cookie helper functions - ONLY cookies, no localStorage or sessionStorage
+export const setCookie = (name: string, value: string, minutes: number = 15) => {
   if (typeof window !== "undefined") {
     const expires = new Date();
-    expires.setTime(expires.getTime() + days * 24 * 60 * 60 * 1000);
-    document.cookie = `${name}=${value};expires=${expires.toUTCString()};path=/;SameSite=Strict`;
+    expires.setTime(expires.getTime() + minutes * 60 * 1000);
+    document.cookie = `${name}=${encodeURIComponent(value)};expires=${expires.toUTCString()};path=/;SameSite=Strict`;
   }
 };
 
@@ -27,7 +31,9 @@ export const getCookie = (name: string): string | null => {
     for (let i = 0; i < ca.length; i++) {
       let c = ca[i];
       while (c.charAt(0) === ' ') c = c.substring(1, c.length);
-      if (c.indexOf(nameEQ) === 0) return c.substring(nameEQ.length, c.length);
+      if (c.indexOf(nameEQ) === 0) {
+        return decodeURIComponent(c.substring(nameEQ.length, c.length));
+      }
     }
   }
   return null;
@@ -35,91 +41,62 @@ export const getCookie = (name: string): string | null => {
 
 export const deleteCookie = (name: string) => {
   if (typeof window !== "undefined") {
-    document.cookie = `${name}=;expires=Thu, 01 Jan 1970 00:00:00 UTC;path=/;`;
+    document.cookie = `${name}=;expires=Thu, 01 Jan 1970 00:00:00 UTC;path=/;SameSite=Strict`;
   }
 };
 
 export const authStorage = {
-  // Access Token
+  // Access Token - ONLY cookies with 15-minute expiry
   setAccessToken: (token: string) => {
     if (typeof window !== "undefined") {
-      // Store in all three storage mechanisms for maximum compatibility
-      sessionStorage.setItem(ACCESS_TOKEN_KEY, token);
-      localStorage.setItem(ACCESS_TOKEN_KEY, token);
-      setCookie(ACCESS_TOKEN_KEY, token, 1); // 1 day for access token
+      setCookie(ACCESS_TOKEN_KEY, token, ACCESS_TOKEN_EXPIRY_MINUTES);
     }
   },
 
   getAccessToken: (): string | null => {
     if (typeof window !== "undefined") {
-      // Check sessionStorage first (current tab session)
-      // Then localStorage (persistent across tabs)
-      // Finally cookies (for SSR/middleware access)
-      return (
-        sessionStorage.getItem(ACCESS_TOKEN_KEY) ||
-        localStorage.getItem(ACCESS_TOKEN_KEY) ||
-        getCookie(ACCESS_TOKEN_KEY)
-      );
+      return getCookie(ACCESS_TOKEN_KEY);
     }
     return null;
   },
 
   removeAccessToken: () => {
     if (typeof window !== "undefined") {
-      // sessionStorage.removeItem(ACCESS_TOKEN_KEY);
-      localStorage.removeItem(ACCESS_TOKEN_KEY);
       deleteCookie(ACCESS_TOKEN_KEY);
     }
   },
 
-  // Refresh Token
+  // Refresh Token - ONLY cookies with 15-minute expiry
   setRefreshToken: (token: string) => {
     if (typeof window !== "undefined") {
-      // Store in all three storage mechanisms
-      sessionStorage.setItem(REFRESH_TOKEN_KEY, token);
-      localStorage.setItem(REFRESH_TOKEN_KEY, token);
-      setCookie(REFRESH_TOKEN_KEY, token, 30); // 30 days for refresh token
+      setCookie(REFRESH_TOKEN_KEY, token, ACCESS_TOKEN_EXPIRY_MINUTES);
     }
   },
 
   getRefreshToken: (): string | null => {
     if (typeof window !== "undefined") {
-      // Check all storage locations
-      return (
-        sessionStorage.getItem(REFRESH_TOKEN_KEY) ||
-        localStorage.getItem(REFRESH_TOKEN_KEY) ||
-        getCookie(REFRESH_TOKEN_KEY)
-      );
+      return getCookie(REFRESH_TOKEN_KEY);
     }
     return null;
   },
 
   removeRefreshToken: () => {
     if (typeof window !== "undefined") {
-      sessionStorage.removeItem(REFRESH_TOKEN_KEY);
-      localStorage.removeItem(REFRESH_TOKEN_KEY);
       deleteCookie(REFRESH_TOKEN_KEY);
     }
   },
 
-  // User Data
+  // User Data - ONLY cookies with 15-minute expiry
   setUser: (user: User) => {
     if (typeof window !== "undefined") {
       const userString = JSON.stringify(user);
-      // Store in all three storage mechanisms
-      sessionStorage.setItem(USER_KEY, userString);
-      localStorage.setItem(USER_KEY, userString);
-      setCookie(USER_KEY, userString, 30);
+      setCookie(USER_KEY, userString, ACCESS_TOKEN_EXPIRY_MINUTES);
     }
   },
 
   getUser: (): User | null => {
     if (typeof window !== "undefined") {
-      // Check all storage locations
-      const userString =
-        sessionStorage.getItem(USER_KEY) ||
-        localStorage.getItem(USER_KEY) ||
-        getCookie(USER_KEY);
+      const userString = getCookie(USER_KEY);
       return userString ? JSON.parse(userString) : null;
     }
     return null;
@@ -127,8 +104,6 @@ export const authStorage = {
 
   removeUser: () => {
     if (typeof window !== "undefined") {
-      sessionStorage.removeItem(USER_KEY);
-      localStorage.removeItem(USER_KEY);
       deleteCookie(USER_KEY);
     }
   },
