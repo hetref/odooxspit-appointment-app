@@ -173,9 +173,8 @@ export default function Home() {
               {/* Email Verification Status */}
               <div className="flex items-center gap-3">
                 <div
-                  className={`size-5 rounded-full flex items-center justify-center ${
-                    user.emailVerified ? "bg-green-500" : "bg-yellow-500"
-                  }`}
+                  className={`size-5 rounded-full flex items-center justify-center ${user.emailVerified ? "bg-green-500" : "bg-yellow-500"
+                    }`}
                 >
                   <svg
                     className="size-3 text-white"
