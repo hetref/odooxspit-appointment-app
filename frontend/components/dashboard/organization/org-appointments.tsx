@@ -11,36 +11,23 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
-import { Calendar, Clock, Share2, Pencil, Copy, Check } from "lucide-react";
-import { useState } from "react";
+import { Calendar, Clock, Share2, Pencil, Copy, Check, AlertCircle, Loader2 } from "lucide-react";
+import { useState, useEffect } from "react";
+import { organizationApi } from "@/lib/api";
+import { authStorage } from "@/lib/auth";
+import Link from "next/link";
 
-// Mock data for appointments
-const appointments = [
-  {
-    id: 1,
-    name: "Dental care",
-    duration: "30 Min Duration",
-    resources: ["A1", "A2"],
-    meetingCount: "1 Meeting Upcoming",
-    status: "published" as const,
-  },
-  {
-    id: 2,
-    name: "Tennis court",
-    duration: "60 Min Duration",
-    resources: ["R1", "R2"],
-    meetingCount: "1 Meeting Upcoming",
-    status: "published" as const,
-  },
-  {
-    id: 3,
-    name: "Interviews",
-    duration: "45 Min Duration",
-    resources: ["A1"],
-    meetingCount: "1 Meeting Upcoming",
-    status: "unpublished" as const,
-  },
-];
+interface Appointment {
+  id: string;
+  title: string;
+  durationMinutes: number;
+  bookType: "USER" | "RESOURCE";
+  isPaid: boolean;
+  price?: number;
+  allowedUsers?: Array<{ id: string; name: string; email: string }>;
+  allowedResources?: Array<{ id: string; name: string; capacity: number }>;
+  createdAt: string;
+}
 
 function ShareModal({ appointmentName }: { appointmentName: string }) {
   const [copied, setCopied] = useState(false);
@@ -84,12 +71,54 @@ function ShareModal({ appointmentName }: { appointmentName: string }) {
 }
 
 export default function OrgAppointments() {
+  const [appointments, setAppointments] = useState<Appointment[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState("");
+  const [searchQuery, setSearchQuery] = useState("");
+
+  useEffect(() => {
+    fetchAppointments();
+  }, []);
+
+  const fetchAppointments = async () => {
+    try {
+      const token = authStorage.getAccessToken();
+      if (!token) {
+        setError("Authentication required");
+        setIsLoading(false);
+        return;
+      }
+
+      const response = await organizationApi.getAppointments(token);
+      if (response.success && response.data) {
+        const data = response.data as { appointments: Appointment[] };
+        setAppointments(data.appointments || []);
+      }
+      setIsLoading(false);
+    } catch (err: any) {
+      console.error("Error fetching appointments:", err);
+      setError(err.message || "Failed to load appointments");
+      setIsLoading(false);
+    }
+  };
+
+  const filteredAppointments = appointments.filter((apt) =>
+    apt.title.toLowerCase().includes(searchQuery.toLowerCase())
+  );
+
+  const formatDuration = (minutes: number) => {
+    if (minutes < 60) return `${minutes} Min`;
+    const hours = Math.floor(minutes / 60);
+    const mins = minutes % 60;
+    return mins > 0 ? `${hours}h ${mins}m` : `${hours}h`;
+  };
+
   return (
-    <div className="min-h-screen bg-muted/30">
+    <div className="min-h-screen ">
       {/* Header */}
 
       {/* Main Content */}
-      <main className="mx-auto max-w-7xl px-4 py-6 sm:px-6 sm:py-8">
+      <main className="px-4 py-6 sm:px-6 sm:py-8">
         {/* Page Title Section */}
         <div className="mb-6 flex flex-col gap-4 sm:mb-8 sm:flex-row sm:items-start sm:justify-between">
           <div>
@@ -100,9 +129,11 @@ export default function OrgAppointments() {
               Manage and configure your appointment types
             </p>
           </div>
+          <Link href={'/dashboard/org/appointments/create'} >
           <Button className="bg-foreground text-background hover:bg-foreground/90 w-full sm:w-auto">
             New Appointment
           </Button>
+          </Link>
         </div>
 
         {/* Search Bar */}
@@ -111,12 +142,34 @@ export default function OrgAppointments() {
             type="search"
             placeholder="Search appointments"
             className="w-full bg-background sm:max-w-md"
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
           />
         </div>
 
-        {/* Appointments List */}
-        <div className="space-y-3">
-          {appointments.map((appointment) => (
+        {/* Error Message */}
+        {error && (
+          <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-lg flex items-center gap-2 text-red-800">
+            <AlertCircle className="w-5 h-5" />
+            <span>{error}</span>
+          </div>
+        )}
+
+        {/* Loading State */}
+        {isLoading ? (
+          <div className="flex items-center justify-center py-12">
+            <Loader2 className="w-8 h-8 animate-spin text-muted-foreground" />
+          </div>
+        ) : filteredAppointments.length === 0 ? (
+          <div className="text-center py-12">
+            <p className="text-muted-foreground">
+              {searchQuery ? "No appointments found matching your search" : "No appointments yet. Create your first appointment!"}
+            </p>
+          </div>
+        ) : (
+          /* Appointments List */
+          <div className="space-y-3">
+            {filteredAppointments.map((appointment) => (
             <div
               key={appointment.id}
               className="flex flex-col gap-4 rounded-lg border bg-card px-4 py-4 shadow-sm transition-shadow hover:shadow-md sm:flex-row sm:items-center sm:gap-6 sm:px-6 sm:py-5"
@@ -125,30 +178,40 @@ export default function OrgAppointments() {
               <div className="flex-1">
                 <div className="mb-2 flex flex-col gap-2 sm:flex-row sm:items-center sm:gap-4">
                   <h3 className="text-base font-semibold text-card-foreground">
-                    {appointment.name}
+                    {appointment.title}
                   </h3>
                   <span className="flex items-center gap-1.5 text-sm text-muted-foreground">
                     <Clock className="h-3.5 w-3.5" />
-                    {appointment.duration}
+                    {formatDuration(appointment.durationMinutes)}
                   </span>
+                  {appointment.isPaid && appointment.price && (
+                    <Badge variant="secondary" className="w-fit">
+                      ${appointment.price}
+                    </Badge>
+                  )}
                 </div>
                 <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:gap-4">
-                  {/* Resources */}
-                  <div className="flex items-center gap-1.5">
-                    {appointment.resources.map((resource) => (
+                  {/* Resources/Users */}
+                  <div className="flex items-center gap-1.5 flex-wrap">
+                    {appointment.bookType === "RESOURCE" && appointment.allowedResources?.map((resource) => (
                       <Badge
-                        key={resource}
+                        key={resource.id}
                         variant="secondary"
                         className="h-6 px-2.5 text-xs font-medium"
                       >
-                        {resource}
+                        {resource.name}
+                      </Badge>
+                    ))}
+                    {appointment.bookType === "USER" && appointment.allowedUsers?.map((user) => (
+                      <Badge
+                        key={user.id}
+                        variant="secondary"
+                        className="h-6 px-2.5 text-xs font-medium"
+                      >
+                        {user.name}
                       </Badge>
                     ))}
                   </div>
-                  {/* Meeting Count */}
-                  <span className="text-sm text-muted-foreground">
-                    {appointment.meetingCount}
-                  </span>
                 </div>
               </div>
 
@@ -156,18 +219,10 @@ export default function OrgAppointments() {
               <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:gap-3">
                 {/* Status Badge */}
                 <Badge
-                  variant={
-                    appointment.status === "published" ? "default" : "secondary"
-                  }
-                  className={
-                    appointment.status === "published"
-                      ? "bg-emerald-100 text-emerald-700 hover:bg-emerald-100 dark:bg-emerald-950 dark:text-emerald-400 w-fit"
-                      : "bg-muted text-muted-foreground hover:bg-muted w-fit"
-                  }
+                  variant="default"
+                  className="bg-emerald-100 text-emerald-700 hover:bg-emerald-100 dark:bg-emerald-950 dark:text-emerald-400 w-fit"
                 >
-                  {appointment.status === "published"
-                    ? "Published"
-                    : "Unpublished"}
+                  Published
                 </Badge>
 
                 {/* Action Buttons */}
@@ -183,7 +238,7 @@ export default function OrgAppointments() {
                         Share
                       </Button>
                     </DialogTrigger>
-                    <ShareModal appointmentName={appointment.name} />
+                    <ShareModal appointmentName={appointment.title} />
                   </Dialog>
                   <Button
                     variant="outline"
@@ -198,6 +253,7 @@ export default function OrgAppointments() {
             </div>
           ))}
         </div>
+        )}
       </main>
     </div>
   );

@@ -40,10 +40,10 @@ import {
   DropdownMenuLabel,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Skeleton } from "@/components/ui/skeleton";
-import { clearAuthData, GetUserData } from "@/lib/auth";
+} from "@/components/ui/dropdown-menu"
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
+import { Skeleton } from "@/components/ui/skeleton"
+import { GetUserData, clearAuthData } from "@/lib/auth";
 import NotificationDropdown from "./notification-dropdown";
 import { useRouter } from "next/navigation";
 
@@ -60,7 +60,7 @@ const navigationByRole = {
   organizer: [
     { href: "/dashboard", label: "Dashboard", icon: Home },
     { href: "/dashboard/org/all-appointments", label: "Appointments", icon: CalendarCheck },
-    { href: "/dashboard/org/services", label: "Services", icon: Briefcase },
+    { href: "/dashboard/org/resources", label: "Resources", icon: Briefcase },
     { href: "/dashboard/org/users", label: "Users", icon: UserCog },
     { href: "/dashboard/payments", label: "Payments", icon: CreditCard },
     { href: "/dashboard/org/settings", label: "Settings", icon: Settings },
@@ -68,7 +68,7 @@ const navigationByRole = {
   admin: [
     { href: "/dashboard", label: "Dashboard", icon: Home },
     { href: "/dashboard/org/all-appointments", label: "Appointments", icon: CalendarCheck },
-    { href: "/dashboard/org/services", label: "Services", icon: Briefcase },
+    { href: "/dashboard/org/resources", label: "Resources", icon: Briefcase },
     { href: "/dashboard/org/users", label: "Users", icon: UserCog },
     { href: "/dashboard/payments", label: "Payments", icon: CreditCard },
     { href: "/dashboard/org/settings", label: "Settings", icon: Settings },
@@ -180,8 +180,6 @@ function UserProfileDropdown({
   userName,
   userEmail,
   userRole,
-  isMember,
-  organizationName,
   onLogout,
 }: {
   align: "start" | "center" | "end"
@@ -190,63 +188,9 @@ function UserProfileDropdown({
   userEmail: string
   userRole: string
   onLogout: () => void
-  isMember?: boolean;
-  organizationName?: string;
 }) {
-  const [isLeavingOrg, setIsLeavingOrg] = React.useState(false);
-
   const handleLogout = () => {
     onLogout();
-  };
-
-  const handleLeaveOrganization = async () => {
-    if (!organizationName) return;
-
-    const confirmed = confirm(
-      `Are you sure you want to leave "${organizationName}"? You will lose access to all organization resources and appointments.`
-    );
-
-    if (!confirmed) return;
-
-    try {
-      setIsLeavingOrg(true);
-
-      // Import auth and API functions
-      const { authStorage } = await import("@/lib/auth");
-      const { organizationApi } = await import("@/lib/api");
-
-      const accessToken = authStorage.getAccessToken();
-      if (!accessToken) {
-        alert("Not authenticated");
-        return;
-      }
-
-      const response = await organizationApi.leaveOrganization(accessToken);
-
-      if (response.success) {
-        // Update cookies - user is now a regular USER
-        const currentUser = authStorage.getUser();
-        if (currentUser) {
-          authStorage.setUser({
-            ...currentUser,
-            role: "USER",
-            isMember: false,
-            organizationId: null,
-            organizationName: undefined,
-          });
-        }
-
-        alert("You have successfully left the organization");
-        window.location.href = "/dashboard";
-      } else {
-        alert(response.message || "Failed to leave organization");
-      }
-    } catch (error: any) {
-      console.error("Leave organization error:", error);
-      alert(error.message || "Failed to leave organization");
-    } finally {
-      setIsLeavingOrg(false);
-    }
   };
 
   const initials = userName
@@ -296,31 +240,10 @@ function UserProfileDropdown({
             </Link>
           </DropdownMenuItem>
 
-          <DropdownMenuItem asChild className="flex items-center cursor-pointer">
-            <Link href="/dashboard/settings">
-              <Settings className="mr-2 h-4 w-4" />
-              <span>Settings</span>
-            </Link>
-          </DropdownMenuItem>
+       
         </DropdownMenuGroup>
 
         <DropdownMenuSeparator />
-
-        {isMember && organizationName && (
-          <>
-            <DropdownMenuItem
-              className="flex items-center cursor-pointer text-orange-600 focus:text-orange-600"
-              onClick={handleLeaveOrganization}
-              disabled={isLeavingOrg}
-            >
-              <LogOut className="mr-2 h-4 w-4" />
-              <span>
-                {isLeavingOrg ? "Leaving..." : "Leave Organization"}
-              </span>
-            </DropdownMenuItem>
-            <DropdownMenuSeparator />
-          </>
-        )}
 
         <DropdownMenuItem
           className="flex items-center cursor-pointer text-red-600 focus:text-red-600"
@@ -342,20 +265,14 @@ export default function Navbar() {
     name: string;
     email: string;
     role: UserRole;
-    isMember?: boolean;
-    organizationName?: string;
   } | null>(null);
   const [isLoading, setIsLoading] = React.useState(true);
 
   const userRole = userData?.role || "customer";
   const userName = userData?.name || "";
   const userEmail = userData?.email || "";
-  const isMember = userData?.isMember || false;
-  const organizationName = userData?.organizationName;
-  const navigationLinks = userData ? navigationByRole[userData.role] || [] : [];
-  const mobileNavStructure = userData
-    ? getMobileNav(userData.role)
-    : [{ name: "Main", items: [] }];
+  const navigationLinks = userData ? navigationByRole[userData.role] : [];
+  const mobileNavStructure = userData ? getMobileNav(userData.role) : [{ name: "Main", items: [] }];
 
   const handleLogout = React.useCallback(() => {
     clearAuthData();
@@ -366,49 +283,21 @@ export default function Navbar() {
     const fetchUserData = async () => {
       setIsLoading(true);
       try {
-        // Import authStorage for getting user from cookies
-        const { authStorage } = await import("@/lib/auth");
-        const cookieUser = authStorage.getUser();
-
-        console.log("Navbar - Cookie User Data:", cookieUser); // Debug log
-
-        if (cookieUser) {
-          const roleLowercase = cookieUser.role.toLowerCase();
-          const userData = {
-            name: cookieUser.name,
-            email: cookieUser.email,
-            role: (roleLowercase === "organization"
-              ? "organizer"
-              : roleLowercase) as UserRole,
-            isMember: cookieUser.isMember,
-            organizationName: cookieUser.organizationName,
-          };
-
-          console.log("Navbar - Processed User Data:", userData); // Debug log
-          console.log("Navbar - isMember:", userData.isMember, "orgName:", userData.organizationName); // Debug log
-
-          setUserData(userData);
+        const data = await GetUserData();
+        if (data) {
+          setUserData({
+            name: data.name,
+            email: data.email,
+            role: data.role as UserRole
+          });
         } else {
-          // Fallback to GetUserData if no cookie data
-          const data = await GetUserData();
-          if (data) {
-            setUserData({
-              name: data.name,
-              email: data.email,
-              role: data.role as UserRole,
-            });
-          }
+          // No user data, redirect to login
+          router.push("/login");
         }
       } catch (error) {
         console.error("Failed to fetch user data:", error);
-        // Set a default user on error to prevent undefined issues
-        setUserData({
-          name: "Guest User",
-          email: "guest@example.com",
-          role: "customer",
-        });
+        router.push("/login");
       } finally {
-        // Always set loading to false after fetch completes
         setIsLoading(false);
       }
     };
@@ -417,7 +306,7 @@ export default function Navbar() {
   }, [router]);
 
   return (
-    <header className="sticky top-0 z-50 border-border w-full flex-col items-center justify-between gap-3 border-b bg-background px-4 xl:px-6">
+    <header className="sticky top-0 z-50 border-border w-full flex-col items-center justify-between gap-3 border-b bg-background ">
       <div className="flex w-full items-center justify-between gap-4 h-16">
         <div className="flex flex-1 items-center justify-start gap-2">
           <Link
@@ -464,8 +353,6 @@ export default function Navbar() {
               userName={userName}
               userEmail={userEmail}
               userRole={userRole}
-              isMember={isMember}
-              organizationName={organizationName}
               onLogout={handleLogout}
             />
           )}

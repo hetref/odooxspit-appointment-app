@@ -15,8 +15,9 @@ import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Switch } from "@/components/ui/switch";
 import { Separator } from "@/components/ui/separator";
-import { User, Mail, Phone, Save } from "lucide-react";
+import { User, Mail, Phone, Save, AlertCircle, Loader2 } from "lucide-react";
 import { authStorage } from "@/lib/auth";
+import { userApi } from "@/lib/api";
 
 export default function UserProfile() {
   const [formData, setFormData] = useState({
@@ -26,18 +27,42 @@ export default function UserProfile() {
     phone: "",
   });
 
+  const [isLoading, setIsLoading] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
+  const [error, setError] = useState("");
+  const [successMessage, setSuccessMessage] = useState("");
+
   useEffect(() => {
-    const userData = authStorage.getUser();
-    if (userData) {
-      const nameParts = userData.name.split(" ");
-      setFormData({
-        firstName: nameParts[0] || "",
-        lastName: nameParts.slice(1).join(" ") || "",
-        email: userData.email,
-        phone: "",
-      });
-    }
+    fetchUserData();
   }, []);
+
+  const fetchUserData = async () => {
+    try {
+      setIsLoading(true);
+      const token = authStorage.getAccessToken();
+      if (!token) {
+        setError("Authentication required");
+        return;
+      }
+
+      const response = await userApi.getMe(token);
+      if (response.success && response.data?.user) {
+        const user = response.data.user;
+        const nameParts = (user.name || "").split(" ");
+        setFormData({
+          firstName: nameParts[0] || "",
+          lastName: nameParts.slice(1).join(" ") || "",
+          email: user.email,
+          phone: user.phone || "",
+        });
+      }
+    } catch (err: any) {
+      console.error("Error fetching user data:", err);
+      setError(err.message || "Failed to load profile");
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   const [notificationSettings, setNotificationSettings] = useState({
     emailNotifications: true,
@@ -50,16 +75,102 @@ export default function UserProfile() {
     confirmPassword: "",
   });
 
-  const handleSaveProfile = () => {
-    console.log("Saving profile:", formData);
+  const handleSaveProfile = async () => {
+    setError("");
+    setSuccessMessage("");
+    setIsSaving(true);
+
+    try {
+      const token = authStorage.getAccessToken();
+      if (!token) {
+        setError("Authentication required");
+        return;
+      }
+
+      const fullName = `${formData.firstName} ${formData.lastName}`.trim();
+      const updateData = {
+        name: fullName,
+        email: formData.email,
+        phone: formData.phone,
+      };
+      
+      console.log("Sending update data:", updateData);
+      
+      const response = await userApi.updateProfile(token, updateData);
+
+      console.log("Update response:", response);
+
+      if (response.success) {
+        setSuccessMessage(response.message || "Profile updated successfully!");
+        // Update local storage
+        const userData = authStorage.getUser();
+        if (userData) {
+          authStorage.setUser({ ...userData, name: fullName, email: formData.email });
+        }
+      } else {
+        setError(response.message || "Failed to update profile");
+      }
+    } catch (err: any) {
+      console.error("Error updating profile:", err);
+      setError(err.message || "An error occurred while updating profile");
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   const handleSaveNotifications = () => {
     console.log("Saving notifications:", notificationSettings);
   };
 
-  const handleChangePassword = () => {
-    console.log("Changing password");
+  const handleChangePassword = async () => {
+    setError("");
+    setSuccessMessage("");
+
+    if (passwordData.newPassword !== passwordData.confirmPassword) {
+      setError("New passwords do not match");
+      return;
+    }
+
+    if (passwordData.newPassword.length < 8) {
+      setError("Password must be at least 8 characters long");
+      return;
+    }
+
+    setIsSaving(true);
+
+    try {
+      const token = authStorage.getAccessToken();
+      if (!token) {
+        setError("Authentication required");
+        return;
+      }
+
+      const response = await userApi.updateProfile(token, {
+        password: passwordData.newPassword,
+        currentPassword: passwordData.currentPassword,
+      });
+
+      if (response.success) {
+        setSuccessMessage("Password updated successfully! Please log in again.");
+        setPasswordData({
+          currentPassword: "",
+          newPassword: "",
+          confirmPassword: "",
+        });
+        // Logout after password change
+        setTimeout(() => {
+          authStorage.clearAll();
+          window.location.href = "/login";
+        }, 2000);
+      } else {
+        setError(response.message || "Failed to update password");
+      }
+    } catch (err: any) {
+      console.error("Error updating password:", err);
+      setError(err.message || "An error occurred while updating password");
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   const getInitials = (firstName: string, lastName: string) => {
@@ -76,8 +187,29 @@ export default function UserProfile() {
         </p>
       </div>
 
-      {/* Profile Card */}
-      <Card>
+      {/* Error/Success Messages */}
+      {error && (
+        <div className="p-4 bg-red-50 border border-red-200 rounded-lg flex items-center gap-2 text-red-800">
+          <AlertCircle className="w-5 h-5" />
+          <span>{error}</span>
+        </div>
+      )}
+
+      {successMessage && (
+        <div className="p-4 bg-green-50 border border-green-200 rounded-lg flex items-center gap-2 text-green-800">
+          <AlertCircle className="w-5 h-5" />
+          <span>{successMessage}</span>
+        </div>
+      )}
+
+      {isLoading ? (
+        <div className="flex items-center justify-center py-12">
+          <Loader2 className="w-8 h-8 animate-spin text-muted-foreground" />
+        </div>
+      ) : (
+        <>
+          {/* Profile Card */}
+          <Card>
         <CardContent className="pt-6">
           <div className="flex flex-col md:flex-row items-center md:items-start gap-6">
             <Avatar className="w-20 h-20">
@@ -97,7 +229,7 @@ export default function UserProfile() {
 
       {/* Tabs */}
       <Tabs defaultValue="personal" className="space-y-6">
-        <TabsList className="grid w-full grid-cols-3">
+        <TabsList className="grid w-full grid-cols-3 max-w-lg">
           <TabsTrigger value="personal">Personal</TabsTrigger>
           <TabsTrigger value="notifications">Notifications</TabsTrigger>
           <TabsTrigger value="password">Password</TabsTrigger>
@@ -178,9 +310,18 @@ export default function UserProfile() {
               <Separator className="my-4" />
 
               <div className="flex justify-end">
-                <Button onClick={handleSaveProfile}>
-                  <Save className="w-4 h-4 mr-2" />
-                  Save Changes
+                <Button onClick={handleSaveProfile} disabled={isSaving}>
+                  {isSaving ? (
+                    <>
+                      <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                      Saving...
+                    </>
+                  ) : (
+                    <>
+                      <Save className="w-4 h-4 mr-2" />
+                      Save Changes
+                    </>
+                  )}
                 </Button>
               </div>
             </CardContent>
@@ -305,15 +446,26 @@ export default function UserProfile() {
               <Separator className="my-4" />
 
               <div className="flex justify-end">
-                <Button onClick={handleChangePassword}>
-                  <Save className="w-4 h-4 mr-2" />
-                  Update Password
+                <Button onClick={handleChangePassword} disabled={isSaving}>
+                  {isSaving ? (
+                    <>
+                      <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                      Updating...
+                    </>
+                  ) : (
+                    <>
+                      <Save className="w-4 h-4 mr-2" />
+                      Update Password
+                    </>
+                  )}
                 </Button>
               </div>
             </CardContent>
           </Card>
         </TabsContent>
       </Tabs>
+        </>
+      )}
     </div>
   );
 }

@@ -3,14 +3,48 @@
 import React from 'react'
 import { useUser } from '@/contexts/UserContext'
 import { Building2, MapPin, Clock, CheckCircle2 } from 'lucide-react'
+import { Skeleton } from '@/components/ui/skeleton'
 
 const page = () => {
     const { user, isLoading } = useUser();
 
     if (isLoading) {
         return (
-            <div className="flex items-center justify-center min-h-[400px]">
-                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-900" />
+            <div className="w-full py-6 space-y-6">
+                <div className="border-b pb-4 space-y-2">
+                    <Skeleton className="h-9 w-80" />
+                    <Skeleton className="h-4 w-96" />
+                </div>
+                <div className="space-y-6">
+                    <div className="border rounded-lg p-6 space-y-4">
+                        <div className="flex items-center gap-2 mb-4">
+                            <Skeleton className="h-5 w-5 rounded" />
+                            <Skeleton className="h-6 w-48" />
+                        </div>
+                        <div className="grid gap-3">
+                            {[...Array(4)].map((_, i) => (
+                                <div key={i} className="space-y-1">
+                                    <Skeleton className="h-4 w-24" />
+                                    <Skeleton className="h-5 w-full" />
+                                </div>
+                            ))}
+                        </div>
+                    </div>
+                    <div className="border rounded-lg p-6 space-y-4">
+                        <div className="flex items-center gap-2 mb-4">
+                            <Skeleton className="h-5 w-5 rounded" />
+                            <Skeleton className="h-6 w-48" />
+                        </div>
+                        <div className="space-y-4">
+                            {[...Array(4)].map((_, i) => (
+                                <div key={i} className="space-y-1">
+                                    <Skeleton className="h-4 w-32" />
+                                    <Skeleton className="h-5 w-full" />
+                                </div>
+                            ))}
+                        </div>
+                    </div>
+                </div>
             </div>
         );
     }
@@ -18,7 +52,7 @@ const page = () => {
     const organization = user?.adminOrganization || user?.organization;
 
     return (
-        <div className="space-y-6">
+        <div className="w-full py-6 space-y-6">
             <div className="border-b pb-4">
                 <h1 className="text-3xl font-bold">Organization Dashboard</h1>
                 <p className="text-muted-foreground mt-1">
@@ -27,9 +61,9 @@ const page = () => {
             </div>
 
             {/* User Role Information */}
-            <div className="bg-white dark:bg-gray-800 border rounded-lg p-6 space-y-4">
+            <div className="bg-card border rounded-lg p-6 space-y-4">
                 <div className="flex items-center gap-2 mb-4">
-                    <CheckCircle2 className="h-5 w-5 text-green-600" />
+                    <CheckCircle2 className="h-5 w-5 text-primary" />
                     <h2 className="text-xl font-semibold">Account Information</h2>
                 </div>
 
@@ -45,7 +79,7 @@ const page = () => {
                     <div>
                         <span className="text-sm text-muted-foreground">Role:</span>
                         <p className="font-medium">
-                            <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-purple-100 text-purple-800">
+                            <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-primary/10 text-primary">
                                 {user?.role}
                             </span>
                         </p>
@@ -63,9 +97,9 @@ const page = () => {
 
             {/* Organization Information */}
             {organization && (
-                <div className="bg-gradient-to-r from-purple-50 to-blue-50 dark:from-purple-900/20 dark:to-blue-900/20 border rounded-lg p-6">
+                <div className="bg-gradient-to-r from-primary/5 to-primary/10 border rounded-lg p-6">
                     <div className="flex items-center gap-2 mb-4">
-                        <Building2 className="h-5 w-5 text-purple-600" />
+                        <Building2 className="h-5 w-5 text-primary" />
                         <h2 className="text-xl font-semibold">Organization Details</h2>
                     </div>
 

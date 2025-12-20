@@ -3,8 +3,8 @@ import OrganizationAppointmentsList from "@/components/dashboard/organization/ap
 
 export default function AppointmentPage() {
   return (
-    <>
+    <div className="w-full py-6">
       <OrganizationAppointmentsList />
-    </>
+    </div>
   );
 }

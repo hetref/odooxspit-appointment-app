@@ -3,5 +3,9 @@
 import UsersManagement from "@/components/dashboard/organization/users-management";
 
 export default function UsersPage() {
-  return <UsersManagement />;
+  return (
+    <div className="w-full py-6">
+      <UsersManagement />
+    </div>
+  );
 }

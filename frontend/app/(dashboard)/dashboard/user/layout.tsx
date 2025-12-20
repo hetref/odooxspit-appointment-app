@@ -2,10 +2,11 @@
 
 import { useEffect, useState } from "react";
 import { useRouter, usePathname } from "next/navigation";
-import { Loader2, AlertCircle } from "lucide-react";
+import { AlertCircle } from "lucide-react";
 import { authStorage, clearAuthData } from "@/lib/auth";
 import { userApi } from "@/lib/api";
 import { User } from "@/lib/types";
+import { Skeleton } from "@/components/ui/skeleton";
 
 export default function UserDashboardLayout({
   children,
@@ -114,11 +115,14 @@ export default function UserDashboardLayout({
   // Show loading state
   if (isChecking && !error) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-zinc-50 dark:bg-black">
-        <div className="flex flex-col items-center gap-4">
-          <Loader2 className="size-8 animate-spin text-primary" />
-          <p className="text-muted-foreground">Verifying USER access...</p>
+      <div className="min-h-[calc(100vh-4rem)] p-6 space-y-6">
+        <Skeleton className="h-10 w-48" />
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+          {Array.from({ length: 3 }).map((_, i) => (
+            <Skeleton key={i} className="h-32 rounded-lg" />
+          ))}
         </div>
+        <Skeleton className="h-64 w-full rounded-lg" />
       </div>
     );
   }
@@ -126,7 +130,7 @@ export default function UserDashboardLayout({
   // Show error state
   if (error) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-zinc-50 dark:bg-black">
+      <div className="flex min-h-[calc(100vh-4rem)] items-center justify-center p-6">
         <div className="flex flex-col items-center gap-4 max-w-md text-center">
           <div className="rounded-full bg-destructive/10 p-3">
             <AlertCircle className="size-8 text-destructive" />

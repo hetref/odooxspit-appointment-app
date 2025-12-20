@@ -30,6 +30,7 @@ model User {
   email                   String                   @unique
   password                String
   name                    String?
+  phone                   String?
   role                    Role                     @default(USER)
   isMember                Boolean                  @default(false)
   emailVerified           Boolean                  @default(false)
@@ -125,23 +126,28 @@ model Resource {
 }
 
 model Appointment {
-  id                 String              @id @default(cuid())
-  title              String
-  description        String?
-  durationMinutes    Int
-  bookType           AppointmentBookType
-  assignmentType     AssignmentType
-  allowMultipleSlots Boolean             @default(false)
-  price              Int?
-  cancellationHours  Int
-  schedule           Json
-  questions          Json
-  organizationId     String
-  createdAt          DateTime            @default(now())
-  updatedAt          DateTime            @updatedAt
-  organization       Organization        @relation(fields: [organizationId], references: [id], onDelete: Cascade)
-  allowedUsers       User[]              @relation("AppointmentAllowedUsers")
-  allowedResources   Resource[]          @relation("AppointmentAllowedResources")
+  id                   String              @id @default(cuid())
+  title                String
+  description          String?
+  location             String?
+  durationMinutes      Int
+  bookType             AppointmentBookType
+  assignmentType       AssignmentType
+  allowMultipleSlots   Boolean             @default(false)
+  isPaid               Boolean             @default(false)
+  price                Int?
+  cancellationHours    Int
+  schedule             Json
+  questions            Json
+  picture              String?
+  introMessage         String?
+  confirmationMessage  String?
+  organizationId       String
+  createdAt            DateTime            @default(now())
+  updatedAt            DateTime            @updatedAt
+  organization         Organization        @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  allowedUsers         User[]              @relation("AppointmentAllowedUsers")
+  allowedResources     Resource[]          @relation("AppointmentAllowedResources")
 
   @@index([organizationId])
 }
