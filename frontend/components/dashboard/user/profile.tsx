@@ -88,11 +88,17 @@ export default function UserProfile() {
       }
 
       const fullName = `${formData.firstName} ${formData.lastName}`.trim();
-      const response = await userApi.updateProfile(token, {
+      const updateData = {
         name: fullName,
         email: formData.email,
         phone: formData.phone,
-      });
+      };
+      
+      console.log("Sending update data:", updateData);
+      
+      const response = await userApi.updateProfile(token, updateData);
+
+      console.log("Update response:", response);
 
       if (response.success) {
         setSuccessMessage(response.message || "Profile updated successfully!");

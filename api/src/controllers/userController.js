@@ -88,6 +88,9 @@ async function updateProfile(req, res) {
     const { name, email, phone, password, currentPassword } = req.body;
     const userId = req.user.id;
 
+    console.log('Update profile request body:', req.body);
+    console.log('Phone value:', phone, 'Type:', typeof phone);
+
     const updateData = {};
 
     // Update name
@@ -98,6 +101,7 @@ async function updateProfile(req, res) {
     // Update phone
     if (phone !== undefined) {
       updateData.phone = phone || null; // Allow empty string to clear phone
+      console.log('Setting phone in updateData:', updateData.phone);
     }
 
     // Update email
@@ -178,6 +182,8 @@ async function updateProfile(req, res) {
       });
     }
 
+    console.log('Final updateData before prisma update:', updateData);
+
     // Update user
     const updatedUser = await prisma.user.update({
       where: { id: userId },
@@ -192,6 +198,8 @@ async function updateProfile(req, res) {
         updatedAt: true,
       },
     });
+
+    console.log('Updated user from database:', updatedUser);
 
     let message = 'Profile updated successfully.';
     if (password) {
