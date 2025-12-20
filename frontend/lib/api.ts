@@ -66,6 +66,7 @@ class ApiClient {
       ...options,
       headers: {
         "Content-Type": "application/json",
+        "ngrok-skip-browser-warning": "true", // Skip ngrok browser warning
         ...options.headers,
       },
     };
@@ -239,4 +240,13 @@ export const organizationApi = {
 
   deleteResource: (token: string, resourceId: string) =>
     api.delete(`/organization/resources/${resourceId}`, token),
+
+  // Organization Settings
+  updateOrganization: (token: string, data: {
+    name?: string;
+    location?: string;
+    description?: string;
+    businessHours?: Array<{ day: string; from: string; to: string }>;
+  }) =>
+    api.put("/organization/update", data, token),
 };
