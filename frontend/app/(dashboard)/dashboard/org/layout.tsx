@@ -8,9 +8,9 @@ import { userApi } from "@/lib/api";
 import { User } from "@/lib/types";
 
 export default function OrganizationDashboardLayout({
-  children
+  children,
 }: {
-  children: React.ReactNode
+  children: React.ReactNode;
 }) {
   const router = useRouter();
   const pathname = usePathname();
@@ -46,7 +46,9 @@ export default function OrganizationDashboardLayout({
 
         // Check if user has ORGANIZATION role
         if (userData.role !== "ORGANIZATION") {
-          setError("Access Denied: This area is only for organization accounts.");
+          setError(
+            "Access Denied: This area is only for organization accounts."
+          );
 
           // Redirect USER role users to their dashboard
           if (userData.role === "USER") {
@@ -67,7 +69,6 @@ export default function OrganizationDashboardLayout({
         authStorage.setUser(userData);
         setUser(userData);
         setIsChecking(false);
-
       } catch (error: any) {
         console.error("Organization role check error:", error);
 
@@ -86,14 +87,20 @@ export default function OrganizationDashboardLayout({
             setUser(cachedUser);
             setIsChecking(false);
           } else if (cachedUser && cachedUser.role === "USER") {
-            setError("Access Denied: This area is only for organization accounts.");
+            setError(
+              "Access Denied: This area is only for organization accounts."
+            );
             setTimeout(() => {
               router.push("/dashboard/user");
             }, 2000);
           } else {
-            setError("Network error. Please check your connection and try again.");
+            setError(
+              "Network error. Please check your connection and try again."
+            );
             setTimeout(() => {
-              const loginUrl = `/login?redirect=${encodeURIComponent(pathname)}`;
+              const loginUrl = `/login?redirect=${encodeURIComponent(
+                pathname
+              )}`;
               router.push(loginUrl);
             }, 2000);
           }
@@ -110,7 +117,9 @@ export default function OrganizationDashboardLayout({
       <div className="flex min-h-screen items-center justify-center bg-zinc-50 dark:bg-black">
         <div className="flex flex-col items-center gap-4">
           <Loader2 className="size-8 animate-spin text-primary" />
-          <p className="text-muted-foreground">Verifying ORGANIZATION access...</p>
+          <p className="text-muted-foreground">
+            Verifying ORGANIZATION access...
+          </p>
         </div>
       </div>
     );

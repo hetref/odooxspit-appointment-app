@@ -8,9 +8,9 @@ import { userApi } from "@/lib/api";
 import { User } from "@/lib/types";
 
 export default function UserDashboardLayout({
-  children
+  children,
 }: {
-  children: React.ReactNode
+  children: React.ReactNode;
 }) {
   const router = useRouter();
   const pathname = usePathname();
@@ -46,7 +46,9 @@ export default function UserDashboardLayout({
 
         // Check if user has USER role
         if (userData.role !== "USER") {
-          setError("Access Denied: This area is only for users with USER role.");
+          setError(
+            "Access Denied: This area is only for users with USER role."
+          );
 
           // Redirect ORGANIZATION users to their dashboard
           if (userData.role === "ORGANIZATION") {
@@ -67,7 +69,6 @@ export default function UserDashboardLayout({
         authStorage.setUser(userData);
         setUser(userData);
         setIsChecking(false);
-
       } catch (error: any) {
         console.error("User role check error:", error);
 
@@ -86,14 +87,20 @@ export default function UserDashboardLayout({
             setUser(cachedUser);
             setIsChecking(false);
           } else if (cachedUser && cachedUser.role === "ORGANIZATION") {
-            setError("Access Denied: This area is only for users with USER role.");
+            setError(
+              "Access Denied: This area is only for users with USER role."
+            );
             setTimeout(() => {
               router.push("/dashboard/org");
             }, 2000);
           } else {
-            setError("Network error. Please check your connection and try again.");
+            setError(
+              "Network error. Please check your connection and try again."
+            );
             setTimeout(() => {
-              const loginUrl = `/login?redirect=${encodeURIComponent(pathname)}`;
+              const loginUrl = `/login?redirect=${encodeURIComponent(
+                pathname
+              )}`;
               router.push(loginUrl);
             }, 2000);
           }

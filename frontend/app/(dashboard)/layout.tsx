@@ -2,13 +2,17 @@
 
 import { useEffect, useState } from "react";
 import { useRouter, usePathname } from "next/navigation";
-import { Loader2 } from "lucide-react"
+import { Loader2 } from "lucide-react";
 import Navbar from "@/components/dashboard/navbar";
 import { authStorage, clearAuthData } from "@/lib/auth";
 import { userApi } from "@/lib/api";
 import { User } from "@/lib/types";
 
-export default function DashboardLayout({ children }: { children: React.ReactNode }) {
+export default function DashboardLayout({
+  children,
+}: {
+  children: React.ReactNode;
+}) {
   const router = useRouter();
   const pathname = usePathname();
   const [isChecking, setIsChecking] = useState(true);
@@ -89,9 +93,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   return (
     <>
       <Navbar />
-      <div className="">
-        {children}
-      </div>
+      <div className="">{children}</div>
     </>
-  )
+  );
 }
