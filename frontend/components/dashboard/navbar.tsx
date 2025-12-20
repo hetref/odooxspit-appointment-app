@@ -1,16 +1,17 @@
+
 "use client";
 
-import * as React from "react";
-import Link from "next/link";
-import { usePathname } from "next/navigation";
-import { cn } from "@/lib/utils";
-import { buttonVariants, Button } from "@/components/ui/button";
+import * as React from "react"
+import Link from "next/link"
+import { usePathname } from "next/navigation"
+import { cn } from "@/lib/utils"
+import { buttonVariants, Button } from "@/components/ui/button"
 import {
   NavigationMenu,
   NavigationMenuItem,
   NavigationMenuList,
-} from "@/components/ui/navigation-menu";
-import { Separator } from "@/components/ui/separator";
+} from "@/components/ui/navigation-menu"
+import { Separator } from "@/components/ui/separator"
 import {
   BellIcon,
   Calendar,
@@ -25,12 +26,12 @@ import {
   Home,
   CreditCard,
   Briefcase,
-} from "lucide-react";
+} from "lucide-react"
 import {
   Popover,
   PopoverContent,
   PopoverTrigger,
-} from "@/components/ui/popover";
+} from "@/components/ui/popover"
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -53,44 +54,28 @@ type UserRole = "customer" | "organizer" | "admin";
 const navigationByRole = {
   customer: [
     { href: "/dashboard", label: "Home", icon: Home },
-    {
-      href: "/dashboard/user/appointments",
-      label: "My Appointments",
-      icon: CalendarCheck,
-    },
-    {
-      href: "/dashboard/user/appointments/book",
-      label: "Book Appointment",
-      icon: Calendar,
-    },
+    { href: "/dashboard/user/appointments", label: "My Appointments", icon: CalendarCheck },
+    { href: "/dashboard/user/appointments/book", label: "Book Appointment", icon: Calendar },
   ],
   organizer: [
     { href: "/dashboard", label: "Dashboard", icon: Home },
-    {
-      href: "/dashboard/org/all-appointments",
-      label: "Appointments",
-      icon: CalendarCheck,
-    },
-    { href: "/dashboard/org/resources", label: "Resources", icon: Briefcase },
+    { href: "/dashboard/org/all-appointments", label: "Appointments", icon: CalendarCheck },
+    { href: "/dashboard/org/services", label: "Services", icon: Briefcase },
     { href: "/dashboard/org/users", label: "Users", icon: UserCog },
     { href: "/dashboard/payments", label: "Payments", icon: CreditCard },
     { href: "/dashboard/org/settings", label: "Settings", icon: Settings },
   ],
   admin: [
     { href: "/dashboard", label: "Dashboard", icon: Home },
-    {
-      href: "/dashboard/org/all-appointments",
-      label: "Appointments",
-      icon: CalendarCheck,
-    },
-    { href: "/dashboard/org/resources", label: "Resources", icon: Briefcase },
+    { href: "/dashboard/org/all-appointments", label: "Appointments", icon: CalendarCheck },
+    { href: "/dashboard/org/services", label: "Services", icon: Briefcase },
     { href: "/dashboard/org/users", label: "Users", icon: UserCog },
     { href: "/dashboard/payments", label: "Payments", icon: CreditCard },
     { href: "/dashboard/org/settings", label: "Settings", icon: Settings },
   ],
 };
 
-// Mobile Navigation structure
+// Mobile navigation structure
 const getMobileNav = (role: UserRole) => {
   const items = navigationByRole[role] || navigationByRole.customer;
 
@@ -98,15 +83,11 @@ const getMobileNav = (role: UserRole) => {
     return [
       {
         name: "Main",
-        items: items
-          .slice(0, 5)
-          .map((item) => ({ label: item.label, href: item.href })),
+        items: items.slice(0, 5).map(item => ({ label: item.label, href: item.href })),
       },
       {
         name: "Management",
-        items: items
-          .slice(5)
-          .map((item) => ({ label: item.label, href: item.href })),
+        items: items.slice(5).map(item => ({ label: item.label, href: item.href })),
       },
     ];
   }
@@ -114,17 +95,13 @@ const getMobileNav = (role: UserRole) => {
   return [
     {
       name: "Main",
-      items: items.map((item) => ({ label: item.label, href: item.href })),
+      items: items.map(item => ({ label: item.label, href: item.href })),
     },
   ];
 };
 
 // Mobile Nav Component
-function MobileNav({
-  nav,
-}: {
-  nav: { name: string; items: { label: string; href: string }[] }[];
-}) {
+function MobileNav({ nav }: { nav: { name: string; items: { label: string; href: string }[] }[] }) {
   const [open, setOpen] = React.useState(false);
   const pathname = usePathname();
 
@@ -312,20 +289,14 @@ function UserProfileDropdown({
         <DropdownMenuSeparator />
 
         <DropdownMenuGroup>
-          <DropdownMenuItem
-            asChild
-            className="flex items-center cursor-pointer"
-          >
+          <DropdownMenuItem asChild className="flex items-center cursor-pointer">
             <Link href="/dashboard/profile">
               <User className="mr-2 h-4 w-4" />
               <span>Profile</span>
             </Link>
           </DropdownMenuItem>
 
-          <DropdownMenuItem
-            asChild
-            className="flex items-center cursor-pointer"
-          >
+          <DropdownMenuItem asChild className="flex items-center cursor-pointer">
             <Link href="/dashboard/settings">
               <Settings className="mr-2 h-4 w-4" />
               <span>Settings</span>
@@ -360,7 +331,7 @@ function UserProfileDropdown({
         </DropdownMenuItem>
       </DropdownMenuContent>
     </DropdownMenu>
-  );
+  )
 }
 
 // ---------------------- Navbar ----------------------
@@ -465,9 +436,7 @@ export default function Navbar() {
           <MobileNav nav={mobileNavStructure} />
 
           <Link href="/dashboard" className="flex items-center gap-2">
-            <span className="font-bold text-lg hidden sm:inline-block">
-              BookNow
-            </span>
+            <span className="font-bold text-lg hidden sm:inline-block">BookNow</span>
           </Link>
         </div>
 
@@ -506,8 +475,8 @@ export default function Navbar() {
       <div className="flex w-full items-center justify-start pb-1.5">
         <NavigationMenu className="max-md:hidden">
           <NavigationMenuList>
-            {isLoading
-              ? // Loading skeletons - show 5 as typical count
+            {isLoading ? (
+              // Loading skeletons - show 5 as typical count
               Array.from({ length: 5 }).map((_, index) => (
                 <NavigationMenuItem key={index}>
                   <div className="flex items-center gap-2 rounded-md px-3 py-1.5">
@@ -516,7 +485,8 @@ export default function Navbar() {
                   </div>
                 </NavigationMenuItem>
               ))
-              : // Actual navigation items
+            ) : (
+              // Actual navigation items
               navigationLinks.map((link, index) => {
                 const Icon = link.icon;
                 const isActive = pathname === link.href;
@@ -533,10 +503,11 @@ export default function Navbar() {
                     </Link>
                   </NavigationMenuItem>
                 );
-              })}
+              })
+            )}
           </NavigationMenuList>
         </NavigationMenu>
       </div>
     </header>
-  );
+  )
 }
