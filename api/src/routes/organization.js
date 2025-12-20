@@ -2,6 +2,7 @@ const express = require('express');
 const requireAuth = require('../middlewares/requireAuth');
 const prisma = require('../lib/prisma');
 const { createAppointment, getOrganizationAppointments, getSingleAppointment } = require('../controllers/appointmentController');
+const { updateOrganization } = require('../controllers/organizationController');
 
 const router = express.Router();
 
@@ -172,6 +173,11 @@ router.get('/members', async (req, res) => {
         });
     }
 });
+
+/**
+ * Update organization (ADMIN only)
+ */
+router.put('/update', updateOrganization);
 
 /**
  * Create resource (ADMIN only)
