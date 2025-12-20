@@ -73,7 +73,7 @@ const navigationByRole = {
   ],
 };
 
-// Mobile navigation structure
+// Mobile Navigation structure
 const getMobileNav = (role: UserRole) => {
   const items = navigationByRole[role] || navigationByRole.customer;
 
