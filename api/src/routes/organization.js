@@ -1,6 +1,8 @@
 const express = require('express');
 const requireAuth = require('../middlewares/requireAuth');
 const prisma = require('../lib/prisma');
+const { hashPassword } = require('../lib/auth');
+const { sendMemberInvitationEmail } = require('../lib/mailer');
 const { createAppointment, getOrganizationAppointments, getSingleAppointment } = require('../controllers/appointmentController');
 
 const router = express.Router();
@@ -9,13 +11,27 @@ const router = express.Router();
 router.use(requireAuth);
 
 /**
+ * Generate random password
+ */
+function generatePassword(length = 12) {
+    const charset = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!@#$%^&*';
+    let password = '';
+    for (let i = 0; i < length; i++) {
+        password += charset.charAt(Math.floor(Math.random() * charset.length));
+    }
+    return password;
+}
+
+/**
  * Add member to organization (ADMIN only)
+ * Comprehensive validation for all edge cases
  */
 router.post('/members', async (req, res) => {
     try {
         const userId = req.user.id;
         const { email } = req.body;
 
+        // Validation 1: Check email is provided
         if (!email) {
             return res.status(400).json({
                 success: false,
@@ -23,13 +39,25 @@ router.post('/members', async (req, res) => {
             });
         }
 
+        // Validation 2: Email format validation
+        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+        if (!emailRegex.test(email)) {
+            return res.status(400).json({
+                success: false,
+                message: 'Please provide a valid email address.',
+            });
+        }
+
+        // Normalize email (lowercase, trim)
+        const normalizedEmail = email.toLowerCase().trim();
+
         // Fetch admin user with organization
         const adminUser = await prisma.user.findUnique({
             where: { id: userId },
             include: { adminOrganization: true },
         });
 
-        // Check if user is organization admin
+        // Validation 3: Check if user is organization admin
         if (!adminUser || adminUser.role !== 'ORGANIZATION' || adminUser.isMember) {
             return res.status(403).json({
                 success: false,
@@ -37,62 +65,166 @@ router.post('/members', async (req, res) => {
             });
         }
 
+        // Validation 4: Check if admin has an organization
         if (!adminUser.adminOrganization) {
             return res.status(400).json({
                 success: false,
-                message: 'User does not have an organization.',
+                message: 'You do not have an organization. Please create one first.',
             });
         }
 
         const organizationId = adminUser.adminOrganization.id;
+        const organizationName = adminUser.adminOrganization.name;
 
-        // Find the user to add as member
-        const memberUser = await prisma.user.findUnique({
-            where: { email },
-        });
-
-        if (!memberUser) {
-            return res.status(404).json({
-                success: false,
-                message: 'User with this email not found.',
-            });
-        }
-
-        // Check if user is already a member or has own organization
-        if (memberUser.role === 'ORGANIZATION') {
+        // Validation 5: Prevent adding self as member
+        if (adminUser.email.toLowerCase() === normalizedEmail) {
             return res.status(400).json({
                 success: false,
-                message: 'This user is already part of an organization.',
+                message: 'You cannot add yourself as a member. You are the organization admin.',
             });
         }
 
-        // Update user to be a member
-        const updatedUser = await prisma.user.update({
-            where: { id: memberUser.id },
-            data: {
-                role: 'ORGANIZATION',
-                isMember: true,
-                organizationId: organizationId,
-            },
-            select: {
-                id: true,
-                email: true,
-                name: true,
-                role: true,
-                isMember: true,
+        // Check if user already exists
+        let memberUser = await prisma.user.findUnique({
+            where: { email: normalizedEmail },
+            include: {
+                adminOrganization: true,
+                organization: true,
             },
         });
 
-        res.status(200).json({
-            success: true,
-            message: 'Member added successfully.',
-            data: { member: updatedUser },
-        });
+        if (memberUser) {
+            // === EXISTING USER VALIDATIONS ===
+
+            // Validation 6: Cannot add organization owner (admin)
+            if (memberUser.role === 'ORGANIZATION' && !memberUser.isMember) {
+                return res.status(400).json({
+                    success: false,
+                    message: 'This user already owns an organization and cannot be added as a member.',
+                });
+            }
+
+            // Validation 7: Check if already member of THIS organization
+            if (memberUser.organizationId === organizationId) {
+                return res.status(400).json({
+                    success: false,
+                    message: 'This user is already a member of your organization.',
+                });
+            }
+
+            // Validation 8: Check if member of ANOTHER organization
+            if (memberUser.organizationId && memberUser.organizationId !== organizationId) {
+                // Fetch the other organization name for better error message
+                const otherOrg = memberUser.organization;
+                return res.status(400).json({
+                    success: false,
+                    message: `This user is already a member of another organization${otherOrg ? ` (${otherOrg.name})` : ''}. A user can only belong to one organization at a time.`,
+                });
+            }
+
+            // Validation 9: Only USER role can be converted to member
+            if (memberUser.role !== 'USER') {
+                return res.status(400).json({
+                    success: false,
+                    message: `Cannot add this user. User role is '${memberUser.role}'. Only users with 'USER' role can be added as members.`,
+                });
+            }
+
+            // === ALL VALIDATIONS PASSED - Add existing USER as member ===
+            memberUser = await prisma.user.update({
+                where: { id: memberUser.id },
+                data: {
+                    role: 'ORGANIZATION',
+                    isMember: true,
+                    organizationId: organizationId,
+                },
+                select: {
+                    id: true,
+                    email: true,
+                    name: true,
+                    role: true,
+                    isMember: true,
+                    createdAt: true,
+                },
+            });
+
+            // Send notification email (user keeps existing password)
+            try {
+                await sendMemberInvitationEmail(
+                    normalizedEmail,
+                    organizationName,
+                    'Use your existing password to login',
+                    adminUser.name || 'Admin'
+                );
+            } catch (emailError) {
+                console.error('Email send error:', emailError);
+                // Don't fail the request if email fails - member is already added
+            }
+
+            return res.status(200).json({
+                success: true,
+                message: 'Existing user added as member successfully. Notification email sent.',
+                data: { member: memberUser },
+            });
+        } else {
+            // === NEW USER - Create account and add as member ===
+
+            const generatedPassword = generatePassword();
+            const hashedPassword = await hashPassword(generatedPassword);
+
+            memberUser = await prisma.user.create({
+                data: {
+                    email: normalizedEmail,
+                    password: hashedPassword,
+                    name: normalizedEmail.split('@')[0], // Use email prefix as default name
+                    role: 'ORGANIZATION',
+                    isMember: true,
+                    emailVerified: true, // Auto-verify for invited members
+                    organizationId: organizationId,
+                },
+                select: {
+                    id: true,
+                    email: true,
+                    name: true,
+                    role: true,
+                    isMember: true,
+                    createdAt: true,
+                },
+            });
+
+            // Send invitation email with credentials
+            try {
+                await sendMemberInvitationEmail(
+                    normalizedEmail,
+                    organizationName,
+                    generatedPassword,
+                    adminUser.name || 'Admin'
+                );
+            } catch (emailError) {
+                console.error('Email send error:', emailError);
+                // Don't fail the request if email fails - member is already created
+            }
+
+            return res.status(201).json({
+                success: true,
+                message: 'New member created and invited successfully. Credentials sent via email.',
+                data: { member: memberUser },
+            });
+        }
     } catch (error) {
         console.error('Add member error:', error);
+
+        // Handle specific Prisma errors
+        if (error.code === 'P2002') {
+            return res.status(400).json({
+                success: false,
+                message: 'A user with this email already exists.',
+            });
+        }
+
         res.status(500).json({
             success: false,
-            message: 'An error occurred while adding member.',
+            message: 'An error occurred while adding member. Please try again.',
         });
     }
 });
@@ -174,6 +306,152 @@ router.get('/members', async (req, res) => {
 });
 
 /**
+ * Remove member from organization (ADMIN only)
+ */
+router.delete('/members/:id', async (req, res) => {
+    try {
+        const userId = req.user.id;
+        const { id: memberId } = req.params;
+
+        // Fetch admin user with organization
+        const adminUser = await prisma.user.findUnique({
+            where: { id: userId },
+            include: { adminOrganization: true },
+        });
+
+        // Check if user is organization admin
+        if (!adminUser || adminUser.role !== 'ORGANIZATION' || adminUser.isMember) {
+            return res.status(403).json({
+                success: false,
+                message: 'Only organization admins can remove members.',
+            });
+        }
+
+        if (!adminUser.adminOrganization) {
+            return res.status(400).json({
+                success: false,
+                message: 'User does not have an organization.',
+            });
+        }
+
+        const organizationId = adminUser.adminOrganization.id;
+
+        // Prevent admin from removing themselves
+        if (memberId === userId) {
+            return res.status(400).json({
+                success: false,
+                message: 'Admin cannot remove themselves. Transfer ownership first.',
+            });
+        }
+
+        // Fetch member to verify they belong to this organization
+        const member = await prisma.user.findUnique({
+            where: { id: memberId },
+        });
+
+        if (!member) {
+            return res.status(404).json({
+                success: false,
+                message: 'Member not found.',
+            });
+        }
+
+        if (member.organizationId !== organizationId) {
+            return res.status(403).json({
+                success: false,
+                message: 'This member does not belong to your organization.',
+            });
+        }
+
+        if (!member.isMember) {
+            return res.status(400).json({
+                success: false,
+                message: 'Cannot remove organization admin.',
+            });
+        }
+
+        // Remove member - convert back to USER
+        await prisma.user.update({
+            where: { id: memberId },
+            data: {
+                role: 'USER',
+                isMember: false,
+                organizationId: null,
+            },
+        });
+
+        res.status(200).json({
+            success: true,
+            message: 'Member removed successfully.',
+        });
+    } catch (error) {
+        console.error('Remove member error:', error);
+        res.status(500).json({
+            success: false,
+            message: 'An error occurred while removing member.',
+        });
+    }
+});
+
+/**
+ * Leave organization (MEMBER only)
+ */
+router.post('/leave', async (req, res) => {
+    try {
+        const userId = req.user.id;
+
+        // Fetch user
+        const user = await prisma.user.findUnique({
+            where: { id: userId },
+            include: { organization: true },
+        });
+
+        if (!user) {
+            return res.status(404).json({
+                success: false,
+                message: 'User not found.',
+            });
+        }
+
+        // Check if user is a member (not admin)
+        if (!user.isMember) {
+            return res.status(400).json({
+                success: false,
+                message: 'Only members can leave an organization. Admins must transfer ownership first.',
+            });
+        }
+
+        if (!user.organizationId) {
+            return res.status(400).json({
+                success: false,
+                message: 'You are not part of any organization.',
+            });
+        }
+
+        // Remove member - convert back to USER
+        await prisma.user.update({
+            where: { id: userId },
+            data: {
+                role: 'USER',
+                isMember: false,
+                organizationId: null,
+            },
+        });
+
+        res.status(200).json({
+            success: true,
+            message: 'You have left the organization successfully.',
+        });
+    } catch (error) {
+        console.error('Leave organization error:', error);
+        res.status(500).json({
+            success: false,
+            message: 'An error occurred while leaving organization.',
+        });
+    }
+});
+
+/**
  * Create resource (ADMIN only)
  */
 router.post('/resources', async (req, res) => {
@@ -247,12 +525,14 @@ router.post('/resources', async (req, res) => {
 router.get('/resources', async (req, res) => {
     try {
         const userId = req.user.id;
+        console.log("USERID", userId)
 
         // Fetch user with organization
         const user = await prisma.user.findUnique({
             where: { id: userId },
             include: { organization: true, adminOrganization: true },
         });
+        console.log("USER", user)
 
         if (!user || user.role !== 'ORGANIZATION') {
             return res.status(403).json({
@@ -261,7 +541,9 @@ router.get('/resources', async (req, res) => {
             });
         }
 
+
         const organizationId = user.isMember ? user.organizationId : user.adminOrganization?.id;
+        console.log("ORGID", organizationId)
 
         if (!organizationId) {
             return res.status(400).json({
@@ -274,6 +556,7 @@ router.get('/resources', async (req, res) => {
             where: { organizationId },
             orderBy: { createdAt: 'desc' },
         });
+        console.log("RESOURCES", resources)
 
         res.status(200).json({
             success: true,

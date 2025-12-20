@@ -49,10 +49,18 @@ async function getProfile(req, res) {
       },
     });
 
+    // Flatten organization name for easier access
+    const userResponse = {
+      ...user,
+      organizationName: user.isMember
+        ? user.organization?.name
+        : user.adminOrganization?.name,
+    };
+
     res.status(200).json({
       success: true,
       data: {
-        user: user,
+        user: userResponse,
       },
     });
   } catch (error) {

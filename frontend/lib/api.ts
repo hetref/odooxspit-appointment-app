@@ -230,6 +230,19 @@ export const userApi = {
 
 // Organization API functions
 export const organizationApi = {
+  // Member Management
+  getMembers: (token: string) =>
+    api.get("/organization/members", token),
+
+  addMember: (token: string, email: string) =>
+    api.post("/organization/members", { email }, token),
+
+  removeMember: (token: string, memberId: string) =>
+    api.delete(`/organization/members/${memberId}`, token),
+
+  leaveOrganization: (token: string) =>
+    api.post("/organization/leave", {}, token),
+
   // Resource Management
   createResource: (token: string, data: { name: string; capacity: number }): Promise<ApiResponse<ResourceResponse>> =>
     api.post<ResourceResponse>("/organization/resources", data, token),

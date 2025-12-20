@@ -202,17 +202,73 @@ function UserProfileDropdown({
   userName,
   userEmail,
   userRole,
+  isMember,
+  organizationName,
 }: {
   align: "start" | "center" | "end";
   sizeClass: string;
   userName: string;
   userEmail: string;
   userRole: string;
+  isMember?: boolean;
+  organizationName?: string;
 }) {
+  const [isLeavingOrg, setIsLeavingOrg] = React.useState(false);
+
   const handleLogout = () => {
     console.log("Logging out...");
     alert("Logged out successfully!");
     window.location.href = "/login";
+  };
+
+  const handleLeaveOrganization = async () => {
+    if (!organizationName) return;
+
+    const confirmed = confirm(
+      `Are you sure you want to leave "${organizationName}"? You will lose access to all organization resources and appointments.`
+    );
+
+    if (!confirmed) return;
+
+    try {
+      setIsLeavingOrg(true);
+
+      // Import auth and API functions
+      const { authStorage } = await import("@/lib/auth");
+      const { organizationApi } = await import("@/lib/api");
+
+      const accessToken = authStorage.getAccessToken();
+      if (!accessToken) {
+        alert("Not authenticated");
+        return;
+      }
+
+      const response = await organizationApi.leaveOrganization(accessToken);
+
+      if (response.success) {
+        // Update cookies - user is now a regular USER
+        const currentUser = authStorage.getUser();
+        if (currentUser) {
+          authStorage.setUser({
+            ...currentUser,
+            role: "USER",
+            isMember: false,
+            organizationId: null,
+            organizationName: undefined,
+          });
+        }
+
+        alert("You have successfully left the organization");
+        window.location.href = "/dashboard";
+      } else {
+        alert(response.message || "Failed to leave organization");
+      }
+    } catch (error: any) {
+      console.error("Leave organization error:", error);
+      alert(error.message || "Failed to leave organization");
+    } finally {
+      setIsLeavingOrg(false);
+    }
   };
 
   const initials = userName
@@ -278,6 +334,22 @@ function UserProfileDropdown({
 
         <DropdownMenuSeparator />
 
+        {isMember && organizationName && (
+          <>
+            <DropdownMenuItem
+              className="flex items-center cursor-pointer text-orange-600 focus:text-orange-600"
+              onClick={handleLeaveOrganization}
+              disabled={isLeavingOrg}
+            >
+              <LogOut className="mr-2 h-4 w-4" />
+              <span>
+                {isLeavingOrg ? "Leaving..." : "Leave Organization"}
+              </span>
+            </DropdownMenuItem>
+            <DropdownMenuSeparator />
+          </>
+        )}
+
         <DropdownMenuItem
           className="flex items-center cursor-pointer text-red-600 focus:text-red-600"
           onClick={handleLogout}
@@ -297,12 +369,16 @@ export default function Navbar() {
     name: string;
     email: string;
     role: UserRole;
+    isMember?: boolean;
+    organizationName?: string;
   } | null>(null);
 
   const isLoading = userData === null;
   const userRole = userData?.role || "customer";
   const userName = userData?.name || "";
   const userEmail = userData?.email || "";
+  const isMember = userData?.isMember || false;
+  const organizationName = userData?.organizationName;
   const navigationLinks = userData ? navigationByRole[userData.role] || [] : [];
   const mobileNavStructure = userData
     ? getMobileNav(userData.role)
@@ -315,15 +391,24 @@ export default function Navbar() {
         const { authStorage } = await import("@/lib/auth");
         const cookieUser = authStorage.getUser();
 
+        console.log("Navbar - Cookie User Data:", cookieUser); // Debug log
+
         if (cookieUser) {
           const roleLowercase = cookieUser.role.toLowerCase();
-          setUserData({
+          const userData = {
             name: cookieUser.name,
             email: cookieUser.email,
             role: (roleLowercase === "organization"
               ? "organizer"
               : roleLowercase) as UserRole,
-          });
+            isMember: cookieUser.isMember,
+            organizationName: cookieUser.organizationName,
+          };
+
+          console.log("Navbar - Processed User Data:", userData); // Debug log
+          console.log("Navbar - isMember:", userData.isMember, "orgName:", userData.organizationName); // Debug log
+
+          setUserData(userData);
         } else {
           // Fallback to GetUserData if no cookie data
           const data = await GetUserData();
@@ -397,6 +482,8 @@ export default function Navbar() {
               userName={userName}
               userEmail={userEmail}
               userRole={userRole}
+              isMember={isMember}
+              organizationName={organizationName}
             />
           )}
         </div>

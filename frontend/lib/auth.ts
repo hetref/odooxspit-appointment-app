@@ -7,6 +7,9 @@ export interface User {
   role: "USER" | "ORGANIZATION";
   emailVerified: boolean;
   createdAt: string;
+  isMember?: boolean;
+  organizationId?: string | null;
+  organizationName?: string;
   business?: {
     id: string;
     name: string;
