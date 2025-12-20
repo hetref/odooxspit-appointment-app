@@ -48,3 +48,12 @@ export interface LoginData {
   email: string;
   password: string;
 }
+
+export interface Resource {
+  id: string;
+  name: string;
+  capacity: number;
+  organizationId: string;
+  createdAt: string;
+  updatedAt: string;
+}

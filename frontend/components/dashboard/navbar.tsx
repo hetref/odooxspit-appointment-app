@@ -58,7 +58,7 @@ const navigationByRole = {
   organizer: [
     { href: "/dashboard", label: "Dashboard", icon: Home },
     { href: "/dashboard/org/all-appointments", label: "Appointments", icon: CalendarCheck },
-    { href: "/dashboard/org/services", label: "Services", icon: Briefcase },
+    { href: "/dashboard/org/resources", label: "Resources", icon: Briefcase },
     { href: "/dashboard/org/users", label: "Users", icon: UserCog },
     { href: "/dashboard/payments", label: "Payments", icon: CreditCard },
     { href: "/dashboard/org/settings", label: "Settings", icon: Settings },
@@ -66,7 +66,7 @@ const navigationByRole = {
   admin: [
     { href: "/dashboard", label: "Dashboard", icon: Home },
     { href: "/dashboard/org/all-appointments", label: "Appointments", icon: CalendarCheck },
-    { href: "/dashboard/org/services", label: "Services", icon: Briefcase },
+    { href: "/dashboard/org/resources", label: "Resources", icon: Briefcase },
     { href: "/dashboard/org/users", label: "Users", icon: UserCog },
     { href: "/dashboard/payments", label: "Payments", icon: CreditCard },
     { href: "/dashboard/org/settings", label: "Settings", icon: Settings },

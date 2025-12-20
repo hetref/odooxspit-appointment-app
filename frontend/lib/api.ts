@@ -27,6 +27,28 @@ export interface ConvertToOrganizationResponse {
   organization: Organization;
 }
 
+export interface ResourcesResponse {
+  resources: Array<{
+    id: string;
+    name: string;
+    capacity: number;
+    organizationId: string;
+    createdAt: string;
+    updatedAt: string;
+  }>;
+}
+
+export interface ResourceResponse {
+  resource: {
+    id: string;
+    name: string;
+    capacity: number;
+    organizationId: string;
+    createdAt: string;
+    updatedAt: string;
+  };
+}
+
 class ApiClient {
   private baseUrl: string;
 
@@ -204,4 +226,17 @@ export const userApi = {
 
   convertToOrganization: (token: string, business: any): Promise<ApiResponse<ConvertToOrganizationResponse>> =>
     api.post<ConvertToOrganizationResponse>("/user/convert-to-organization", { business }, token),
+};
+
+// Organization API functions
+export const organizationApi = {
+  // Resource Management
+  createResource: (token: string, data: { name: string; capacity: number }): Promise<ApiResponse<ResourceResponse>> =>
+    api.post<ResourceResponse>("/organization/resources", data, token),
+
+  getResources: (token: string): Promise<ApiResponse<ResourcesResponse>> =>
+    api.get<ResourcesResponse>("/organization/resources", token),
+
+  deleteResource: (token: string, resourceId: string) =>
+    api.delete(`/organization/resources/${resourceId}`, token),
 };
