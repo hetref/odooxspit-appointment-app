@@ -32,13 +32,13 @@ class ApiClient {
 
     try {
       const response = await fetch(url, config);
-      
+
       // Get content type to check if it's JSON
       const contentType = response.headers.get("content-type");
       const isJson = contentType && contentType.includes("application/json");
-      
+
       let data: any;
-      
+
       if (isJson) {
         try {
           data = await response.json();
@@ -53,10 +53,10 @@ class ApiClient {
         // Not JSON - likely HTML error page or ngrok page
         const textResponse = await response.text();
         console.error("Non-JSON response received:", textResponse.substring(0, 200));
-        
+
         const error: any = new Error(
-          response.status === 404 
-            ? "API endpoint not found. Please check your API server is running." 
+          response.status === 404
+            ? "API endpoint not found. Please check your API server is running."
             : "Server returned non-JSON response. API may be unreachable."
         );
         error.status = response.status;
@@ -78,7 +78,7 @@ class ApiClient {
       if (error.status !== undefined) {
         throw error;
       }
-      
+
       // Network error (fetch failed)
       const networkError: any = new Error(
         error.message || "Network error. Please check your internet connection and API server."
