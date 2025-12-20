@@ -172,11 +172,10 @@ export default function DashboardPage() {
                             <div className="flex items-center gap-2 mt-1">
                                 <span
                                     className={`px-3 py-1 rounded-full text-sm font-medium ${user.role === "USER"
-                                            ? "bg-blue-100 text-blue-700 dark:bg-blue-900/20 dark:text-blue-400"
-                                            : "bg-purple-100 text-purple-700 dark:bg-purple-900/20 dark:text-purple-400"
+                                        ? "bg-blue-100 text-blue-700 dark:bg-blue-900/20 dark:text-blue-400"
+                                        : "bg-purple-100 text-purple-700 dark:bg-purple-900/20 dark:text-purple-400"
                                         }`}
                                 >
-                                    {console.log("USER", user)}
                                     {user.role === "USER"
                                         ? "User Account"
                                         : "Organization Account"}
