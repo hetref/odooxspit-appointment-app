@@ -7,6 +7,7 @@ import Navbar from "@/components/dashboard/navbar";
 import { authStorage, clearAuthData } from "@/lib/auth";
 import { userApi } from "@/lib/api";
 import { User } from "@/lib/types";
+import { UserProvider } from "@/contexts/UserContext";
 
 export default function DashboardLayout({
   children,
@@ -91,9 +92,9 @@ export default function DashboardLayout({
   }
 
   return (
-    <>
+    <UserProvider user={user} isLoading={isChecking}>
       <Navbar />
       <div className="">{children}</div>
-    </>
+    </UserProvider>
   );
 }

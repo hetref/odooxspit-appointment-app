@@ -1,4 +1,4 @@
-const API_BASE_URL = process.env.API_URL || "https://jeanene-unexposed-ingrid.ngrok-free.dev";
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:4000";
 
 export interface ApiResponse<T = any> {
   success: boolean;
@@ -32,7 +32,38 @@ class ApiClient {
 
     try {
       const response = await fetch(url, config);
-      const data = await response.json();
+
+      // Get content type to check if it's JSON
+      const contentType = response.headers.get("content-type");
+      const isJson = contentType && contentType.includes("application/json");
+
+      let data: any;
+
+      if (isJson) {
+        try {
+          data = await response.json();
+        } catch (parseError) {
+          // JSON parsing failed
+          const error: any = new Error("Invalid JSON response from server");
+          error.status = response.status;
+          error.isNetworkError = true;
+          throw error;
+        }
+      } else {
+        // Not JSON - likely HTML error page or ngrok page
+        const textResponse = await response.text();
+        console.error("Non-JSON response received:", textResponse.substring(0, 200));
+
+        const error: any = new Error(
+          response.status === 404
+            ? "API endpoint not found. Please check your API server is running."
+            : "Server returned non-JSON response. API may be unreachable."
+        );
+        error.status = response.status;
+        error.isUnauthorized = response.status === 401 || response.status === 403;
+        error.isNetworkError = response.status >= 500 || !isJson;
+        throw error;
+      }
 
       if (!response.ok) {
         const error: any = new Error(data.message || "Something went wrong");
@@ -43,12 +74,15 @@ class ApiClient {
 
       return data;
     } catch (error: any) {
-      if (error.status) {
-        // Re-throw HTTP errors with status
+      // If error already has status, re-throw it
+      if (error.status !== undefined) {
         throw error;
       }
-      // Network or parsing error
-      const networkError: any = new Error(error.message || "Network error");
+
+      // Network error (fetch failed)
+      const networkError: any = new Error(
+        error.message || "Network error. Please check your internet connection and API server."
+      );
       networkError.isNetworkError = true;
       throw networkError;
     }
