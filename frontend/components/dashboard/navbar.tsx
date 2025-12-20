@@ -22,6 +22,9 @@ import {
   Settings,
   User,
   UserCog,
+  Home,
+  CreditCard,
+  Briefcase,
 } from "lucide-react"
 import {
   Popover,
@@ -40,6 +43,7 @@ import {
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Skeleton } from "@/components/ui/skeleton"
 import { GetUserData } from "@/lib/auth";
+import NotificationDropdown from "./notification-dropdown";
 
 // ---------------------- Types ----------------------
 type UserRole = "customer" | "organizer" | "admin";
@@ -47,31 +51,32 @@ type UserRole = "customer" | "organizer" | "admin";
 // ---------------------- Navigation Config ----------------------
 const navigationByRole = {
   customer: [
+    { href: "/dashboard", label: "Home", icon: Home },
     { href: "/dashboard/user/appointments", label: "My Appointments", icon: CalendarCheck },
     { href: "/dashboard/user/appointments/book", label: "Book Appointment", icon: Calendar },
   ],
   organizer: [
-    { href: "/dashboard", label: "Dashboard", icon: BarChart3 },
-    { href: "/dashboard/org/appointments", label: "Appointments", icon: CalendarCheck },
-    { href: "/dashboard/org/appointment-types", label: "All Appointment", icon: Calendar },
-    { href: "/dashboard/providers", label: "Providers", icon: Users },
-    { href: "/dashboard/analytics", label: "Analytics", icon: BarChart3 },
+    { href: "/dashboard", label: "Dashboard", icon: Home },
+    { href: "/dashboard/org/all-appointments", label: "Appointments", icon: CalendarCheck },
+    { href: "/dashboard/org/services", label: "Services", icon: Briefcase },
+    { href: "/dashboard/org/users", label: "Users", icon: UserCog },
+    { href: "/dashboard/payments", label: "Payments", icon: CreditCard },
+    { href: "/dashboard/org/settings", label: "Settings", icon: Settings },
   ],
   admin: [
-    { href: "/dashboard", label: "Dashboard", icon: BarChart3 },
-    { href: "/dashboard/appointments", label: "Appointments", icon: CalendarCheck },
-    { href: "/dashboard/appointment-types", label: "Appointment Types", icon: Calendar },
-    { href: "/dashboard/providers", label: "Providers", icon: Users },
-    { href: "/dashboard/users", label: "Users", icon: UserCog },
-    { href: "/dashboard/analytics", label: "Analytics", icon: BarChart3 },
-    { href: "/dashboard/settings", label: "Settings", icon: Settings },
+    { href: "/dashboard", label: "Dashboard", icon: Home },
+    { href: "/dashboard/org/all-appointments", label: "Appointments", icon: CalendarCheck },
+    { href: "/dashboard/org/services", label: "Services", icon: Briefcase },
+    { href: "/dashboard/org/users", label: "Users", icon: UserCog },
+    { href: "/dashboard/payments", label: "Payments", icon: CreditCard },
+    { href: "/dashboard/org/settings", label: "Settings", icon: Settings },
   ],
 };
 
 // Mobile navigation structure
 const getMobileNav = (role: UserRole) => {
   const items = navigationByRole[role] || navigationByRole.customer;
-  
+
   if (role === "admin") {
     return [
       {
@@ -84,7 +89,7 @@ const getMobileNav = (role: UserRole) => {
       },
     ];
   }
-  
+
   return [
     {
       name: "Main",
@@ -243,7 +248,7 @@ function UserProfileDropdown({
 
         <DropdownMenuSeparator />
 
-        <DropdownMenuItem 
+        <DropdownMenuItem
           className="flex items-center cursor-pointer text-red-600 focus:text-red-600"
           onClick={handleLogout}
         >
@@ -266,7 +271,7 @@ export default function Navbar() {
 
   const isLoading = userData === null;
   const userRole = userData?.role || "customer";
-  const userName = userData?.name || "";  
+  const userName = userData?.name || "";
   const userEmail = userData?.email || "";
   const navigationLinks = userData ? navigationByRole[userData.role] : [];
   const mobileNavStructure = userData ? getMobileNav(userData.role) : [{ name: "Main", items: [] }];
@@ -319,16 +324,7 @@ export default function Navbar() {
           />
 
           <div className="flex items-center gap-1.5">
-            <Link
-              href="/dashboard/notifications"
-              className={cn(
-                buttonVariants({ variant: "ghost", size: "icon" }),
-                "h-8 w-8 flex items-center justify-center relative"
-              )}
-            >
-              <BellIcon className="h-4 w-4" />
-              <span className="absolute right-1 top-1 h-2 w-2 rounded-full bg-red-500" />
-            </Link>
+            <NotificationDropdown />
           </div>
 
           <Separator
@@ -339,9 +335,9 @@ export default function Navbar() {
           {isLoading ? (
             <Skeleton className="h-8 w-8 rounded-full" />
           ) : (
-            <UserProfileDropdown 
-              align="end" 
-              sizeClass="h-8 w-8" 
+            <UserProfileDropdown
+              align="end"
+              sizeClass="h-8 w-8"
               userName={userName}
               userEmail={userEmail}
               userRole={userRole}
@@ -368,7 +364,7 @@ export default function Navbar() {
               navigationLinks.map((link, index) => {
                 const Icon = link.icon;
                 const isActive = pathname === link.href;
-                
+
                 return (
                   <NavigationMenuItem key={index} asChild>
                     <Link

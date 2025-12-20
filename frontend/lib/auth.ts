@@ -1,6 +1,20 @@
 "use client";
 
-import { User } from "./types";
+export interface User {
+  id: string;
+  email: string;
+  name: string;
+  role: "USER" | "ORGANIZATION";
+  emailVerified: boolean;
+  createdAt: string;
+  business?: {
+    id: string;
+    name: string;
+    location: string;
+    workingHours?: string;
+    description?: string;
+  };
+}
 
 export interface AuthTokens {
   accessToken: string;
