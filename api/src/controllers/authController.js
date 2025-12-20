@@ -332,6 +332,14 @@ async function login(req, res) {
       },
     });
 
+    // Flatten organization name for easier access
+    const userResponse = {
+      ...userData,
+      organizationName: userData.isMember
+        ? userData.organization?.name
+        : userData.adminOrganization?.name,
+    };
+
     // Set refresh token in cookie
     res.cookie("refreshToken", refreshToken, COOKIE_OPTIONS);
 
@@ -341,7 +349,7 @@ async function login(req, res) {
       data: {
         accessToken,
         refreshToken, // Include refresh token in response for non-cookie clients
-        user: userData,
+        user: userResponse,
       },
     });
   } catch (error) {

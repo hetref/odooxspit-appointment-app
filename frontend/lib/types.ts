@@ -7,7 +7,8 @@ export interface User {
   createdAt: string;
   updatedAt?: string;
   isMember?: boolean;
-  organizationId?: string;
+  organizationId?: string | null;
+  organizationName?: string;
   organization?: Organization;
   adminOrganization?: Organization;
 }
