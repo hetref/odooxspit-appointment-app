@@ -9,12 +9,9 @@
 !.yarn/plugins
 !.yarn/releases
 !.yarn/versions
-developer-docs.md
 
 # testing
 /coverage
-
-.next
 
 # next.js
 /.next/

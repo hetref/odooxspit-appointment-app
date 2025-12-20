@@ -2,7 +2,17 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Loader2, User as UserIcon, Building2, Mail, Shield, CheckCircle, XCircle, Calendar, MapPin } from "lucide-react";
+import {
+    Loader2,
+    User as UserIcon,
+    Building2,
+    Mail,
+    Shield,
+    CheckCircle,
+    XCircle,
+    Calendar,
+    MapPin,
+} from "lucide-react";
 import { useUser } from "@/contexts/UserContext";
 import { authStorage } from "@/lib/auth";
 import { userApi } from "@/lib/api";
@@ -87,8 +97,12 @@ export default function DashboardPage() {
             <div className="flex min-h-[60vh] items-center justify-center">
                 <div className="text-center">
                     <XCircle className="size-12 mx-auto mb-4 text-destructive" />
-                    <h2 className="text-xl font-semibold mb-2">Error Loading Dashboard</h2>
-                    <p className="text-muted-foreground mb-4">{error || "Unable to load user data"}</p>
+                    <h2 className="text-xl font-semibold mb-2">
+                        Error Loading Dashboard
+                    </h2>
+                    <p className="text-muted-foreground mb-4">
+                        {error || "Unable to load user data"}
+                    </p>
                     <button
                         onClick={() => window.location.reload()}
                         className="px-4 py-2 bg-primary text-primary-foreground rounded-md hover:bg-primary/90"
@@ -104,8 +118,12 @@ export default function DashboardPage() {
         <div className="container mx-auto p-6 max-w-6xl">
             {/* Welcome Header */}
             <div className="mb-8">
-                <h1 className="text-3xl font-bold mb-2">Welcome back, {user.name || "User"}!</h1>
-                <p className="text-muted-foreground">Here's an overview of your account</p>
+                <h1 className="text-3xl font-bold mb-2">
+                    Welcome back, {user.name || "User"}!
+                </h1>
+                <p className="text-muted-foreground">
+                    Here's an overview of your account
+                </p>
             </div>
 
             {/* User Profile Card */}
@@ -124,13 +142,17 @@ export default function DashboardPage() {
                         )}
                         <div>
                             <h2 className="text-xl font-semibold">Account Information</h2>
-                            <p className="text-sm text-muted-foreground">Your profile details</p>
+                            <p className="text-sm text-muted-foreground">
+                                Your profile details
+                            </p>
                         </div>
                     </div>
 
                     <div className="space-y-4">
                         <div>
-                            <label className="text-sm font-medium text-muted-foreground">Name</label>
+                            <label className="text-sm font-medium text-muted-foreground">
+                                Name
+                            </label>
                             <p className="text-base font-medium">{user.name || "Not set"}</p>
                         </div>
 
@@ -148,28 +170,38 @@ export default function DashboardPage() {
                                 Account Type
                             </label>
                             <div className="flex items-center gap-2 mt-1">
-                                <span className={`px-3 py-1 rounded-full text-sm font-medium ${user.role === "USER"
-                                    ? "bg-blue-100 text-blue-700 dark:bg-blue-900/20 dark:text-blue-400"
-                                    : "bg-purple-100 text-purple-700 dark:bg-purple-900/20 dark:text-purple-400"
-                                    }`}>
-                                    {user.role === "USER" ? "User Account" : "Organization Account"}
-                                    <Link href={user.role === "USER" ? "/dashboard/user" : "/dashboard/org"}>Go to Account</Link>
+                                <span
+                                    className={`px-3 py-1 rounded-full text-sm font-medium ${user.role === "USER"
+                                            ? "bg-blue-100 text-blue-700 dark:bg-blue-900/20 dark:text-blue-400"
+                                            : "bg-purple-100 text-purple-700 dark:bg-purple-900/20 dark:text-purple-400"
+                                        }`}
+                                >
+                                    {console.log("USER", user)}
+                                    {user.role === "USER"
+                                        ? "User Account"
+                                        : "Organization Account"}
                                 </span>
                             </div>
                         </div>
 
                         <div>
-                            <label className="text-sm font-medium text-muted-foreground">Email Verification</label>
+                            <label className="text-sm font-medium text-muted-foreground">
+                                Email Verification
+                            </label>
                             <div className="flex items-center gap-2 mt-1">
                                 {user.emailVerified ? (
                                     <>
                                         <CheckCircle className="size-5 text-green-600" />
-                                        <span className="text-sm text-green-600 font-medium">Verified</span>
+                                        <span className="text-sm text-green-600 font-medium">
+                                            Verified
+                                        </span>
                                     </>
                                 ) : (
                                     <>
                                         <XCircle className="size-5 text-orange-600" />
-                                        <span className="text-sm text-orange-600 font-medium">Not Verified</span>
+                                        <span className="text-sm text-orange-600 font-medium">
+                                            Not Verified
+                                        </span>
                                     </>
                                 )}
                             </div>
@@ -203,10 +235,14 @@ export default function DashboardPage() {
                         </div>
                         <div>
                             <h2 className="text-xl font-semibold">
-                                {user.role === "ORGANIZATION" ? "Organization Details" : "User Status"}
+                                {user.role === "ORGANIZATION"
+                                    ? "Organization Details"
+                                    : "User Status"}
                             </h2>
                             <p className="text-sm text-muted-foreground">
-                                {user.role === "ORGANIZATION" ? "Your organization info" : "Your account status"}
+                                {user.role === "ORGANIZATION"
+                                    ? "Your organization info"
+                                    : "Your account status"}
                             </p>
                         </div>
                     </div>
@@ -217,8 +253,12 @@ export default function DashboardPage() {
                                 {user.adminOrganization ? (
                                     <>
                                         <div>
-                                            <label className="text-sm font-medium text-muted-foreground">Organization Name</label>
-                                            <p className="text-base font-medium">{user.adminOrganization.name}</p>
+                                            <label className="text-sm font-medium text-muted-foreground">
+                                                Organization Name
+                                            </label>
+                                            <p className="text-base font-medium">
+                                                {user.adminOrganization.name}
+                                            </p>
                                         </div>
 
                                         <div>
@@ -226,32 +266,46 @@ export default function DashboardPage() {
                                                 <MapPin className="size-4" />
                                                 Location
                                             </label>
-                                            <p className="text-base">{user.adminOrganization.location}</p>
+                                            <p className="text-base">
+                                                {user.adminOrganization.location}
+                                            </p>
                                         </div>
 
                                         {user.adminOrganization.description && (
                                             <div>
-                                                <label className="text-sm font-medium text-muted-foreground">Description</label>
-                                                <p className="text-base">{user.adminOrganization.description}</p>
+                                                <label className="text-sm font-medium text-muted-foreground">
+                                                    Description
+                                                </label>
+                                                <p className="text-base">
+                                                    {user.adminOrganization.description}
+                                                </p>
                                             </div>
                                         )}
 
                                         <div>
-                                            <label className="text-sm font-medium text-muted-foreground">Organization ID</label>
-                                            <p className="text-sm font-mono bg-muted px-2 py-1 rounded">{user.adminOrganization.id}</p>
+                                            <label className="text-sm font-medium text-muted-foreground">
+                                                Organization ID
+                                            </label>
+                                            <p className="text-sm font-mono bg-muted px-2 py-1 rounded">
+                                                {user.adminOrganization.id}
+                                            </p>
                                         </div>
                                     </>
                                 ) : (
                                     <div className="text-center py-8">
                                         <Building2 className="size-12 mx-auto mb-3 text-muted-foreground" />
-                                        <p className="text-muted-foreground">No organization details available</p>
+                                        <p className="text-muted-foreground">
+                                            No organization details available
+                                        </p>
                                     </div>
                                 )}
                             </>
                         ) : (
                             <>
                                 <div>
-                                    <label className="text-sm font-medium text-muted-foreground">Member Status</label>
+                                    <label className="text-sm font-medium text-muted-foreground">
+                                        Member Status
+                                    </label>
                                     <p className="text-base">
                                         {user.isMember ? "Organization Member" : "Independent User"}
                                     </p>
@@ -260,8 +314,12 @@ export default function DashboardPage() {
                                 {user.organization && (
                                     <>
                                         <div>
-                                            <label className="text-sm font-medium text-muted-foreground">Organization</label>
-                                            <p className="text-base font-medium">{user.organization.name}</p>
+                                            <label className="text-sm font-medium text-muted-foreground">
+                                                Organization
+                                            </label>
+                                            <p className="text-base font-medium">
+                                                {user.organization.name}
+                                            </p>
                                         </div>
 
                                         <div>
@@ -275,14 +333,19 @@ export default function DashboardPage() {
                                 )}
 
                                 <div>
-                                    <label className="text-sm font-medium text-muted-foreground">User ID</label>
-                                    <p className="text-sm font-mono bg-muted px-2 py-1 rounded">{user.id}</p>
+                                    <label className="text-sm font-medium text-muted-foreground">
+                                        User ID
+                                    </label>
+                                    <p className="text-sm font-mono bg-muted px-2 py-1 rounded">
+                                        {user.id}
+                                    </p>
                                 </div>
 
                                 {!user.organization && !user.isMember && (
                                     <div className="mt-6 p-4 bg-blue-50 dark:bg-blue-900/10 border border-blue-200 dark:border-blue-800 rounded-lg">
                                         <p className="text-sm text-blue-900 dark:text-blue-100">
-                                            You're currently an independent user. You can book appointments with various organizations.
+                                            You're currently an independent user. You can book
+                                            appointments with various organizations.
                                         </p>
                                     </div>
                                 )}
@@ -304,7 +367,9 @@ export default function DashboardPage() {
                             >
                                 <Calendar className="size-6 mb-2 text-primary" />
                                 <h3 className="font-semibold">My Appointments</h3>
-                                <p className="text-sm text-muted-foreground">View your bookings</p>
+                                <p className="text-sm text-muted-foreground">
+                                    View your bookings
+                                </p>
                             </button>
                             <button
                                 onClick={() => router.push("/dashboard/user/profile")}
@@ -312,7 +377,9 @@ export default function DashboardPage() {
                             >
                                 <UserIcon className="size-6 mb-2 text-primary" />
                                 <h3 className="font-semibold">Edit Profile</h3>
-                                <p className="text-sm text-muted-foreground">Update your information</p>
+                                <p className="text-sm text-muted-foreground">
+                                    Update your information
+                                </p>
                             </button>
                         </>
                     ) : (
@@ -323,7 +390,9 @@ export default function DashboardPage() {
                             >
                                 <Calendar className="size-6 mb-2 text-primary" />
                                 <h3 className="font-semibold">Manage Appointments</h3>
-                                <p className="text-sm text-muted-foreground">View all bookings</p>
+                                <p className="text-sm text-muted-foreground">
+                                    View all bookings
+                                </p>
                             </button>
                             <button
                                 onClick={() => router.push("/dashboard/org/resources")}
@@ -331,7 +400,9 @@ export default function DashboardPage() {
                             >
                                 <Building2 className="size-6 mb-2 text-primary" />
                                 <h3 className="font-semibold">Resources</h3>
-                                <p className="text-sm text-muted-foreground">Manage your resources</p>
+                                <p className="text-sm text-muted-foreground">
+                                    Manage your resources
+                                </p>
                             </button>
                             <button
                                 onClick={() => router.push("/dashboard/org/settings")}
@@ -339,7 +410,9 @@ export default function DashboardPage() {
                             >
                                 <Shield className="size-6 mb-2 text-primary" />
                                 <h3 className="font-semibold">Organization Settings</h3>
-                                <p className="text-sm text-muted-foreground">Configure your org</p>
+                                <p className="text-sm text-muted-foreground">
+                                    Configure your org
+                                </p>
                             </button>
                         </>
                     )}
@@ -349,13 +422,25 @@ export default function DashboardPage() {
             {/* Storage Info (Debug) */}
             <div className="mt-6 p-4 bg-muted/50 border rounded-lg">
                 <details>
-                    <summary className="cursor-pointer font-medium text-sm">Storage Information (Debug)</summary>
+                    <summary className="cursor-pointer font-medium text-sm">
+                        Storage Information (Debug)
+                    </summary>
                     <div className="mt-3 space-y-2 text-sm">
-                        <p><strong>Access Token:</strong> {authStorage.getAccessToken() ? "✓ Present" : "✗ Missing"}</p>
-                        <p><strong>Refresh Token:</strong> {authStorage.getRefreshToken() ? "✓ Present" : "✗ Missing"}</p>
-                        <p><strong>Cached User:</strong> {authStorage.getUser() ? "✓ Present" : "✗ Missing"}</p>
+                        <p>
+                            <strong>Access Token:</strong>{" "}
+                            {authStorage.getAccessToken() ? "✓ Present" : "✗ Missing"}
+                        </p>
+                        <p>
+                            <strong>Refresh Token:</strong>{" "}
+                            {authStorage.getRefreshToken() ? "✓ Present" : "✗ Missing"}
+                        </p>
+                        <p>
+                            <strong>Cached User:</strong>{" "}
+                            {authStorage.getUser() ? "✓ Present" : "✗ Missing"}
+                        </p>
                         <p className="text-xs text-muted-foreground mt-2">
-                            Tokens are stored in sessionStorage, localStorage, and cookies for maximum compatibility.
+                            Tokens are stored in sessionStorage, localStorage, and cookies for
+                            maximum compatibility.
                         </p>
                     </div>
                 </details>

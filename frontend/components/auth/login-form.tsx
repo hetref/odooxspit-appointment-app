@@ -62,7 +62,9 @@ export function LoginForm({
 
         // Get redirect URL from query params or use default based on role
         const redirectParam = searchParams.get('redirect');
-        const defaultRedirect = getRedirectUrl(data.user.role);
+        // Type assertion to fix 'response.data' is of type 'unknown'
+        const user = (response.data as LoginResponseData).user;
+        const defaultRedirect = getRedirectUrl(user.role);
         const redirectUrl = redirectParam || defaultRedirect;
 
         // Redirect to appropriate page
