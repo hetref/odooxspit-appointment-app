@@ -11,7 +11,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 
 function DashboardSkeleton() {
   return (
-    <div className="min-h-screen bg-background">
+    <div className="min-h-screen bg-background max-w-[1600px] mx-auto ">
       {/* Navbar Skeleton */}
       <header className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur">
         <div className="flex h-16 items-center justify-between gap-4 px-4 xl:px-6">

@@ -115,7 +115,7 @@ export function LoginForm({
   }
 
   return (
-    <form onSubmit={handleSubmit} className="flex flex-col gap-6">
+    <form onSubmit={handleSubmit} className="flex flex-col gap-6 animate-in fade-in duration-500">
       <FieldGroup>
         <div className="flex flex-col items-center gap-1 text-center">
           <h1 className="text-2xl font-bold">Login to your account</h1>
@@ -126,7 +126,7 @@ export function LoginForm({
 
         {/* Error Message */}
         {error && (
-          <div className="flex items-center gap-2 p-3 text-sm text-red-600 bg-red-50 border border-red-200 rounded-md">
+          <div className="flex items-center gap-2 p-3 text-sm text-red-600 bg-red-50 dark:bg-red-950/20 border border-red-200 dark:border-red-900/30 rounded-md animate-in slide-in-from-top-2 duration-300">
             <AlertCircle className="size-4 shrink-0" />
             <span>{error}</span>
           </div>
@@ -134,7 +134,7 @@ export function LoginForm({
 
         {/* Success Message */}
         {resendSuccess && (
-          <div className="flex items-center gap-2 p-3 text-sm text-green-600 bg-green-50 border border-green-200 rounded-md">
+          <div className="flex items-center gap-2 p-3 text-sm text-green-600 bg-green-50 dark:bg-green-950/20 border border-green-200 dark:border-green-900/30 rounded-md animate-in slide-in-from-top-2 duration-300">
             <CheckCircle className="size-4 shrink-0" />
             <span>{resendSuccess}</span>
           </div>
@@ -142,7 +142,7 @@ export function LoginForm({
 
         {/* Resend Verification Button */}
         {showResendVerification && (
-          <div className="flex items-start gap-2 p-3 text-sm bg-blue-50 border border-blue-200 rounded-md">
+          <div className="flex items-start gap-2 p-3 text-sm bg-blue-50 dark:bg-blue-950/20 border border-blue-200 dark:border-blue-900/30 rounded-md animate-in slide-in-from-top-2 duration-300">
             <Mail className="size-4 shrink-0 mt-0.5 text-blue-600" />
             <div className="flex-1">
               <p className="text-blue-900 font-medium mb-2">
@@ -185,6 +185,7 @@ export function LoginForm({
             onChange={(e) => setEmail(e.target.value)}
             required
             disabled={isPending}
+            className="transition-all duration-200 focus:ring-2"
           />
         </Field>
 
@@ -194,7 +195,7 @@ export function LoginForm({
             <FieldLabel>Password</FieldLabel>
             <a
               href="/forgot-password"
-              className="ml-auto text-sm underline-offset-4 hover:underline"
+              className="ml-auto text-sm underline-offset-4 hover:underline transition-colors duration-200"
             >
               Forgot your password?
             </a>
@@ -205,15 +206,17 @@ export function LoginForm({
             onChange={(e) => setPassword(e.target.value)}
             required
             disabled={isPending}
+            className="transition-all duration-200 focus:ring-2"
           />
         </Field>
 
         {/* SUBMIT */}
         <Field>
-          <Button type="submit" className="w-full" disabled={isPending}>
+          <Button type="submit" className="w-full hover:shadow-md transition-all duration-200" disabled={isPending}>
             {isPending ? (
-              <span>
+              <span className="flex items-center gap-2">
                 <Loader className="size-4 animate-spin" />
+                Logging in...
               </span>
             ) : (
               "Login"

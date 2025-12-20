@@ -59,17 +59,20 @@ const navigationByRole = {
   ],
   organizer: [
     { href: "/dashboard", label: "Dashboard", icon: Home },
-    { href: "/dashboard/org/all-appointments", label: "Appointments", icon: CalendarCheck },
+    { href: "/dashboard/org/appointments", label: "Appointments", icon: CalendarCheck },
+    { href: "/dashboard/org/all-appointments", label: "All Appointments", icon: CalendarCheck },
     { href: "/dashboard/org/resources", label: "Resources", icon: Briefcase },
-    { href: "/dashboard/org/users", label: "Users", icon: UserCog },
+    { href: "/dashboard/org/users", label: "Team", icon: Users },
     { href: "/dashboard/payments", label: "Payments", icon: CreditCard },
     { href: "/dashboard/org/settings", label: "Settings", icon: Settings },
   ],
   admin: [
-    { href: "/dashboard", label: "Dashboard", icon: Home },
+    { href: "/dashboard/admin", label: "Admin Dashboard", icon: Home },
+    { href: "/dashboard/admin/users", label: "User Management", icon: UserCog },
+    { href: "/dashboard/admin/reports", label: "Reports & Analytics", icon: BarChart3 },
     { href: "/dashboard/org/all-appointments", label: "Appointments", icon: CalendarCheck },
     { href: "/dashboard/org/resources", label: "Resources", icon: Briefcase },
-    { href: "/dashboard/org/users", label: "Users", icon: UserCog },
+    { href: "/dashboard/org/users", label: "Team", icon: Users },
     { href: "/dashboard/payments", label: "Payments", icon: CreditCard },
     { href: "/dashboard/org/settings", label: "Settings", icon: Settings },
   ],
@@ -82,12 +85,21 @@ const getMobileNav = (role: UserRole) => {
   if (role === "admin") {
     return [
       {
-        name: "Main",
-        items: items.slice(0, 5).map(item => ({ label: item.label, href: item.href })),
+        name: "Administration",
+        items: items.slice(0, 3).map(item => ({ label: item.label, href: item.href })),
       },
       {
-        name: "Management",
-        items: items.slice(5).map(item => ({ label: item.label, href: item.href })),
+        name: "Organization",
+        items: items.slice(3).map(item => ({ label: item.label, href: item.href })),
+      },
+    ];
+  }
+
+  if (role === "organizer") {
+    return [
+      {
+        name: "Organization",
+        items: items.map(item => ({ label: item.label, href: item.href })),
       },
     ];
   }
@@ -285,6 +297,7 @@ export default function Navbar() {
       try {
         const data = await GetUserData();
         if (data) {
+          console.log("Navbar - User data:", data); // Debug log
           setUserData({
             name: data.name,
             email: data.email,

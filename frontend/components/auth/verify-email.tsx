@@ -45,8 +45,8 @@ export default function VerifyEmailPage() {
   // If we're verifying (have token and email in URL)
   if (isVerifying || (searchParams.get("token") && searchParams.get("email"))) {
     return (
-      <div className="space-y-4 flex flex-col items-center">
-        <Loader className="size-8 animate-spin" />
+      <div className="space-y-4 flex flex-col items-center animate-in fade-in duration-500">
+        <Loader className="size-8 animate-spin text-primary" />
         <h1 className="font-semibold text-2xl text-center">{message}</h1>
         <p className="text-muted-foreground text-sm font-medium text-center">
           Please wait while we verify your account...
