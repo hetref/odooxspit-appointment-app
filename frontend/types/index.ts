@@ -18,3 +18,12 @@ export interface MenuSectiontype {
   items: MenuItem[]
   roles?: ("owner" | "manager" | "employee")[]
 }
+
+
+export interface User {
+  id: string;
+  name: string;
+  email: string;
+  role: "USER" | "ADMIN" | "OWNER" | "MANAGER" | "EMPLOYEE";
+  verified: boolean;
+}

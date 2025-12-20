@@ -47,13 +47,13 @@ type UserRole = "customer" | "organizer" | "admin";
 // ---------------------- Navigation Config ----------------------
 const navigationByRole = {
   customer: [
-    { href: "/dashboard/appointments", label: "My Appointments", icon: CalendarCheck },
-    { href: "/dashboard/appointments/book", label: "Book Appointment", icon: Calendar },
+    { href: "/dashboard/user/appointments", label: "My Appointments", icon: CalendarCheck },
+    { href: "/dashboard/user/appointments/book", label: "Book Appointment", icon: Calendar },
   ],
   organizer: [
     { href: "/dashboard", label: "Dashboard", icon: BarChart3 },
-    { href: "/dashboard/appointments", label: "Appointments", icon: CalendarCheck },
-    { href: "/dashboard/appointment-types", label: "Appointment Types", icon: Calendar },
+    { href: "/dashboard/org/appointments", label: "Appointments", icon: CalendarCheck },
+    { href: "/dashboard/org/appointment-types", label: "All Appointment", icon: Calendar },
     { href: "/dashboard/providers", label: "Providers", icon: Users },
     { href: "/dashboard/analytics", label: "Analytics", icon: BarChart3 },
   ],

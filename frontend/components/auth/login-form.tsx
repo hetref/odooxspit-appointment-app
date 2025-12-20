@@ -32,17 +32,25 @@ export function LoginForm({
     try {
       const response = await authApi.login({ email, password });
 
+      // Explicitly type response.data to avoid type errors
+      type LoginResponseData = {
+        user?: any;
+        accessToken?: string;
+        refreshToken?: string;
+      };
+      const data = response.data as LoginResponseData;
+
       if (
         response.success &&
-        response.data?.user &&
-        response.data?.accessToken &&
-        response.data?.refreshToken
+        data?.user &&
+        data?.accessToken &&
+        data?.refreshToken
       ) {
         // Save auth data to localStorage
         saveAuthData({
-          accessToken: response.data.accessToken,
-          refreshToken: response.data.refreshToken,
-          user: response.data.user,
+          accessToken: data.accessToken,
+          refreshToken: data.refreshToken,
+          user: data.user,
         });
 
         // Redirect to home page

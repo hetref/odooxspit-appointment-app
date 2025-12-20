@@ -2,6 +2,7 @@
 
 import * as React from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -287,6 +288,7 @@ const getPaymentStatusColor = (status: string) => {
 };
 
 export default function OrganizationAppointmentsList() {
+  const router = useRouter();
   const [isLoading, setIsLoading] = React.useState(true);
   const [userData, setUserData] = React.useState<any>(null);
   const [selectedAppointment, setSelectedAppointment] = React.useState<Appointment | null>(null);
@@ -386,7 +388,7 @@ export default function OrganizationAppointmentsList() {
   }
 
   return (
-    <div className="p-4 md:p-8 space-y-6 max-w-[1600px] mx-auto">
+    <div className="p-4 md:p-8 space-y-6 mx-auto">
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
@@ -395,7 +397,11 @@ export default function OrganizationAppointmentsList() {
             Manage and track all your appointments
           </p>
         </div>
-        <Button size="lg" className="gap-2 w-full sm:w-auto">
+        <Button 
+          size="lg" 
+          className="gap-2 w-full sm:w-auto"
+          onClick={() => router.push("/dashboard/org/appointments/create")}
+        >
           <Plus className="w-5 h-5" />
           Create Appointment
         </Button>
