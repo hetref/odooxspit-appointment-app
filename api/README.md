@@ -6,8 +6,16 @@ A complete, production-ready authentication API built with Express, Prisma 7, JW
 
 - ✅ User registration with email verification
 - ✅ **Role-based access control (USER and ORGANIZATION)**
-- ✅ **Business management for organizations**
+- ✅ **Organization management with admin and member roles**
+- ✅ **Automatic organization creation on role upgrade**
 - ✅ **USER to ORGANIZATION conversion**
+- ✅ **Member management (add/view members)**
+- ✅ **Resource management (create/view/delete resources)**
+- ✅ **Appointment system with complex booking logic**
+- ✅ **Public appointment discovery (no auth)**
+- ✅ **Available time slot calculation**
+- ✅ **USER and RESOURCE book types**
+- ✅ **Automatic and visitor-based assignment**
 - ✅ JWT-based access tokens (15 minutes expiry)
 - ✅ Rotating refresh tokens (30 days expiry, stored as HttpOnly cookies)
 - ✅ Password reset via email
@@ -199,7 +207,13 @@ Create a new user account with optional role selection (USER or ORGANIZATION).
   "business": {
     "name": "Tech Solutions Inc.",
     "location": "New York, NY",
-    "workingHours": "Mon-Fri 9AM-5PM",
+    "businessHours": [
+      { "day": "MONDAY", "from": "09:00", "to": "17:00" },
+      { "day": "TUESDAY", "from": "09:00", "to": "17:00" },
+      { "day": "WEDNESDAY", "from": "09:00", "to": "17:00" },
+      { "day": "THURSDAY", "from": "09:00", "to": "17:00" },
+      { "day": "FRIDAY", "from": "09:00", "to": "17:00" }
+    ],
     "description": "Leading technology solutions provider"
   }
 }
@@ -229,7 +243,7 @@ Create a new user account with optional role selection (USER or ORGANIZATION).
     "email": "business@example.com",
     "name": "Jane Smith",
     "role": "ORGANIZATION",
-    "business": {
+    "organization": {
       "id": "clx789ghi",
       "name": "Tech Solutions Inc.",
       "location": "New York, NY"
@@ -243,7 +257,7 @@ Create a new user account with optional role selection (USER or ORGANIZATION).
 - Password must be at least 8 characters
 - Email must be unique
 - Role must be either "USER" or "ORGANIZATION" (defaults to "USER")
-- If role is "ORGANIZATION", business name and location are required
+- If role is "ORGANIZATION", business name, location, and businessHours array are required
 - If role is "USER", business data is ignored
 
 **Email Sent**: Verification link to user's email
@@ -993,13 +1007,16 @@ Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
       "emailVerified": true,
       "createdAt": "2024-01-15T10:30:00.000Z",
       "updatedAt": "2024-01-15T10:30:00.000Z",
-      "business": null
+      "isMember": false,
+      "organizationId": null,
+      "adminOrganization": null,
+      "organization": null
     }
   }
 }
 ```
 
-**Response** (200 OK) - ORGANIZATION:
+**Response** (200 OK) - ORGANIZATION (Admin):
 ```json
 {
   "success": true,
@@ -1012,14 +1029,50 @@ Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
       "emailVerified": true,
       "createdAt": "2024-01-15T10:30:00.000Z",
       "updatedAt": "2024-01-15T10:30:00.000Z",
-      "business": {
+      "isMember": false,
+      "organizationId": "clx789ghi",
+      "adminOrganization": {
         "id": "clx789ghi",
         "name": "Tech Solutions Inc.",
         "location": "New York, NY",
-        "workingHours": "Mon-Fri 9AM-5PM",
+        "businessHours": [
+          { "day": "MONDAY", "from": "09:00", "to": "17:00" },
+          { "day": "FRIDAY", "from": "09:00", "to": "17:00" }
+        ],
         "description": "Leading technology solutions provider",
         "createdAt": "2024-01-15T10:30:00.000Z",
         "updatedAt": "2024-01-15T10:30:00.000Z"
+      },
+      "organization": null
+    }
+  }
+}
+```
+
+**Response** (200 OK) - ORGANIZATION (Member):
+```json
+{
+  "success": true,
+  "data": {
+    "user": {
+      "id": "clx999xyz",
+      "email": "member@example.com",
+      "name": "Bob Johnson",
+      "role": "ORGANIZATION",
+      "emailVerified": true,
+      "createdAt": "2024-01-16T14:20:00.000Z",
+      "updatedAt": "2024-01-16T14:20:00.000Z",
+      "isMember": true,
+      "organizationId": "clx789ghi",
+      "adminOrganization": null,
+      "organization": {
+        "id": "clx789ghi",
+        "name": "Tech Solutions Inc.",
+        "location": "New York, NY",
+        "businessHours": [
+          { "day": "MONDAY", "from": "09:00", "to": "17:00" }
+        ],
+        "description": "Leading technology solutions provider"
       }
     }
   }
@@ -1045,7 +1098,13 @@ Authorization: Bearer YOUR_ACCESS_TOKEN
   "business": {
     "name": "Tech Solutions Inc.",
     "location": "New York, NY",
-    "workingHours": "Mon-Fri 9AM-5PM",
+    "businessHours": [
+      { "day": "MONDAY", "from": "09:00", "to": "17:00" },
+      { "day": "TUESDAY", "from": "09:00", "to": "17:00" },
+      { "day": "WEDNESDAY", "from": "09:00", "to": "17:00" },
+      { "day": "THURSDAY", "from": "09:00", "to": "17:00" },
+      { "day": "FRIDAY", "from": "09:00", "to": "17:00" }
+    ],
     "description": "Leading technology solutions provider"
   }
 }
@@ -1054,7 +1113,7 @@ Authorization: Bearer YOUR_ACCESS_TOKEN
 **Required Fields**:
 - `business.name`: Business name (required)
 - `business.location`: Business location (required)
-- `business.workingHours`: Working hours (optional)
+- `business.businessHours`: Array of business hours objects with day, from, to (required)
 - `business.description`: Business description (optional)
 
 **Response** (200 OK):
@@ -1069,11 +1128,17 @@ Authorization: Bearer YOUR_ACCESS_TOKEN
       "name": "John Doe",
       "role": "ORGANIZATION"
     },
-    "business": {
+    "organization": {
       "id": "clx789ghi",
       "name": "Tech Solutions Inc.",
       "location": "New York, NY",
-      "workingHours": "Mon-Fri 9AM-5PM",
+      "businessHours": [
+        { "day": "MONDAY", "from": "09:00", "to": "17:00" },
+        { "day": "TUESDAY", "from": "09:00", "to": "17:00" },
+        { "day": "WEDNESDAY", "from": "09:00", "to": "17:00" },
+        { "day": "THURSDAY", "from": "09:00", "to": "17:00" },
+        { "day": "FRIDAY", "from": "09:00", "to": "17:00" }
+      ],
       "description": "Leading technology solutions provider"
     }
   }
@@ -1189,6 +1254,555 @@ Authorization: Bearer YOUR_ACCESS_TOKEN
 
 ---
 
+## 🏢 Organization Endpoints
+
+**All organization endpoints require authentication**. Include access token in Authorization header:
+
+```
+Authorization: Bearer YOUR_ACCESS_TOKEN
+```
+
+### 18. Add Organization Member (ADMIN Only)
+
+Add a USER as a member to your organization. Only organization admins can add members.
+
+**Endpoint**: `POST /organization/members`
+
+**Headers**:
+```
+Authorization: Bearer YOUR_ACCESS_TOKEN
+```
+
+**Request Body**:
+```json
+{
+  "email": "member@example.com"
+}
+```
+
+**Response** (200 OK):
+```json
+{
+  "success": true,
+  "message": "Member added successfully.",
+  "data": {
+    "member": {
+      "id": "clx999abc",
+      "email": "member@example.com",
+      "name": "John Member",
+      "role": "ORGANIZATION",
+      "isMember": true
+    }
+  }
+}
+```
+
+**Rules**:
+- Only organization admins (isMember=false) can add members
+- Target user must have role=USER
+- Member will be converted to role=ORGANIZATION with isMember=true
+- Member will be linked to admin's organization
+
+**Error Responses**:
+
+Not an admin (403 Forbidden):
+```json
+{
+  "success": false,
+  "message": "Only organization admins can add members."
+}
+```
+
+User already in organization (400 Bad Request):
+```json
+{
+  "success": false,
+  "message": "This user is already part of an organization."
+}
+```
+
+---
+
+### 19. Get Organization Members
+
+Get all members of your organization (includes admin).
+
+**Endpoint**: `GET /organization/members`
+
+**Headers**:
+```
+Authorization: Bearer YOUR_ACCESS_TOKEN
+```
+
+**Response** (200 OK):
+```json
+{
+  "success": true,
+  "data": {
+    "members": [
+      {
+        "id": "clx123abc",
+        "email": "admin@example.com",
+        "name": "Admin User",
+        "role": "ORGANIZATION",
+        "isMember": false,
+        "createdAt": "2024-12-20T07:00:00.000Z"
+      },
+      {
+        "id": "clx456def",
+        "email": "member@example.com",
+        "name": "Member User",
+        "role": "ORGANIZATION",
+        "isMember": true,
+        "createdAt": "2024-12-20T07:15:00.000Z"
+      }
+    ]
+  }
+}
+```
+
+**Notes**:
+- Available to both admins and members
+- Returns all users in the organization
+- Admin has isMember=false, members have isMember=true
+
+---
+
+### 20. Create Resource (ADMIN Only)
+
+Create a resource for your organization (e.g., meeting room, equipment, staff).
+
+**Endpoint**: `POST /organization/resources`
+
+**Headers**:
+```
+Authorization: Bearer YOUR_ACCESS_TOKEN
+```
+
+**Request Body**:
+```json
+{
+  "name": "Conference Room A",
+  "capacity": 10
+}
+```
+
+**Response** (201 Created):
+```json
+{
+  "success": true,
+  "message": "Resource created successfully.",
+  "data": {
+    "resource": {
+      "id": "clx789xyz",
+      "name": "Conference Room A",
+      "capacity": 10,
+      "organizationId": "clx123org",
+      "createdAt": "2024-12-20T07:30:00.000Z",
+      "updatedAt": "2024-12-20T07:30:00.000Z"
+    }
+  }
+}
+```
+
+**Validation**:
+- Only organization admins can create resources
+- Name is required
+- Capacity must be greater than 0
+
+---
+
+### 21. Get Organization Resources
+
+Get all resources belonging to your organization.
+
+**Endpoint**: `GET /organization/resources`
+
+**Headers**:
+```
+Authorization: Bearer YOUR_ACCESS_TOKEN
+```
+
+**Response** (200 OK):
+```json
+{
+  "success": true,
+  "data": {
+    "resources": [
+      {
+        "id": "clx789xyz",
+        "name": "Conference Room A",
+        "capacity": 10,
+        "organizationId": "clx123org",
+        "createdAt": "2024-12-20T07:30:00.000Z",
+        "updatedAt": "2024-12-20T07:30:00.000Z"
+      },
+      {
+        "id": "clx789abc",
+        "name": "Meeting Room B",
+        "capacity": 5,
+        "organizationId": "clx123org",
+        "createdAt": "2024-12-20T07:35:00.000Z",
+        "updatedAt": "2024-12-20T07:35:00.000Z"
+      }
+    ]
+  }
+}
+```
+
+**Notes**:
+- Available to both admins and members
+- Returns all resources in the organization
+
+---
+
+### 22. Delete Resource (ADMIN Only)
+
+Delete a resource from your organization.
+
+**Endpoint**: `DELETE /organization/resources/:id`
+
+**Headers**:
+```
+Authorization: Bearer YOUR_ACCESS_TOKEN
+```
+
+**URL Parameters**:
+- `id`: Resource ID to delete
+
+**Response** (200 OK):
+```json
+{
+  "success": true,
+  "message": "Resource deleted successfully."
+}
+```
+
+**Rules**:
+- Only organization admins can delete resources
+- Resource must belong to admin's organization
+
+---
+
+### 23. Create Appointment (ADMIN Only)
+
+Create an appointment type for your organization with complex booking rules.
+
+**Endpoint**: `POST /organization/appointments`
+
+**Headers**:
+```
+Authorization: Bearer YOUR_ACCESS_TOKEN
+```
+
+**Request Body**:
+```json
+{
+  "title": "30-Minute Consultation",
+  "description": "Professional consultation session",
+  "durationMinutes": 30,
+  "bookType": "USER",
+  "assignmentType": "BY_VISITOR",
+  "allowMultipleSlots": false,
+  "price": 5000,
+  "cancellationHours": 24,
+  "schedule": [
+    { "day": "MONDAY", "from": "09:00", "to": "17:00" },
+    { "day": "TUESDAY", "from": "09:00", "to": "17:00" },
+    { "day": "WEDNESDAY", "from": "09:00", "to": "17:00" }
+  ],
+  "questions": [
+    {
+      "id": "q1",
+      "question": "What is your concern?",
+      "type": "text",
+      "required": true
+    }
+  ],
+  "allowedUserIds": ["clx123abc", "clx456def"]
+}
+```
+
+**Field Descriptions**:
+- `title`: Appointment name (required)
+- `description`: Detailed description (optional)
+- `durationMinutes`: Duration in minutes (required, must be > 0)
+- `bookType`: `USER` or `RESOURCE` (required)
+- `assignmentType`: `AUTOMATIC` or `BY_VISITOR` (required)
+- `allowMultipleSlots`: Allow booking multiple slots (default: false)
+- `price`: Price in cents (optional)
+- `cancellationHours`: Hours before appointment to allow cancellation (required)
+- `schedule`: Array of time slots by day (required)
+- `questions`: Custom questions for booking (required, can be empty array)
+- `allowedUserIds`: User IDs (required if bookType=USER)
+- `allowedResourceIds`: Resource IDs (required if bookType=RESOURCE)
+
+**Response** (201 Created):
+```json
+{
+  "success": true,
+  "message": "Appointment created successfully.",
+  "data": {
+    "appointment": {
+      "id": "clxapt123",
+      "title": "30-Minute Consultation",
+      "description": "Professional consultation session",
+      "durationMinutes": 30,
+      "bookType": "USER",
+      "assignmentType": "BY_VISITOR",
+      "allowMultipleSlots": false,
+      "price": 5000,
+      "cancellationHours": 24,
+      "schedule": [...],
+      "questions": [...],
+      "organizationId": "clx123org",
+      "allowedUsers": [
+        { "id": "clx123abc", "name": "John Doe", "email": "john@example.com" }
+      ],
+      "allowedResources": [],
+      "createdAt": "2024-12-20T08:00:00.000Z",
+      "updatedAt": "2024-12-20T08:00:00.000Z"
+    }
+  }
+}
+```
+
+**Validations**:
+- Only organization admins can create appointments
+- Schedule must be within organization business hours
+- Start time must be before end time for each slot
+- For bookType=USER, allowedUserIds must be organization members
+- For bookType=RESOURCE, allowedResourceIds must be organization resources
+
+---
+
+### 24. Get Organization Appointments
+
+Get all appointments for your organization.
+
+**Endpoint**: `GET /organization/appointments`
+
+**Headers**:
+```
+Authorization: Bearer YOUR_ACCESS_TOKEN
+```
+
+**Response** (200 OK):
+```json
+{
+  "success": true,
+  "data": {
+    "appointments": [
+      {
+        "id": "clxapt123",
+        "title": "30-Minute Consultation",
+        "description": "Professional consultation session",
+        "durationMinutes": 30,
+        "bookType": "USER",
+        "assignmentType": "BY_VISITOR",
+        "allowMultipleSlots": false,
+        "price": 5000,
+        "cancellationHours": 24,
+        "schedule": [...],
+        "questions": [...],
+        "organizationId": "clx123org",
+        "allowedUsers": [...],
+        "allowedResources": [],
+        "createdAt": "2024-12-20T08:00:00.000Z",
+        "updatedAt": "2024-12-20T08:00:00.000Z"
+      }
+    ]
+  }
+}
+```
+
+**Notes**:
+- Available to both admins and members
+- Returns full appointment details including internal data
+
+---
+
+### 25. Get Single Appointment
+
+Get detailed information about a specific appointment.
+
+**Endpoint**: `GET /organization/appointments/:id`
+
+**Headers**:
+```
+Authorization: Bearer YOUR_ACCESS_TOKEN
+```
+
+**URL Parameters**:
+- `id`: Appointment ID
+
+**Response** (200 OK):
+```json
+{
+  "success": true,
+  "data": {
+    "appointment": {
+      "id": "clxapt123",
+      "title": "30-Minute Consultation",
+      "description": "Professional consultation session",
+      "durationMinutes": 30,
+      "bookType": "USER",
+      "assignmentType": "BY_VISITOR",
+      "allowMultipleSlots": false,
+      "price": 5000,
+      "cancellationHours": 24,
+      "schedule": [...],
+      "questions": [...],
+      "organizationId": "clx123org",
+      "allowedUsers": [...],
+      "allowedResources": [],
+      "createdAt": "2024-12-20T08:00:00.000Z",
+      "updatedAt": "2024-12-20T08:00:00.000Z"
+    }
+  }
+}
+```
+
+---
+
+## 🌐 Public Appointment Endpoints (NO AUTH)
+
+These endpoints are publicly accessible for appointment discovery and booking.
+
+### 26. Get Public Appointments
+
+Browse available appointment types for a specific organization. No authentication required.
+
+**Endpoint**: `GET /public/organizations/:organizationId/appointments`
+
+**URL Parameters**:
+- `organizationId`: Organization ID
+
+**Response** (200 OK):
+```json
+{
+  "success": true,
+  "data": {
+    "organization": {
+      "id": "clx123org",
+      "name": "Tech Solutions Inc.",
+      "location": "New York, NY",
+      "description": "Professional services"
+    },
+    "appointments": [
+      {
+        "id": "clxapt123",
+        "title": "30-Minute Consultation",
+        "description": "Professional consultation session",
+        "durationMinutes": 30,
+        "bookType": "USER",
+        "assignmentType": "BY_VISITOR",
+        "allowMultipleSlots": false,
+        "price": 5000,
+        "cancellationHours": 24,
+        "schedule": [
+          { "day": "MONDAY", "from": "09:00", "to": "17:00" },
+          { "day": "TUESDAY", "from": "09:00", "to": "17:00" }
+        ],
+        "createdAt": "2024-12-20T08:00:00.000Z"
+      }
+    ]
+  }
+}
+```
+
+**Notes**:
+- Returns sanitized public data only
+- No sensitive internal information (allowed users/resources, questions)
+- Useful for public booking interfaces
+
+---
+
+### 27. Get Available Slots
+
+Get available time slots for a specific appointment on a given date. No authentication required.
+
+**Endpoint**: `GET /public/appointments/:appointmentId/slots?date=YYYY-MM-DD`
+
+**URL Parameters**:
+- `appointmentId`: Appointment ID
+
+**Query Parameters**:
+- `date`: Date in format YYYY-MM-DD (required)
+
+**Example**: `GET /public/appointments/clxapt123/slots?date=2024-12-25`
+
+**Response** (200 OK) - With Available Slots:
+```json
+{
+  "success": true,
+  "data": {
+    "appointment": {
+      "id": "clxapt123",
+      "title": "30-Minute Consultation",
+      "durationMinutes": 30,
+      "price": 5000,
+      "bookType": "USER",
+      "assignmentType": "BY_VISITOR"
+    },
+    "date": "2024-12-25",
+    "dayOfWeek": "WEDNESDAY",
+    "slots": [
+      {
+        "time": "09:00",
+        "available": true,
+        "users": [
+          {
+            "id": "clx123abc",
+            "name": "John Doe",
+            "available": true
+          }
+        ]
+      },
+      {
+        "time": "09:30",
+        "available": true,
+        "users": [
+          {
+            "id": "clx123abc",
+            "name": "John Doe",
+            "available": true
+          }
+        ]
+      }
+    ]
+  }
+}
+```
+
+**Response** (200 OK) - No Appointments on Day:
+```json
+{
+  "success": true,
+  "data": {
+    "date": "2024-12-25",
+    "dayOfWeek": "WEDNESDAY",
+    "slots": [],
+    "message": "No appointments available on this day."
+  }
+}
+```
+
+**Slot Calculation Logic**:
+1. Checks if appointment schedule includes the requested day
+2. Generates time slots based on duration and day schedule
+3. For `assignmentType=BY_VISITOR`, includes available users/resources
+4. For `assignmentType=AUTOMATIC`, user/resource selection is hidden
+5. Future enhancement: Check existing bookings and filter out fully booked slots
+
+**Notes**:
+- Date must be in YYYY-MM-DD format
+- Returns empty array if no appointments on that day
+- Slots respect organization business hours and appointment schedule
+- Users/resources shown only if assignmentType=BY_VISITOR
+
+---
+
 ## 🧪 Testing with Postman
 
 ### Import Environment
@@ -1289,7 +1903,7 @@ Headers:
 Authorization: Bearer {{accessToken}}
 ```
 
-**Response**: Will include role and business information (if user is ORGANIZATION).
+**Response**: Will include role, organization information (if user is ORGANIZATION admin via `adminOrganization` or member via `organization`), and `isMember` flag.
 
 #### 6. Convert USER to ORGANIZATION (Optional)
 
@@ -1304,13 +1918,20 @@ Body (JSON):
   "business": {
     "name": "My New Business",
     "location": "San Francisco, CA",
-    "workingHours": "Mon-Sat 10AM-6PM",
+    "businessHours": [
+      { "day": "MONDAY", "from": "10:00", "to": "18:00" },
+      { "day": "TUESDAY", "from": "10:00", "to": "18:00" },
+      { "day": "WEDNESDAY", "from": "10:00", "to": "18:00" },
+      { "day": "THURSDAY", "from": "10:00", "to": "18:00" },
+      { "day": "FRIDAY", "from": "10:00", "to": "18:00" },
+      { "day": "SATURDAY", "from": "10:00", "to": "18:00" }
+    ],
     "description": "Business description here"
   }
 }
 ```
 
-**Note**: This step is only for USER accounts. ORGANIZATION accounts already have business data.
+**Note**: This step is only for USER accounts. ORGANIZATION accounts already have organization data.
 
 #### 7. Update Profile
 
@@ -1741,33 +2362,123 @@ npx prisma migrate dev
 - `password`: String (hashed)
 - `name`: String (optional)
 - `role`: Enum (USER, ORGANIZATION) - default: USER
+- `isMember`: Boolean - default: false (false=admin, true=member)
 - `emailVerified`: Boolean
+- `organizationId`: String (optional, foreign key)
 - `createdAt`: DateTime
 - `updatedAt`: DateTime
 - Relationships:
-  - `business`: One-to-one with Business (optional)
+  - `organization`: Many-to-one with Organization (member relationship)
+  - `adminOrganization`: One-to-one with Organization (admin relationship)
+  - `allowedAppointments`: Many-to-many with Appointment
   - `refreshTokens`: One-to-many with RefreshToken
   - `emailVerificationTokens`: One-to-many with EmailVerificationToken
   - `passwordResetTokens`: One-to-many with PasswordResetToken
 
-### Business
+**User Role Rules**:
+- USER role → organizationId=null, isMember=false
+- ORGANIZATION admin → role=ORGANIZATION, isMember=false, owns one organization
+- ORGANIZATION member → role=ORGANIZATION, isMember=true, belongs to an organization
+
+### Organization
 - `id`: String (CUID)
 - `name`: String (required)
 - `location`: String (required)
-- `workingHours`: String (optional)
 - `description`: String (optional)
-- `userId`: String (unique, foreign key to User)
+- `businessHours`: JSON (required) - array of {day, from, to}
+- `adminId`: String (unique, foreign key to User)
 - `createdAt`: DateTime
 - `updatedAt`: DateTime
 - Relationships:
-  - `user`: One-to-one with User (required, cascade delete)
+  - `admin`: One-to-one with User (admin relationship, cascade delete)
+  - `members`: One-to-many with User (member relationship)
+  - `resources`: One-to-many with Resource
+  - `appointments`: One-to-many with Appointment
 
-**Business Rules**:
-- USER role → business must be null
-- ORGANIZATION role → business must exist
-- One business per user (one-to-one relationship)
-- Business is deleted when user is deleted (cascade)
-- User can convert from USER to ORGANIZATION via API
+**Organization Rules**:
+- Created automatically when user becomes ORGANIZATION
+- One organization per admin user
+- Admin can add multiple members
+- Admin owns all resources and appointments
+- Deleted when admin user is deleted (cascade)
+
+**Business Hours Example**:
+```json
+[
+  { "day": "MONDAY", "from": "09:00", "to": "17:00" },
+  { "day": "TUESDAY", "from": "10:00", "to": "18:00" }
+]
+```
+
+### Resource
+- `id`: String (CUID)
+- `name`: String (required)
+- `capacity`: Int (required, must be > 0)
+- `organizationId`: String (foreign key)
+- `createdAt`: DateTime
+- `updatedAt`: DateTime
+- Relationships:
+  - `organization`: Many-to-one with Organization (cascade delete)
+  - `allowedAppointments`: Many-to-many with Appointment
+
+**Resource Examples**: Conference rooms, equipment, vehicles, staff members
+
+### Appointment
+- `id`: String (CUID)
+- `title`: String (required)
+- `description`: String (optional)
+- `durationMinutes`: Int (required, must be > 0)
+- `bookType`: Enum (USER, RESOURCE) - required
+- `assignmentType`: Enum (AUTOMATIC, BY_VISITOR) - required
+- `allowMultipleSlots`: Boolean - default: false
+- `price`: Int (optional, in cents)
+- `cancellationHours`: Int (required)
+- `schedule`: JSON (required) - array of {day, from, to}
+- `questions`: JSON (required) - custom booking questions
+- `organizationId`: String (foreign key)
+- `createdAt`: DateTime
+- `updatedAt`: DateTime
+- Relationships:
+  - `organization`: Many-to-one with Organization (cascade delete)
+  - `allowedUsers`: Many-to-many with User
+  - `allowedResources`: Many-to-many with Resource
+
+**Appointment Enums**:
+- `AppointmentBookType`: USER, RESOURCE
+- `AssignmentType`: AUTOMATIC, BY_VISITOR
+
+**Appointment Rules**:
+- If bookType=USER, must have allowedUsers
+- If bookType=RESOURCE, must have allowedResources
+- Schedule must be within organization businessHours
+- Start time < end time for each schedule slot
+
+**Schedule Example**:
+```json
+[
+  { "day": "MONDAY", "from": "09:00", "to": "12:00" },
+  { "day": "MONDAY", "from": "14:00", "to": "17:00" }
+]
+```
+
+**Questions Example**:
+```json
+[
+  {
+    "id": "q1",
+    "question": "What is your concern?",
+    "type": "text",
+    "required": true
+  },
+  {
+    "id": "q2",
+    "question": "Preferred language?",
+    "type": "select",
+    "options": ["English", "Spanish"],
+    "required": false
+  }
+]
+```
 
 ### RefreshToken (Session)
 - `id`: String (CUID)
