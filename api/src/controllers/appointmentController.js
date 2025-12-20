@@ -1,4 +1,10 @@
 const prisma = require('../lib/prisma');
+const crypto = require('crypto');
+
+// Generate secret link for unpublished appointments
+const generateSecretLink = () => {
+    return crypto.randomBytes(16).toString('hex');
+};
 
 /**
  * Create appointment (ORGANIZATION admin only)
@@ -9,19 +15,14 @@ async function createAppointment(req, res) {
         const {
             title,
             description,
-            location,
             durationMinutes,
             bookType,
             assignmentType,
             allowMultipleSlots,
-            isPaid,
             price,
             cancellationHours,
             schedule,
             questions,
-            picture,
-            introMessage,
-            confirmationMessage,
             allowedUserIds,
             allowedResourceIds,
         } = req.body;
@@ -180,19 +181,16 @@ async function createAppointment(req, res) {
             data: {
                 title,
                 description,
-                location,
                 durationMinutes,
                 bookType,
                 assignmentType,
                 allowMultipleSlots: allowMultipleSlots || false,
-                isPaid: isPaid || false,
                 price,
                 cancellationHours: cancellationHours || 0,
                 schedule,
                 questions,
-                picture,
-                introMessage,
-                confirmationMessage,
+                introMessage: req.body.introMessage || null,
+                confirmationMessage: req.body.confirmationMessage || null,
                 organizationId,
                 allowedUsers: bookType === 'USER' ? { connect: allowedUserIds.map((id) => ({ id })) } : undefined,
                 allowedResources:
@@ -563,10 +561,301 @@ async function getAvailableSlots(req, res) {
     }
 }
 
+/**
+ * Publish appointment (ORGANIZATION admin only)
+ */
+async function publishAppointment(req, res) {
+    try {
+        const userId = req.user.id;
+        const { id } = req.params;
+
+        const user = await prisma.user.findUnique({
+            where: { id: userId },
+            include: { adminOrganization: true },
+        });
+
+        if (!user || user.role !== 'ORGANIZATION' || user.isMember) {
+            return res.status(403).json({
+                success: false,
+                message: 'Only organization admins can publish appointments.',
+            });
+        }
+
+        const appointment = await prisma.appointment.findFirst({
+            where: {
+                id,
+                organizationId: user.adminOrganization.id,
+            },
+        });
+
+        if (!appointment) {
+            return res.status(404).json({
+                success: false,
+                message: 'Appointment not found.',
+            });
+        }
+
+        await prisma.appointment.update({
+            where: { id },
+            data: {
+                isPublished: true,
+                secretLink: null,
+                expiryTime: null,
+                expiryCapacity: null,
+            },
+        });
+
+        res.json({
+            success: true,
+            message: 'Appointment published successfully.',
+        });
+    } catch (error) {
+        console.error('Publish appointment error:', error);
+        res.status(500).json({
+            success: false,
+            message: 'An error occurred while publishing appointment.',
+        });
+    }
+}
+
+/**
+ * Unpublish appointment (ORGANIZATION admin only)
+ */
+async function unpublishAppointment(req, res) {
+    try {
+        const userId = req.user.id;
+        const { id } = req.params;
+
+        const user = await prisma.user.findUnique({
+            where: { id: userId },
+            include: { adminOrganization: true },
+        });
+
+        if (!user || user.role !== 'ORGANIZATION' || user.isMember) {
+            return res.status(403).json({
+                success: false,
+                message: 'Only organization admins can unpublish appointments.',
+            });
+        }
+
+        const appointment = await prisma.appointment.findFirst({
+            where: {
+                id,
+                organizationId: user.adminOrganization.id,
+            },
+        });
+
+        if (!appointment) {
+            return res.status(404).json({
+                success: false,
+                message: 'Appointment not found.',
+            });
+        }
+
+        await prisma.appointment.update({
+            where: { id },
+            data: {
+                isPublished: false,
+            },
+        });
+
+        res.json({
+            success: true,
+            message: 'Appointment unpublished successfully.',
+        });
+    } catch (error) {
+        console.error('Unpublish appointment error:', error);
+        res.status(500).json({
+            success: false,
+            message: 'An error occurred while unpublishing appointment.',
+        });
+    }
+}
+
+/**
+ * Generate secret link for unpublished appointment (ORGANIZATION admin only)
+ */
+async function generateSecretLinkForAppointment(req, res) {
+    try {
+        const userId = req.user.id;
+        const { id } = req.params;
+        const { expiryTime, expiryCapacity } = req.body;
+
+        const user = await prisma.user.findUnique({
+            where: { id: userId },
+            include: { adminOrganization: true },
+        });
+
+        if (!user || user.role !== 'ORGANIZATION' || user.isMember) {
+            return res.status(403).json({
+                success: false,
+                message: 'Only organization admins can generate secret links.',
+            });
+        }
+
+        const appointment = await prisma.appointment.findFirst({
+            where: {
+                id,
+                organizationId: user.adminOrganization.id,
+            },
+        });
+
+        if (!appointment) {
+            return res.status(404).json({
+                success: false,
+                message: 'Appointment not found.',
+            });
+        }
+
+        if (appointment.isPublished) {
+            return res.status(400).json({
+                success: false,
+                message: 'Cannot generate secret link for published appointments.',
+            });
+        }
+
+        const secretLink = generateSecretLink();
+
+        await prisma.appointment.update({
+            where: { id },
+            data: {
+                secretLink,
+                expiryTime: expiryTime ? new Date(expiryTime) : null,
+                expiryCapacity: expiryCapacity || null,
+                bookingsCount: 0,
+            },
+        });
+
+        res.json({
+            success: true,
+            message: 'Secret link generated successfully.',
+            data: {
+                secretLink,
+                fullLink: `${process.env.BASE_URL || 'http://localhost:3000'}/appointments/${id}?secret=${secretLink}`,
+            },
+        });
+    } catch (error) {
+        console.error('Generate secret link error:', error);
+        res.status(500).json({
+            success: false,
+            message: 'An error occurred while generating secret link.',
+        });
+    }
+}
+
+/**
+ * Update appointment (ORGANIZATION admin only)
+ */
+async function updateAppointment(req, res) {
+    try {
+        const userId = req.user.id;
+        const { id } = req.params;
+        const {
+            title,
+            description,
+            durationMinutes,
+            price,
+            cancellationHours,
+            schedule,
+            questions,
+            introMessage,
+            confirmationMessage,
+            allowedUserIds,
+            allowedResourceIds,
+        } = req.body;
+
+        const user = await prisma.user.findUnique({
+            where: { id: userId },
+            include: { adminOrganization: true },
+        });
+
+        if (!user || user.role !== 'ORGANIZATION' || user.isMember) {
+            return res.status(403).json({
+                success: false,
+                message: 'Only organization admins can update appointments.',
+            });
+        }
+
+        const appointment = await prisma.appointment.findFirst({
+            where: {
+                id,
+                organizationId: user.adminOrganization.id,
+            },
+        });
+
+        if (!appointment) {
+            return res.status(404).json({
+                success: false,
+                message: 'Appointment not found.',
+            });
+        }
+
+        const updateData = {};
+        if (title) updateData.title = title;
+        if (description !== undefined) updateData.description = description;
+        if (durationMinutes) updateData.durationMinutes = durationMinutes;
+        if (price !== undefined) updateData.price = price;
+        if (cancellationHours !== undefined) updateData.cancellationHours = cancellationHours;
+        if (schedule) updateData.schedule = schedule;
+        if (questions) updateData.questions = questions;
+        if (introMessage !== undefined) updateData.introMessage = introMessage;
+        if (confirmationMessage !== undefined) updateData.confirmationMessage = confirmationMessage;
+
+        // Handle user/resource updates
+        if (allowedUserIds && appointment.bookType === 'USER') {
+            updateData.allowedUsers = {
+                set: allowedUserIds.map((uid) => ({ id: uid })),
+            };
+        }
+        if (allowedResourceIds && appointment.bookType === 'RESOURCE') {
+            updateData.allowedResources = {
+                set: allowedResourceIds.map((rid) => ({ id: rid })),
+            };
+        }
+
+        const updatedAppointment = await prisma.appointment.update({
+            where: { id },
+            data: updateData,
+            include: {
+                allowedUsers: {
+                    select: {
+                        id: true,
+                        name: true,
+                        email: true,
+                    },
+                },
+                allowedResources: {
+                    select: {
+                        id: true,
+                        name: true,
+                        capacity: true,
+                    },
+                },
+            },
+        });
+
+        res.json({
+            success: true,
+            message: 'Appointment updated successfully.',
+            data: { appointment: updatedAppointment },
+        });
+    } catch (error) {
+        console.error('Update appointment error:', error);
+        res.status(500).json({
+            success: false,
+            message: 'An error occurred while updating appointment.',
+        });
+    }
+}
+
 module.exports = {
     createAppointment,
     getOrganizationAppointments,
     getSingleAppointment,
     getPublicAppointments,
     getAvailableSlots,
+    publishAppointment,
+    unpublishAppointment,
+    generateSecretLinkForAppointment,
+    updateAppointment,
 };
