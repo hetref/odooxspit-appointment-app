@@ -13,7 +13,7 @@ export interface MenuItem {
   roles?: ("owner" | "manager" | "employee")[]
 }
 
-export interface MenuSectiontype {
+export interface MenuSectionType {
   label: string
   items: MenuItem[]
   roles?: ("owner" | "manager" | "employee")[]
