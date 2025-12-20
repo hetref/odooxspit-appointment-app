@@ -46,6 +46,7 @@ import { Skeleton } from "@/components/ui/skeleton"
 import { GetUserData, clearAuthData } from "@/lib/auth";
 import NotificationDropdown from "./notification-dropdown";
 import { useRouter } from "next/navigation";
+import { ModeToggle } from "../theme-toggle";
 
 // ---------------------- Types ----------------------
 type UserRole = "customer" | "organizer" | "admin";
@@ -347,7 +348,7 @@ export default function Navbar() {
             orientation="vertical"
             className="hidden data-[orientation=vertical]:h-5 md:flex"
           />
-
+            <ModeToggle/>
           <div className="flex items-center gap-1.5">
             <NotificationDropdown />
           </div>
