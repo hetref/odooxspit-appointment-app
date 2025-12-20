@@ -33,8 +33,9 @@ import {
 } from "@/components/ui/dropdown-menu"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible"
-import { MenuItem, MenuSectiontype } from "@/types"
-import { menuSections } from "./menu-items"
+import { MenuItem, MenuSectionType } from "@/types"
+// TODO: Create menu-items.ts file or define menuSections here
+// import { menuSections } from "./menu-items"
 
 
 
@@ -145,7 +146,7 @@ const useAuthHook = () => {
 }
 
 const MenuSection = ({ section, isActive, isExactMatch, shouldExpand, userRole }: {
-  section: MenuSectiontype
+  section: MenuSectionType
   isActive: (url: string, hasSubItems?: boolean) => boolean
   isExactMatch: (url: string) => boolean
   shouldExpand: (url: string) => boolean
@@ -212,7 +213,8 @@ export function AppSidebar() {
       </SidebarHeader>
 
       <SidebarContent>
-        {menuSections.map((section) => (
+        {/* TODO: Uncomment when menuSections is defined */}
+        {/* {menuSections.map((section) => (
           <MenuSection
             key={section.label}
             section={section}
@@ -221,7 +223,7 @@ export function AppSidebar() {
             shouldExpand={shouldExpandCollapsible}
             userRole={user?.role?.toLowerCase()}
           />
-        ))}
+        ))} */}
       </SidebarContent>
 
       <SidebarFooter>
