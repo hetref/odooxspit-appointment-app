@@ -186,6 +186,12 @@ export const authApi = {
 
   refreshToken: (refreshToken: string) =>
     api.post("/auth/refresh-token", { refreshToken }),
+
+  requestPasswordReset: (email: string) =>
+    api.post("/auth/request-password-reset", { email }),
+
+  resetPassword: (token: string, email: string, newPassword: string) =>
+    api.post("/auth/reset-password", { token, email, newPassword }),
 };
 
 // User API functions
