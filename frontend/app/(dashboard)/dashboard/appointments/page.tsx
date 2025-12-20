@@ -26,6 +26,7 @@ export default function AppointmentPage() {
 
   // If role is "customer", show UserAppointmentsPage
   // If role is "organizer" or "admin", show OrgAppointments
+  //sdffe
   return userRole === "customer" ? (
     <OrgAppointments />
   ) : (
