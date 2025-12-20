@@ -44,6 +44,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Skeleton } from "@/components/ui/skeleton";
 import { GetUserData } from "@/lib/auth";
 import NotificationDropdown from "./notification-dropdown";
+import { useRouter } from "next/navigation";
 
 // ---------------------- Types ----------------------
 type UserRole = "customer" | "organizer" | "admin";
@@ -204,21 +205,71 @@ function UserProfileDropdown({
   userRole,
   isMember,
   organizationName,
+  onLogout,
 }: {
-  align: "start" | "center" | "end";
-  sizeClass: string;
-  userName: string;
-  userEmail: string;
-  userRole: string;
+  align: "start" | "center" | "end"
+  sizeClass: string
+  userName: string
+  userEmail: string
+  userRole: string
+  onLogout: () => void
   isMember?: boolean;
   organizationName?: string;
 }) {
   const [isLeavingOrg, setIsLeavingOrg] = React.useState(false);
 
   const handleLogout = () => {
-    console.log("Logging out...");
-    alert("Logged out successfully!");
-    window.location.href = "/login";
+    onLogout();
+  };
+
+  const handleLeaveOrganization = async () => {
+    if (!organizationName) return;
+
+    const confirmed = confirm(
+      `Are you sure you want to leave "${organizationName}"? You will lose access to all organization resources and appointments.`
+    );
+
+    if (!confirmed) return;
+
+    try {
+      setIsLeavingOrg(true);
+
+      // Import auth and API functions
+      const { authStorage } = await import("@/lib/auth");
+      const { organizationApi } = await import("@/lib/api");
+
+      const accessToken = authStorage.getAccessToken();
+      if (!accessToken) {
+        alert("Not authenticated");
+        return;
+      }
+
+      const response = await organizationApi.leaveOrganization(accessToken);
+
+      if (response.success) {
+        // Update cookies - user is now a regular USER
+        const currentUser = authStorage.getUser();
+        if (currentUser) {
+          authStorage.setUser({
+            ...currentUser,
+            role: "USER",
+            isMember: false,
+            organizationId: null,
+            organizationName: undefined,
+          });
+        }
+
+        alert("You have successfully left the organization");
+        window.location.href = "/dashboard";
+      } else {
+        alert(response.message || "Failed to leave organization");
+      }
+    } catch (error: any) {
+      console.error("Leave organization error:", error);
+      alert(error.message || "Failed to leave organization");
+    } finally {
+      setIsLeavingOrg(false);
+    }
   };
 
   const handleLeaveOrganization = async () => {
@@ -365,6 +416,7 @@ function UserProfileDropdown({
 // ---------------------- Navbar ----------------------
 export default function Navbar() {
   const pathname = usePathname();
+  const router = useRouter();
   const [userData, setUserData] = React.useState<{
     name: string;
     email: string;
@@ -372,8 +424,8 @@ export default function Navbar() {
     isMember?: boolean;
     organizationName?: string;
   } | null>(null);
+  const [isLoading, setIsLoading] = React.useState(true);
 
-  const isLoading = userData === null;
   const userRole = userData?.role || "customer";
   const userName = userData?.name || "";
   const userEmail = userData?.email || "";
@@ -384,8 +436,14 @@ export default function Navbar() {
     ? getMobileNav(userData.role)
     : [{ name: "Main", items: [] }];
 
+  const handleLogout = React.useCallback(() => {
+    clearAuthData();
+    router.push("/login");
+  }, [router]);
+
   React.useEffect(() => {
     const fetchUserData = async () => {
+      setIsLoading(true);
       try {
         // Import authStorage for getting user from cookies
         const { authStorage } = await import("@/lib/auth");
@@ -430,7 +488,7 @@ export default function Navbar() {
     };
 
     fetchUserData();
-  }, []);
+  }, [router]);
 
   return (
     <header className="sticky top-0 z-50 border-border w-full flex-col items-center justify-between gap-3 border-b bg-background px-4 xl:px-6">
@@ -484,6 +542,7 @@ export default function Navbar() {
               userRole={userRole}
               isMember={isMember}
               organizationName={organizationName}
+              onLogout={handleLogout}
             />
           )}
         </div>
