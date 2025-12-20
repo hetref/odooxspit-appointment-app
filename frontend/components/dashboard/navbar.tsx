@@ -48,7 +48,7 @@ type UserRole = "customer" | "organizer" | "admin";
 const navigationByRole = {
   customer: [
     { href: "/dashboard/appointments", label: "My Appointments", icon: CalendarCheck },
-    { href: "/dashboard/book", label: "Book Appointment", icon: Calendar },
+    { href: "/dashboard/appointments/book", label: "Book Appointment", icon: Calendar },
   ],
   organizer: [
     { href: "/dashboard", label: "Dashboard", icon: BarChart3 },
