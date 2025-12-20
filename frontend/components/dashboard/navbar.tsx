@@ -42,7 +42,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Skeleton } from "@/components/ui/skeleton";
-import { GetUserData } from "@/lib/auth";
+import { clearAuthData, GetUserData } from "@/lib/auth";
 import NotificationDropdown from "./notification-dropdown";
 import { useRouter } from "next/navigation";
 
@@ -272,56 +272,6 @@ function UserProfileDropdown({
     }
   };
 
-  const handleLeaveOrganization = async () => {
-    if (!organizationName) return;
-
-    const confirmed = confirm(
-      `Are you sure you want to leave "${organizationName}"? You will lose access to all organization resources and appointments.`
-    );
-
-    if (!confirmed) return;
-
-    try {
-      setIsLeavingOrg(true);
-
-      // Import auth and API functions
-      const { authStorage } = await import("@/lib/auth");
-      const { organizationApi } = await import("@/lib/api");
-
-      const accessToken = authStorage.getAccessToken();
-      if (!accessToken) {
-        alert("Not authenticated");
-        return;
-      }
-
-      const response = await organizationApi.leaveOrganization(accessToken);
-
-      if (response.success) {
-        // Update cookies - user is now a regular USER
-        const currentUser = authStorage.getUser();
-        if (currentUser) {
-          authStorage.setUser({
-            ...currentUser,
-            role: "USER",
-            isMember: false,
-            organizationId: null,
-            organizationName: undefined,
-          });
-        }
-
-        alert("You have successfully left the organization");
-        window.location.href = "/dashboard";
-      } else {
-        alert(response.message || "Failed to leave organization");
-      }
-    } catch (error: any) {
-      console.error("Leave organization error:", error);
-      alert(error.message || "Failed to leave organization");
-    } finally {
-      setIsLeavingOrg(false);
-    }
-  };
-
   const initials = userName
     .split(" ")
     .map((n) => n[0])
@@ -470,11 +420,13 @@ export default function Navbar() {
         } else {
           // Fallback to GetUserData if no cookie data
           const data = await GetUserData();
-          setUserData({
-            name: data.name,
-            email: data.email,
-            role: data.role as UserRole,
-          });
+          if (data) {
+            setUserData({
+              name: data.name,
+              email: data.email,
+              role: data.role as UserRole,
+            });
+          }
         }
       } catch (error) {
         console.error("Failed to fetch user data:", error);
@@ -484,6 +436,9 @@ export default function Navbar() {
           email: "guest@example.com",
           role: "customer",
         });
+      } finally {
+        // Always set loading to false after fetch completes
+        setIsLoading(false);
       }
     };
 
