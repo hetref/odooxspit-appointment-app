@@ -1,4 +1,4 @@
-const prisma = require('../lib/prisma');
+const prisma = require("../lib/prisma");
 const {
   hashPassword,
   verifyPassword,
@@ -15,22 +15,22 @@ const {
   createPasswordResetToken,
   verifyPasswordResetToken,
   markPasswordResetTokenUsed,
-} = require('../lib/auth');
+} = require("../lib/auth");
 const {
   sendVerificationEmail,
   sendPasswordResetEmail,
   sendWelcomeEmail,
-} = require('../lib/mailer');
+} = require("../lib/mailer");
 const {
   parseUserAgent,
   generateDeviceName,
   getClientIp,
-} = require('../utils/deviceParser');
+} = require("../utils/deviceParser");
 
 const COOKIE_OPTIONS = {
   httpOnly: true,
-  secure: process.env.NODE_ENV === 'production',
-  sameSite: 'strict',
+  secure: process.env.NODE_ENV === "production",
+  sameSite: "strict",
   maxAge: 30 * 24 * 60 * 60 * 1000, // 30 days
 };
 
@@ -39,13 +39,13 @@ const COOKIE_OPTIONS = {
  */
 async function register(req, res) {
   try {
-    const { email, password, name, role, business } = req.body;
+    const { email, password, name } = req.body;
 
     // Validate input
     if (!email || !password) {
       return res.status(400).json({
         success: false,
-        message: 'Email and password are required.',
+        message: "Email and password are required.",
       });
     }
 
@@ -54,7 +54,7 @@ async function register(req, res) {
     if (!emailRegex.test(email)) {
       return res.status(400).json({
         success: false,
-        message: 'Invalid email format.',
+        message: "Invalid email format.",
       });
     }
 
@@ -62,7 +62,7 @@ async function register(req, res) {
     if (password.length < 8) {
       return res.status(400).json({
         success: false,
-        message: 'Password must be at least 8 characters long.',
+        message: "Password must be at least 8 characters long.",
       });
     }
 
@@ -99,7 +99,7 @@ async function register(req, res) {
     if (existingUser) {
       return res.status(400).json({
         success: false,
-        message: 'User with this email already exists.',
+        message: "User with this email already exists.",
       });
     }
 
@@ -143,7 +143,10 @@ async function register(req, res) {
     });
 
     // Generate email verification token
-    const verificationToken = await createEmailVerificationToken(result.user.id, email);
+    const verificationToken = await createEmailVerificationToken(
+      user.id,
+      email
+    );
 
     // Send verification email
     await sendVerificationEmail(email, verificationToken);
@@ -165,14 +168,19 @@ async function register(req, res) {
 
     res.status(201).json({
       success: true,
-      message: 'User registered successfully. Please check your email to verify your account.',
-      data: responseData,
+      message:
+        "User registered successfully. Please check your email to verify your account.",
+      data: {
+        userId: user.id,
+        email: user.email,
+        name: user.name,
+      },
     });
   } catch (error) {
-    console.error('Register error:', error);
+    console.error("Register error:", error);
     res.status(500).json({
       success: false,
-      message: 'An error occurred during registration.',
+      message: "An error occurred during registration.",
     });
   }
 }
@@ -187,7 +195,7 @@ async function verifyEmail(req, res) {
     if (!token || !email) {
       return res.status(400).json({
         success: false,
-        message: 'Token and email are required.',
+        message: "Token and email are required.",
       });
     }
 
@@ -197,7 +205,7 @@ async function verifyEmail(req, res) {
     if (!verificationToken) {
       return res.status(400).json({
         success: false,
-        message: 'Invalid or expired verification token.',
+        message: "Invalid or expired verification token.",
       });
     }
 
@@ -215,13 +223,13 @@ async function verifyEmail(req, res) {
 
     res.status(200).json({
       success: true,
-      message: 'Email verified successfully. You can now log in.',
+      message: "Email verified successfully. You can now log in.",
     });
   } catch (error) {
-    console.error('Verify email error:', error);
+    console.error("Verify email error:", error);
     res.status(500).json({
       success: false,
-      message: 'An error occurred during email verification.',
+      message: "An error occurred during email verification.",
     });
   }
 }
@@ -237,7 +245,7 @@ async function login(req, res) {
     if (!email || !password) {
       return res.status(400).json({
         success: false,
-        message: 'Email and password are required.',
+        message: "Email and password are required.",
       });
     }
 
@@ -249,7 +257,7 @@ async function login(req, res) {
     if (!user) {
       return res.status(401).json({
         success: false,
-        message: 'Invalid email or password.',
+        message: "Invalid email or password.",
       });
     }
 
@@ -259,7 +267,7 @@ async function login(req, res) {
     if (!isPasswordValid) {
       return res.status(401).json({
         success: false,
-        message: 'Invalid email or password.',
+        message: "Invalid email or password.",
       });
     }
 
@@ -267,7 +275,7 @@ async function login(req, res) {
     if (!user.emailVerified) {
       return res.status(403).json({
         success: false,
-        message: 'Please verify your email before logging in.',
+        message: "Please verify your email before logging in.",
       });
     }
 
@@ -275,10 +283,14 @@ async function login(req, res) {
     const accessToken = generateAccessToken(user.id, user.email);
 
     // Extract session metadata
-    const userAgent = req.headers['user-agent'] || '';
+    const userAgent = req.headers["user-agent"] || "";
     const ipAddress = getClientIp(req);
     const deviceInfo = parseUserAgent(userAgent);
-    const deviceName = generateDeviceName(deviceInfo.browser, deviceInfo.os, deviceInfo.deviceType);
+    const deviceName = generateDeviceName(
+      deviceInfo.browser,
+      deviceInfo.os,
+      deviceInfo.deviceType
+    );
 
     // Generate refresh token with session metadata
     const refreshToken = await createRefreshToken(user.id, {
@@ -291,11 +303,11 @@ async function login(req, res) {
     });
 
     // Set refresh token in cookie
-    res.cookie('refreshToken', refreshToken, COOKIE_OPTIONS);
+    res.cookie("refreshToken", refreshToken, COOKIE_OPTIONS);
 
     res.status(200).json({
       success: true,
-      message: 'Login successful.',
+      message: "Login successful.",
       data: {
         accessToken,
         refreshToken, // Include refresh token in response for non-cookie clients
@@ -308,10 +320,10 @@ async function login(req, res) {
       },
     });
   } catch (error) {
-    console.error('Login error:', error);
+    console.error("Login error:", error);
     res.status(500).json({
       success: false,
-      message: 'An error occurred during login.',
+      message: "An error occurred during login.",
     });
   }
 }
@@ -327,7 +339,8 @@ async function refreshToken(req, res) {
     if (!refreshToken) {
       return res.status(401).json({
         success: false,
-        message: 'Refresh token not found. Please provide refresh token in cookie or request body.',
+        message:
+          "Refresh token not found. Please provide refresh token in cookie or request body.",
       });
     }
 
@@ -335,10 +348,10 @@ async function refreshToken(req, res) {
     const tokenData = await verifyRefreshToken(refreshToken);
 
     if (!tokenData) {
-      res.clearCookie('refreshToken');
+      res.clearCookie("refreshToken");
       return res.status(401).json({
         success: false,
-        message: 'Invalid or expired refresh token.',
+        message: "Invalid or expired refresh token.",
       });
     }
 
@@ -349,13 +362,20 @@ async function refreshToken(req, res) {
     await revokeRefreshToken(refreshToken);
 
     // Generate new access token
-    const accessToken = generateAccessToken(tokenData.user.id, tokenData.user.email);
+    const accessToken = generateAccessToken(
+      tokenData.user.id,
+      tokenData.user.email
+    );
 
     // Extract session metadata for new token
-    const userAgent = req.headers['user-agent'] || '';
+    const userAgent = req.headers["user-agent"] || "";
     const ipAddress = getClientIp(req);
     const deviceInfo = parseUserAgent(userAgent);
-    const deviceName = generateDeviceName(deviceInfo.browser, deviceInfo.os, deviceInfo.deviceType);
+    const deviceName = generateDeviceName(
+      deviceInfo.browser,
+      deviceInfo.os,
+      deviceInfo.deviceType
+    );
 
     // Generate new refresh token (rotation) with session metadata
     const newRefreshToken = await createRefreshToken(tokenData.user.id, {
@@ -368,21 +388,21 @@ async function refreshToken(req, res) {
     });
 
     // Set new refresh token in cookie
-    res.cookie('refreshToken', newRefreshToken, COOKIE_OPTIONS);
+    res.cookie("refreshToken", newRefreshToken, COOKIE_OPTIONS);
 
     res.status(200).json({
       success: true,
-      message: 'Token refreshed successfully.',
+      message: "Token refreshed successfully.",
       data: {
         accessToken,
         refreshToken: newRefreshToken, // Also return in response for non-cookie clients
       },
     });
   } catch (error) {
-    console.error('Refresh token error:', error);
+    console.error("Refresh token error:", error);
     res.status(500).json({
       success: false,
-      message: 'An error occurred during token refresh.',
+      message: "An error occurred during token refresh.",
     });
   }
 }
@@ -399,7 +419,9 @@ async function logout(req, res) {
       const session = await getCurrentSession(refreshToken);
 
       if (session) {
-        console.log(`User session logout: ${session.deviceName} at ${session.ipAddress}`);
+        console.log(
+          `User session logout: ${session.deviceName} at ${session.ipAddress}`
+        );
       }
 
       // Revoke refresh token
@@ -407,17 +429,17 @@ async function logout(req, res) {
     }
 
     // Clear cookie
-    res.clearCookie('refreshToken');
+    res.clearCookie("refreshToken");
 
     res.status(200).json({
       success: true,
-      message: 'Logout successful.',
+      message: "Logout successful.",
     });
   } catch (error) {
-    console.error('Logout error:', error);
+    console.error("Logout error:", error);
     res.status(500).json({
       success: false,
-      message: 'An error occurred during logout.',
+      message: "An error occurred during logout.",
     });
   }
 }
@@ -432,7 +454,7 @@ async function requestPasswordReset(req, res) {
     if (!email) {
       return res.status(400).json({
         success: false,
-        message: 'Email is required.',
+        message: "Email is required.",
       });
     }
 
@@ -452,13 +474,14 @@ async function requestPasswordReset(req, res) {
     // Always return success to prevent user enumeration
     res.status(200).json({
       success: true,
-      message: 'If an account with that email exists, a password reset link has been sent.',
+      message:
+        "If an account with that email exists, a password reset link has been sent.",
     });
   } catch (error) {
-    console.error('Request password reset error:', error);
+    console.error("Request password reset error:", error);
     res.status(500).json({
       success: false,
-      message: 'An error occurred while processing your request.',
+      message: "An error occurred while processing your request.",
     });
   }
 }
@@ -474,7 +497,7 @@ async function resetPassword(req, res) {
     if (!token || !email || !newPassword) {
       return res.status(400).json({
         success: false,
-        message: 'Token, email, and new password are required.',
+        message: "Token, email, and new password are required.",
       });
     }
 
@@ -482,7 +505,7 @@ async function resetPassword(req, res) {
     if (newPassword.length < 8) {
       return res.status(400).json({
         success: false,
-        message: 'Password must be at least 8 characters long.',
+        message: "Password must be at least 8 characters long.",
       });
     }
 
@@ -492,7 +515,7 @@ async function resetPassword(req, res) {
     if (!resetToken) {
       return res.status(400).json({
         success: false,
-        message: 'Invalid or expired reset token.',
+        message: "Invalid or expired reset token.",
       });
     }
 
@@ -513,13 +536,14 @@ async function resetPassword(req, res) {
 
     res.status(200).json({
       success: true,
-      message: 'Password reset successfully. Please log in with your new password.',
+      message:
+        "Password reset successfully. Please log in with your new password.",
     });
   } catch (error) {
-    console.error('Reset password error:', error);
+    console.error("Reset password error:", error);
     res.status(500).json({
       success: false,
-      message: 'An error occurred during password reset.',
+      message: "An error occurred during password reset.",
     });
   }
 }
@@ -534,7 +558,7 @@ async function resendVerificationEmail(req, res) {
     if (!email) {
       return res.status(400).json({
         success: false,
-        message: 'Email is required.',
+        message: "Email is required.",
       });
     }
 
@@ -547,7 +571,8 @@ async function resendVerificationEmail(req, res) {
     if (!user) {
       return res.status(200).json({
         success: true,
-        message: 'If an unverified account with that email exists, a verification email has been sent.',
+        message:
+          "If an unverified account with that email exists, a verification email has been sent.",
       });
     }
 
@@ -555,7 +580,7 @@ async function resendVerificationEmail(req, res) {
     if (user.emailVerified) {
       return res.status(400).json({
         success: false,
-        message: 'Email is already verified.',
+        message: "Email is already verified.",
       });
     }
 
@@ -574,7 +599,8 @@ async function resendVerificationEmail(req, res) {
     if (recentToken) {
       return res.status(429).json({
         success: false,
-        message: 'Please wait 2 minutes before requesting another verification email.',
+        message:
+          "Please wait 2 minutes before requesting another verification email.",
       });
     }
 
@@ -591,20 +617,23 @@ async function resendVerificationEmail(req, res) {
     });
 
     // Generate new verification token
-    const verificationToken = await createEmailVerificationToken(user.id, email);
+    const verificationToken = await createEmailVerificationToken(
+      user.id,
+      email
+    );
 
     // Send verification email
     await sendVerificationEmail(email, verificationToken);
 
     res.status(200).json({
       success: true,
-      message: 'Verification email sent successfully. Please check your inbox.',
+      message: "Verification email sent successfully. Please check your inbox.",
     });
   } catch (error) {
-    console.error('Resend verification email error:', error);
+    console.error("Resend verification email error:", error);
     res.status(500).json({
       success: false,
-      message: 'An error occurred while sending verification email.',
+      message: "An error occurred while sending verification email.",
     });
   }
 }

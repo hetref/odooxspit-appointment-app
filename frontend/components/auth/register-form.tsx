@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import {
   Field,
@@ -9,27 +10,44 @@ import {
   FieldLabel,
 } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
-import { Loader } from "lucide-react";
+import { Loader, AlertCircle } from "lucide-react";
+import { authApi } from "@/lib/api";
 
 export function RegisterForm({
   className,
   ...props
 }: React.ComponentProps<"form">) {
+  const router = useRouter();
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [isPending, setIsPending] = useState(false);
+  const [error, setError] = useState("");
 
   async function onSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
     setIsPending(true);
+    setError("");
 
-    // Dummy registration request
-    setTimeout(() => {
-      console.log("Registration attempted with:", { name, email, password, role: "owner" });
-      alert(`Account created for: ${email}`);
+    try {
+      const response = await authApi.register({
+        name,
+        email,
+        password,
+        role: "USER", // Default role as USER
+      });
+
+      if (response.success) {
+        // Redirect to verification page
+        router.push("/verify");
+      } else {
+        setError(response.message || "Registration failed");
+      }
+    } catch (err: any) {
+      setError(err.message || "An error occurred during registration");
+    } finally {
       setIsPending(false);
-    }, 1500);
+    }
   }
 
   return (
@@ -42,6 +60,14 @@ export function RegisterForm({
           </p>
         </div>
 
+        {/* Error Message */}
+        {error && (
+          <div className="flex items-center gap-2 p-3 text-sm text-red-600 bg-red-50 border border-red-200 rounded-md">
+            <AlertCircle className="size-4 shrink-0" />
+            <span>{error}</span>
+          </div>
+        )}
+
         {/* Full Name */}
         <Field>
           <FieldLabel>Full Name</FieldLabel>
@@ -50,6 +76,7 @@ export function RegisterForm({
             value={name}
             onChange={(e) => setName(e.target.value)}
             required
+            disabled={isPending}
           />
         </Field>
 
@@ -62,6 +89,7 @@ export function RegisterForm({
             value={email}
             onChange={(e) => setEmail(e.target.value)}
             required
+            disabled={isPending}
           />
         </Field>
 
@@ -70,10 +98,12 @@ export function RegisterForm({
           <FieldLabel>Password</FieldLabel>
           <Input
             type="password"
-            placeholder="Create a password"
+            placeholder="Create a password (min 8 characters)"
             value={password}
             onChange={(e) => setPassword(e.target.value)}
             required
+            minLength={8}
+            disabled={isPending}
           />
         </Field>
 

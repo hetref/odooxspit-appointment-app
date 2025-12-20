@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import {
   Field,
@@ -9,26 +10,51 @@ import {
   FieldLabel,
 } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
-import { Loader } from "lucide-react";
+import { Loader, AlertCircle } from "lucide-react";
+import { authApi } from "@/lib/api";
+import { saveAuthData } from "@/lib/auth";
 
 export function LoginForm({
   className,
   ...props
 }: React.ComponentProps<"form">) {
+  const router = useRouter();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [isPending, setIsPending] = useState(false);
+  const [error, setError] = useState("");
 
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
     setIsPending(true);
+    setError("");
 
-    // Dummy authentication request
-    setTimeout(() => {
-      console.log("Login attempted with:", { email, password });
-      alert(`Logged in with: ${email}`);
+    try {
+      const response = await authApi.login({ email, password });
+
+      if (
+        response.success &&
+        response.user &&
+        response.accessToken &&
+        response.refreshToken
+      ) {
+        // Save auth data to localStorage
+        saveAuthData({
+          accessToken: response.accessToken,
+          refreshToken: response.refreshToken,
+          user: response.user,
+        });
+
+        // Redirect to home page
+        router.push("/");
+      } else {
+        setError(response.message || "Login failed");
+      }
+    } catch (err: any) {
+      setError(err.message || "An error occurred during login");
+    } finally {
       setIsPending(false);
-    }, 1500);
+    }
   }
 
   return (
@@ -41,6 +67,14 @@ export function LoginForm({
           </p>
         </div>
 
+        {/* Error Message */}
+        {error && (
+          <div className="flex items-center gap-2 p-3 text-sm text-red-600 bg-red-50 border border-red-200 rounded-md">
+            <AlertCircle className="size-4 shrink-0" />
+            <span>{error}</span>
+          </div>
+        )}
+
         {/* EMAIL */}
         <Field>
           <FieldLabel>Email</FieldLabel>
@@ -50,6 +84,7 @@ export function LoginForm({
             value={email}
             onChange={(e) => setEmail(e.target.value)}
             required
+            disabled={isPending}
           />
         </Field>
 
@@ -69,21 +104,22 @@ export function LoginForm({
             value={password}
             onChange={(e) => setPassword(e.target.value)}
             required
+            disabled={isPending}
           />
         </Field>
 
-          {/* SUBMIT */}
-          <Field>
-            <Button type="submit" className="w-full" disabled={isPending}>
-              {isPending ? (
-                <span>
-                  <Loader className="size-4 animate-spin" />
-                </span>
-              ) : (
-                "Login"
-              )}
-            </Button>
-          </Field>
+        {/* SUBMIT */}
+        <Field>
+          <Button type="submit" className="w-full" disabled={isPending}>
+            {isPending ? (
+              <span>
+                <Loader className="size-4 animate-spin" />
+              </span>
+            ) : (
+              "Login"
+            )}
+          </Button>
+        </Field>
 
         <Field>
           <FieldDescription className="text-center">
