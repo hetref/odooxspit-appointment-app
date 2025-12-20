@@ -2,6 +2,7 @@ const prisma = require("../lib/prisma");
 const {
     getValidAccessTokenForOrganization,
     createOrderForBooking,
+    createOrderForBookingWithKeys,
     verifyWebhookSignature,
 } = require("../lib/razorpay");
 
@@ -50,19 +51,65 @@ async function createOrder(req, res) {
             });
         }
 
-        // Ensure organization has a Razorpay connection
-        const connection = await getValidAccessTokenForOrganization(appointment.organizationId);
-
-        // Create Razorpay order for this booking
         let order;
+        let merchantKeyId = null;
+
+        // Try OAuth-based Razorpay connection first (if configured)
+        let connection = null;
         try {
-            order = await createOrderForBooking(connection, booking, appointment);
+            connection = await getValidAccessTokenForOrganization(appointment.organizationId);
         } catch (err) {
-            console.error("Error creating Razorpay order:", err.response?.data || err.message || err);
-            return res.status(502).json({
-                success: false,
-                message: "Failed to create Razorpay order",
+            connection = null;
+        }
+
+        if (connection) {
+            try {
+                order = await createOrderForBooking(connection, booking, appointment);
+                merchantKeyId = connection.merchantKeyId || null;
+            } catch (err) {
+                console.error(
+                    "Error creating Razorpay order with OAuth connection:",
+                    err.response?.data || err.message || err
+                );
+                return res.status(502).json({
+                    success: false,
+                    message: "Failed to create Razorpay order",
+                });
+            }
+        } else {
+            // Fallback: use organization's direct Razorpay key id / key secret
+            const organization = await prisma.organization.findUnique({
+                where: { id: appointment.organizationId },
+                select: { razorpayKeyId: true, razorpayKeySecret: true },
             });
+
+            if (!organization || !organization.razorpayKeyId || !organization.razorpayKeySecret) {
+                return res.status(400).json({
+                    success: false,
+                    message: "Organization has not configured Razorpay payments",
+                });
+            }
+
+            try {
+                order = await createOrderForBookingWithKeys(
+                    {
+                        keyId: organization.razorpayKeyId,
+                        keySecret: organization.razorpayKeySecret,
+                    },
+                    booking,
+                    appointment
+                );
+                merchantKeyId = organization.razorpayKeyId;
+            } catch (err) {
+                console.error(
+                    "Error creating Razorpay order with direct keys:",
+                    err.response?.data || err.message || err
+                );
+                return res.status(502).json({
+                    success: false,
+                    message: "Failed to create Razorpay order",
+                });
+            }
         }
 
         return res.json({
@@ -72,7 +119,7 @@ async function createOrder(req, res) {
                 amount: order.amount,
                 currency: order.currency,
                 bookingId: booking.id,
-                merchantKeyId: connection.merchantKeyId || null,
+                merchantKeyId,
             },
         });
     } catch (error) {
@@ -102,21 +149,17 @@ async function handleWebhook(req, res) {
 
         const payload = req.body;
         const eventType = payload.event;
-        const accountId = payload.account_id; // Connected merchant identifier
+        const accountId = payload.account_id; // Connected merchant identifier (may be undefined for direct key flow)
 
-        if (!accountId) {
-            console.error("Razorpay webhook missing account_id", payload);
-            return res.status(400).json({ success: false, message: "Missing account_id in webhook" });
-        }
+        if (accountId) {
+            // Best-effort mapping for OAuth-based connected accounts; ignore failures for direct-key fallback
+            const connection = await prisma.organizationRazorpayConnection.findFirst({
+                where: { razorpayMerchantId: accountId },
+            });
 
-        // Find organization connection by Razorpay merchant id
-        const connection = await prisma.organizationRazorpayConnection.findFirst({
-            where: { razorpayMerchantId: accountId },
-        });
-
-        if (!connection) {
-            console.error("No organization mapping for Razorpay account", accountId);
-            return res.status(404).json({ success: false, message: "Unknown merchant" });
+            if (!connection) {
+                console.warn("No organization mapping for Razorpay account", accountId);
+            }
         }
 
         // Extract booking id from payment notes

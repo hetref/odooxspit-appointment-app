@@ -197,6 +197,44 @@ async function createOrderForBooking(connection, booking, appointment) {
     return data;
 }
 
+// Create order using direct Razorpay key id / key secret (non-OAuth fallback)
+async function createOrderForBookingWithKeys(credentials, booking, appointment) {
+    const { keyId, keySecret } = credentials || {};
+
+    if (!keyId || !keySecret) {
+        throw new Error("Razorpay key id and key secret are required");
+    }
+
+    const authToken = Buffer.from(`${keyId}:${keySecret}`).toString("base64");
+
+    const headers = {
+        Authorization: `Basic ${authToken}`,
+        "Content-Type": "application/json",
+    };
+
+    const amount = (booking.totalAmount || 0) * 100; // convert to paise
+
+    if (!amount || amount <= 0) {
+        throw new Error("Invalid booking amount for Razorpay order");
+    }
+
+    const body = {
+        amount,
+        currency: "INR",
+        receipt: booking.id,
+        payment_capture: 1,
+        notes: {
+            bookingId: booking.id,
+            appointmentId: appointment.id,
+            organizationId: appointment.organizationId,
+        },
+    };
+
+    const { data } = await axios.post(`${RAZORPAY_API_BASE_URL}/orders`, body, { headers });
+
+    return data;
+}
+
 function verifyWebhookSignature(rawBody, signature) {
     if (!RAZORPAY_WEBHOOK_SECRET) {
         throw new Error("RAZORPAY_WEBHOOK_SECRET is not configured");
@@ -217,5 +255,6 @@ module.exports = {
     getValidAccessTokenForOrganization,
     createMerchantWebhooks,
     createOrderForBooking,
+    createOrderForBookingWithKeys,
     verifyWebhookSignature,
 };

@@ -93,7 +93,8 @@ export function MultiStepBooking({ appointment, onSuccess, onCancel }: MultiStep
     const [timeSlots, setTimeSlots] = React.useState<TimeSlot[]>([]);
     const [numberOfSlots, setNumberOfSlots] = React.useState(1);
     const [customAnswers, setCustomAnswers] = React.useState<Record<string, string>>({});
-    const [paymentMethod, setPaymentMethod] = React.useState("");
+    // For paid appointments we always use online payment (Razorpay)
+    const [paymentMethod] = React.useState("online");
     const [bookingNotes, setBookingNotes] = React.useState("");
 
     const totalSteps =
@@ -294,9 +295,7 @@ export function MultiStepBooking({ appointment, onSuccess, onCancel }: MultiStep
                 }
                 return true;
             case 6:
-                if (appointment.isPaid) {
-                    return !!paymentMethod;
-                }
+                // Payment step – no extra input required, user will click Pay Now
                 return true;
             default:
                 return true;
@@ -705,11 +704,15 @@ export function MultiStepBooking({ appointment, onSuccess, onCancel }: MultiStep
     const renderStep6 = () => {
         if (!appointment.isPaid) return null;
 
+        const totalAmount = (appointment.price || 0) * numberOfSlots;
+
         return (
             <div className="space-y-6">
                 <div className="text-center space-y-2">
-                    <h2 className="text-2xl font-bold">Payment Method</h2>
-                    <p className="text-muted-foreground">Select how you'd like to pay</p>
+                    <h2 className="text-2xl font-bold">Payment</h2>
+                    <p className="text-muted-foreground">
+                        Review the total amount and click Pay Now to complete your booking.
+                    </p>
                 </div>
 
                 <Card className="border-2">
@@ -717,60 +720,19 @@ export function MultiStepBooking({ appointment, onSuccess, onCancel }: MultiStep
                         <CardTitle className="text-2xl flex items-center justify-between">
                             <span>Total Amount</span>
                             <Badge variant="secondary" className="text-2xl px-4 py-2">
-                                ${(appointment.price || 0) * numberOfSlots}
+                                ₹{totalAmount}
                             </Badge>
                         </CardTitle>
                         <CardDescription>
-                            {numberOfSlots} slot{numberOfSlots > 1 ? "s" : ""} × ${appointment.price}
+                            {numberOfSlots} slot{numberOfSlots > 1 ? "s" : ""} × ₹{appointment.price}
                         </CardDescription>
                     </CardHeader>
                 </Card>
 
-                <div className="space-y-3">
-                    <Label>Payment Method</Label>
-                    <RadioGroup value={paymentMethod} onValueChange={setPaymentMethod}>
-                        <Card
-                            className={`cursor-pointer transition-all ${paymentMethod === "card" ? "border-primary border-2" : ""
-                                }`}
-                            onClick={() => setPaymentMethod("card")}
-                        >
-                            <CardHeader className="pb-4">
-                                <div className="flex items-center space-x-3">
-                                    <RadioGroupItem value="card" id="card" />
-                                    <div className="flex items-center gap-2 flex-1">
-                                        <CreditCard className="w-5 h-5" />
-                                        <Label htmlFor="card" className="cursor-pointer">
-                                            Credit or Debit Card
-                                        </Label>
-                                    </div>
-                                </div>
-                            </CardHeader>
-                        </Card>
-
-                        <Card
-                            className={`cursor-pointer transition-all ${paymentMethod === "cash" ? "border-primary border-2" : ""
-                                }`}
-                            onClick={() => setPaymentMethod("cash")}
-                        >
-                            <CardHeader className="pb-4">
-                                <div className="flex items-center space-x-3">
-                                    <RadioGroupItem value="cash" id="cash" />
-                                    <div className="flex items-center gap-2 flex-1">
-                                        <DollarSign className="w-5 h-5" />
-                                        <Label htmlFor="cash" className="cursor-pointer">
-                                            Pay at Venue (Cash)
-                                        </Label>
-                                    </div>
-                                </div>
-                            </CardHeader>
-                        </Card>
-                    </RadioGroup>
-                </div>
-
                 <div className="bg-muted/50 rounded-lg p-4">
                     <p className="text-sm text-muted-foreground">
                         <Info className="w-4 h-4 inline mr-1" />
-                        Payment will be processed securely. You will receive a confirmation email after booking.
+                        Payment is processed securely via Razorpay in your organization&apos;s account. You will see the Razorpay checkout after clicking Pay Now.
                     </p>
                 </div>
             </div>
@@ -915,7 +877,7 @@ export function MultiStepBooking({ appointment, onSuccess, onCancel }: MultiStep
                                 Booking...
                             </>
                         ) : currentStep === totalSteps - 1 ? (
-                            "Confirm Booking"
+                            appointment.isPaid ? "Pay Now" : "Confirm Booking"
                         ) : (
                             <>
                                 Next

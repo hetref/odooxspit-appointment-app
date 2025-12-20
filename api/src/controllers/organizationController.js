@@ -7,7 +7,7 @@ const { notifyOrganizationMembers } = require('../lib/notificationHelper');
 async function updateOrganization(req, res) {
     try {
         const userId = req.user.id;
-        const { name, location, description, businessHours } = req.body;
+        const { name, location, description, businessHours, razorpayKeyId, razorpayKeySecret } = req.body;
 
         // Fetch admin user with organization
         const adminUser = await prisma.user.findUnique({
@@ -38,11 +38,27 @@ async function updateOrganization(req, res) {
         if (location !== undefined) updateData.location = location;
         if (description !== undefined) updateData.description = description;
         if (businessHours !== undefined) updateData.businessHours = businessHours;
+        // Optional: allow admin to configure direct Razorpay keys (fallback when OAuth is not used)
+        if (razorpayKeyId !== undefined) {
+            updateData.razorpayKeyId = razorpayKeyId || null;
+        }
+        if (razorpayKeySecret !== undefined) {
+            updateData.razorpayKeySecret = razorpayKeySecret || null;
+        }
 
-        // Update organization
+        // Update organization - never return sensitive Razorpay keys in the API response
         const updatedOrganization = await prisma.organization.update({
             where: { id: organizationId },
             data: updateData,
+            select: {
+                id: true,
+                name: true,
+                location: true,
+                description: true,
+                businessHours: true,
+                createdAt: true,
+                updatedAt: true,
+            },
         });
 
         // Notify organization members about settings update
