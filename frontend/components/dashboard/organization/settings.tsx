@@ -265,7 +265,7 @@ export default function OrganizationSettings() {
       )}
 
       <Tabs defaultValue="general" className="space-y-4">
-        <TabsList className="grid w-full grid-cols-2">
+        <TabsList className="grid w-full grid-cols-2 max-w-md">
           <TabsTrigger value="general">General</TabsTrigger>
           <TabsTrigger value="hours">Business Hours</TabsTrigger>
         </TabsList>

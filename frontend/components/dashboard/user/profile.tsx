@@ -229,7 +229,7 @@ export default function UserProfile() {
 
       {/* Tabs */}
       <Tabs defaultValue="personal" className="space-y-6">
-        <TabsList className="grid w-full grid-cols-3">
+        <TabsList className="grid w-full grid-cols-3 max-w-lg">
           <TabsTrigger value="personal">Personal</TabsTrigger>
           <TabsTrigger value="notifications">Notifications</TabsTrigger>
           <TabsTrigger value="password">Password</TabsTrigger>

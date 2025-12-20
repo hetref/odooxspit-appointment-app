@@ -376,7 +376,7 @@ function MemberCard({
   const isMemberAdmin = !member.isMember;
 
   return (
-    <div className="border rounded-lg p-6 hover:shadow-lg transition-shadow bg-white dark:bg-gray-800">
+    <div className="border rounded-lg p-6 hover:shadow-lg transition-shadow bg-card">
       <div className="flex items-start justify-between mb-4">
         <div className="flex items-center gap-3">
           <div

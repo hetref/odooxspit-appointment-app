@@ -306,7 +306,7 @@ export default function Navbar() {
   }, [router]);
 
   return (
-    <header className="sticky top-0 z-50 border-border w-full flex-col items-center justify-between gap-3 border-b bg-background px-4 xl:px-6">
+    <header className="sticky top-0 z-50 border-border w-full flex-col items-center justify-between gap-3 border-b bg-background ">
       <div className="flex w-full items-center justify-between gap-4 h-16">
         <div className="flex flex-1 items-center justify-start gap-2">
           <Link

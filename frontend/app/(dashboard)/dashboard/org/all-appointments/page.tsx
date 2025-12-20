@@ -3,7 +3,7 @@ import OrganizationAppointmentsList from "@/components/dashboard/organization/ap
 
 export default function AppointmentPage() {
   return (
-    <div className="w-full px-4 xl:px-6 py-6">
+    <div className="w-full py-6">
       <OrganizationAppointmentsList />
     </div>
   );

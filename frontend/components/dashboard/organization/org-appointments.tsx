@@ -15,6 +15,7 @@ import { Calendar, Clock, Share2, Pencil, Copy, Check, AlertCircle, Loader2 } fr
 import { useState, useEffect } from "react";
 import { organizationApi } from "@/lib/api";
 import { authStorage } from "@/lib/auth";
+import Link from "next/link";
 
 interface Appointment {
   id: string;
@@ -113,11 +114,11 @@ export default function OrgAppointments() {
   };
 
   return (
-    <div className="min-h-screen bg-muted/30">
+    <div className="min-h-screen ">
       {/* Header */}
 
       {/* Main Content */}
-      <main className="mx-auto max-w-7xl px-4 py-6 sm:px-6 sm:py-8">
+      <main className="px-4 py-6 sm:px-6 sm:py-8">
         {/* Page Title Section */}
         <div className="mb-6 flex flex-col gap-4 sm:mb-8 sm:flex-row sm:items-start sm:justify-between">
           <div>
@@ -128,9 +129,11 @@ export default function OrgAppointments() {
               Manage and configure your appointment types
             </p>
           </div>
+          <Link href={'/dashboard/org/appointments/create'} >
           <Button className="bg-foreground text-background hover:bg-foreground/90 w-full sm:w-auto">
             New Appointment
           </Button>
+          </Link>
         </div>
 
         {/* Search Bar */}
