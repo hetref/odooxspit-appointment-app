@@ -132,9 +132,17 @@ router.get('/members', async (req, res) => {
             { organizationId: organizationId, isMember: true },
         ];
 
-        // Include admin only if current user is admin (not a member)
-        if (!user.isMember) {
-            memberConditions.push({ id: userId });
+        // Always include admin (user with isMember: false and adminOrganization matching this organization)
+        const adminUser = await prisma.user.findFirst({
+            where: {
+                adminOrganization: {
+                    id: organizationId,
+                },
+            },
+        });
+
+        if (adminUser) {
+            memberConditions.push({ id: adminUser.id });
         }
 
         const members = await prisma.user.findMany({
