@@ -355,6 +355,16 @@ export const bookingApi = {
     api.delete(`/bookings/${bookingId}/organization`, token),
 };
 
+// Payments API functions
+export const paymentsApi = {
+  createOrder: (token: string, bookingId: string) =>
+    api.post<{ orderId: string; amount: number; currency: string; bookingId: string; merchantKeyId: string | null }>(
+      "/payments/create-order",
+      { bookingId },
+      token
+    ),
+};
+
 // Media API functions
 export const mediaApi = {
   uploadFile: async (token: string, file: File, folder: string = "general") => {

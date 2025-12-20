@@ -14,6 +14,7 @@ import { Building2, Clock, Save, AlertCircle, CheckCircle2 } from "lucide-react"
 import { userApi, organizationApi } from "@/lib/api";
 import { BusinessHour } from "@/lib/types";
 import { authStorage } from "@/lib/auth";
+import { ConnectRazorpayButton } from "@/components/dashboard/organization/connect-razorpay-button";
 
 interface BusinessHours {
   day: string;
@@ -29,6 +30,9 @@ export default function OrganizationSettings() {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
+  const [isOrgAdmin, setIsOrgAdmin] = useState(false);
+  const [razorpayConnected, setRazorpayConnected] = useState(false);
+  const [isMember, setIsMember] = useState(false);
   
   const [orgData, setOrgData] = useState({
     name: "",
@@ -65,6 +69,10 @@ export default function OrganizationSettings() {
       
       if (response.success && response.data?.user) {
         const user = response.data.user;
+        const isAdmin = user.role === "ORGANIZATION" && user.isMember === false;
+        setIsOrgAdmin(isAdmin);
+        setIsMember(Boolean(user.isMember));
+        setRazorpayConnected(Boolean((user as any).razorpayConnected));
         const org = user.adminOrganization || user.organization;
         
         if (org) {
@@ -146,6 +154,36 @@ export default function OrganizationSettings() {
     } catch (err: any) {
       console.error("Error updating organization:", err);
       setError(err.message || "Failed to update organization");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleLeaveOrganization = async () => {
+    try {
+      setSaving(true);
+      setError(null);
+      setSuccessMessage(null);
+
+      const accessToken = authStorage.getAccessToken();
+
+      if (!accessToken) {
+        setError("Not authenticated");
+        return;
+      }
+
+      const response = await organizationApi.leaveOrganization(accessToken);
+
+      if (response.success) {
+        setSuccessMessage("You have left the organization successfully.");
+        setIsMember(false);
+        // Optionally, you might want to refresh the page or redirect user
+      } else {
+        setError(response.message || "Failed to leave organization");
+      }
+    } catch (err: any) {
+      console.error("Error leaving organization:", err);
+      setError(err.message || "Failed to leave organization");
     } finally {
       setSaving(false);
     }
@@ -316,13 +354,49 @@ export default function OrganizationSettings() {
               <Separator />
 
               <div className="flex justify-end">
-                <Button onClick={handleSaveOrg} disabled={saving}>
-                  <Save className="w-4 h-4 mr-2" />
-                  {saving ? "Saving..." : "Save Changes"}
-                </Button>
+                <div className="flex items-center gap-3">
+                  {isMember && !isOrgAdmin && (
+                    <Button
+                      type="button"
+                      variant="outline"
+                      onClick={handleLeaveOrganization}
+                      disabled={saving}
+                    >
+                      Leave Organization
+                    </Button>
+                  )}
+                  <Button onClick={handleSaveOrg} disabled={saving || isMember}>
+                    <Save className="w-4 h-4 mr-2" />
+                    {saving ? "Saving..." : "Save Changes"}
+                  </Button>
+                </div>
               </div>
             </CardContent>
           </Card>
+
+          {isOrgAdmin && (
+            <Card className="mt-6 hover:shadow-md transition-shadow duration-200">
+              <CardHeader>
+                <CardTitle>Payments (Razorpay)</CardTitle>
+                <CardDescription>
+                  Connect your organization&apos;s Razorpay account to receive payments for paid appointments directly.
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="flex items-center justify-between gap-4 flex-wrap">
+                <div className="space-y-1 text-sm">
+                  <div className="font-medium">
+                    Status: {razorpayConnected ? "Connected" : "Not connected"}
+                  </div>
+                  <p className="text-muted-foreground max-w-md">
+                    Only the organization admin can manage the Razorpay connection. Members cannot connect or change it.
+                  </p>
+                </div>
+                <div className="flex items-center gap-2">
+                  <ConnectRazorpayButton />
+                </div>
+              </CardContent>
+            </Card>
+          )}
         </TabsContent>
 
         {/* Business Hours Tab */}
