@@ -56,13 +56,17 @@ export default function ResourcesManagement() {
                 setError("Not authenticated");
                 return;
             }
+            console.log("ACCESSTOKEN", accessToken)
 
             const response = await organizationApi.getResources(accessToken);
+            console.log("RESPONSE", response);
 
             if (response.success && response.data?.resources) {
                 setResources(response.data.resources);
+                console.log("response.data", response.data)
             } else {
                 setError(response.message || "Failed to load resources");
+                console.log("RESPONSE ERROR", response)
             }
         } catch (err: any) {
             console.error("Fetch resources error:", err);

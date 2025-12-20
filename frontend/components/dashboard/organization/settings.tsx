@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -9,7 +9,10 @@ import { Textarea } from "@/components/ui/textarea";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Switch } from "@/components/ui/switch";
 import { Separator } from "@/components/ui/separator";
-import { Building2, Clock, Phone, Mail, Save } from "lucide-react";
+import { Building2, Clock, Save, Loader2, AlertCircle, CheckCircle2 } from "lucide-react";
+import { userApi, organizationApi } from "@/lib/api";
+import { BusinessHour } from "@/lib/types";
+import { authStorage } from "@/lib/auth";
 
 interface BusinessHours {
   day: string;
@@ -18,28 +21,95 @@ interface BusinessHours {
   closeTime: string;
 }
 
+const DAYS = ["MONDAY", "TUESDAY", "WEDNESDAY", "THURSDAY", "FRIDAY", "SATURDAY", "SUNDAY"];
+
 export default function OrganizationSettings() {
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [successMessage, setSuccessMessage] = useState<string | null>(null);
+  
   const [orgData, setOrgData] = useState({
-    name: "Healthcare Solutions Inc.",
-    email: "contact@healthcare.com",
-    phone: "+1 (555) 987-6543",
-    description: "Leading healthcare provider offering comprehensive medical services.",
+    name: "",
+    location: "",
+    description: "",
   });
 
-  const [businessHours, setBusinessHours] = useState<BusinessHours[]>([
-    { day: "Monday", isOpen: true, openTime: "09:00", closeTime: "17:00" },
-    { day: "Tuesday", isOpen: true, openTime: "09:00", closeTime: "17:00" },
-    { day: "Wednesday", isOpen: true, openTime: "09:00", closeTime: "17:00" },
-    { day: "Thursday", isOpen: true, openTime: "09:00", closeTime: "17:00" },
-    { day: "Friday", isOpen: true, openTime: "09:00", closeTime: "17:00" },
-    { day: "Saturday", isOpen: false, openTime: "10:00", closeTime: "14:00" },
-    { day: "Sunday", isOpen: false, openTime: "10:00", closeTime: "14:00" },
-  ]);
+  const [businessHours, setBusinessHours] = useState<BusinessHours[]>(
+    DAYS.map(day => ({
+      day,
+      isOpen: false,
+      openTime: "09:00",
+      closeTime: "17:00",
+    }))
+  );
 
-  const [bookingSettings, setBookingSettings] = useState({
-    allowOnlineBooking: true,
-    advanceBookingDays: 30,
-  });
+  useEffect(() => {
+    fetchOrganizationData();
+  }, []);
+
+  const fetchOrganizationData = async () => {
+    try {
+      setLoading(true);
+      setError(null);
+
+      const accessToken = authStorage.getAccessToken();
+      
+      if (!accessToken) {
+        setError("Not authenticated");
+        return;
+      }
+
+      const response = await userApi.getMe(accessToken);
+      
+      if (response.success && response.data?.user) {
+        const user = response.data.user;
+        const org = user.adminOrganization || user.organization;
+        
+        if (org) {
+          setOrgData({
+            name: org.name || "",
+            location: org.location || "",
+            description: org.description || "",
+          });
+
+          // Map business hours from API to component state
+          if (org.businessHours && org.businessHours.length > 0) {
+            const mappedHours = DAYS.map(day => {
+              const apiHour = org.businessHours?.find(
+                (h: BusinessHour) => h.day.toUpperCase() === day
+              );
+              
+              if (apiHour) {
+                return {
+                  day,
+                  isOpen: true,
+                  openTime: apiHour.from,
+                  closeTime: apiHour.to,
+                };
+              }
+              
+              return {
+                day,
+                isOpen: false,
+                openTime: "09:00",
+                closeTime: "17:00",
+              };
+            });
+            
+            setBusinessHours(mappedHours);
+          }
+        }
+      } else {
+        setError(response.message || "Failed to load organization data");
+      }
+    } catch (err: any) {
+      console.error("Error fetching organization:", err);
+      setError(err.message || "Failed to load organization data");
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const updateBusinessHour = (index: number, field: string, value: any) => {
     const updated = [...businessHours];
@@ -47,17 +117,102 @@ export default function OrganizationSettings() {
     setBusinessHours(updated);
   };
 
-  const handleSaveOrg = () => {
-    console.log("Saving organization:", orgData);
+  const handleSaveOrg = async () => {
+    try {
+      setSaving(true);
+      setError(null);
+      setSuccessMessage(null);
+
+      const accessToken = authStorage.getAccessToken();
+      
+      if (!accessToken) {
+        setError("Not authenticated");
+        return;
+      }
+
+      const response = await organizationApi.updateOrganization(accessToken, {
+        name: orgData.name,
+        location: orgData.location,
+        description: orgData.description,
+      });
+
+      if (response.success) {
+        setSuccessMessage("Organization details updated successfully");
+        setTimeout(() => setSuccessMessage(null), 3000);
+      } else {
+        setError(response.message || "Failed to update organization");
+      }
+    } catch (err: any) {
+      console.error("Error updating organization:", err);
+      setError(err.message || "Failed to update organization");
+    } finally {
+      setSaving(false);
+    }
   };
 
-  const handleSaveHours = () => {
-    console.log("Saving business hours:", businessHours);
+  const handleSaveHours = async () => {
+    try {
+      setSaving(true);
+      setError(null);
+      setSuccessMessage(null);
+
+      const accessToken = authStorage.getAccessToken();
+      
+      if (!accessToken) {
+        setError("Not authenticated");
+        return;
+      }
+
+      // Convert to API format - only include open days
+      const apiBusinessHours = businessHours
+        .filter(hour => hour.isOpen)
+        .map(hour => ({
+          day: hour.day,
+          from: hour.openTime,
+          to: hour.closeTime,
+        }));
+
+      const response = await organizationApi.updateOrganization(accessToken, {
+        businessHours: apiBusinessHours,
+      });
+
+      if (response.success) {
+        setSuccessMessage("Business hours updated successfully");
+        setTimeout(() => setSuccessMessage(null), 3000);
+      } else {
+        setError(response.message || "Failed to update business hours");
+      }
+    } catch (err: any) {
+      console.error("Error updating business hours:", err);
+      setError(err.message || "Failed to update business hours");
+    } finally {
+      setSaving(false);
+    }
   };
 
-  const handleSaveBooking = () => {
-    console.log("Saving booking settings:", bookingSettings);
-  };
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center min-h-[400px]">
+        <div className="text-center">
+          <Loader2 className="h-8 w-8 animate-spin mx-auto mb-4 text-purple-600" />
+          <p className="text-muted-foreground">Loading organization settings...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (error && !orgData.name) {
+    return (
+      <div className="flex items-center justify-center min-h-[400px]">
+        <div className="text-center max-w-md">
+          <AlertCircle className="h-12 w-12 text-red-500 mx-auto mb-4" />
+          <h3 className="text-lg font-semibold mb-2">Failed to Load Settings</h3>
+          <p className="text-muted-foreground mb-4">{error}</p>
+          <Button onClick={fetchOrganizationData}>Try Again</Button>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="p-4 md:p-6 space-y-6">
@@ -69,11 +224,26 @@ export default function OrganizationSettings() {
         </p>
       </div>
 
+      {/* Success Message */}
+      {successMessage && (
+        <div className="flex items-center gap-2 p-3 text-sm text-green-600 bg-green-50 border border-green-200 rounded-md">
+          <CheckCircle2 className="h-4 w-4 shrink-0" />
+          <span>{successMessage}</span>
+        </div>
+      )}
+
+      {/* Error Message */}
+      {error && (
+        <div className="flex items-center gap-2 p-3 text-sm text-red-600 bg-red-50 border border-red-200 rounded-md">
+          <AlertCircle className="h-4 w-4 shrink-0" />
+          <span>{error}</span>
+        </div>
+      )}
+
       <Tabs defaultValue="general" className="space-y-4">
-        <TabsList className="grid w-full grid-cols-3">
+        <TabsList className="grid w-full grid-cols-2">
           <TabsTrigger value="general">General</TabsTrigger>
-          <TabsTrigger value="hours">Hours</TabsTrigger>
-          <TabsTrigger value="booking">Booking</TabsTrigger>
+          <TabsTrigger value="hours">Business Hours</TabsTrigger>
         </TabsList>
 
         {/* General Tab */}
@@ -93,38 +263,19 @@ export default function OrganizationSettings() {
                     value={orgData.name}
                     onChange={(e) => setOrgData({ ...orgData, name: e.target.value })}
                     className="pl-10"
+                    placeholder="Enter organization name"
                   />
                 </div>
               </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label htmlFor="orgEmail">Email</Label>
-                  <div className="relative">
-                    <Mail className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
-                    <Input
-                      id="orgEmail"
-                      type="email"
-                      value={orgData.email}
-                      onChange={(e) => setOrgData({ ...orgData, email: e.target.value })}
-                      className="pl-10"
-                    />
-                  </div>
-                </div>
-
-                <div className="space-y-2">
-                  <Label htmlFor="orgPhone">Phone</Label>
-                  <div className="relative">
-                    <Phone className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
-                    <Input
-                      id="orgPhone"
-                      type="tel"
-                      value={orgData.phone}
-                      onChange={(e) => setOrgData({ ...orgData, phone: e.target.value })}
-                      className="pl-10"
-                    />
-                  </div>
-                </div>
+              <div className="space-y-2">
+                <Label htmlFor="orgLocation">Location</Label>
+                <Input
+                  id="orgLocation"
+                  value={orgData.location}
+                  onChange={(e) => setOrgData({ ...orgData, location: e.target.value })}
+                  placeholder="e.g., New York, NY"
+                />
               </div>
 
               <div className="space-y-2">
@@ -134,15 +285,25 @@ export default function OrganizationSettings() {
                   value={orgData.description}
                   onChange={(e) => setOrgData({ ...orgData, description: e.target.value })}
                   rows={3}
+                  placeholder="Describe your organization"
                 />
               </div>
 
               <Separator />
 
               <div className="flex justify-end">
-                <Button onClick={handleSaveOrg}>
-                  <Save className="w-4 h-4 mr-2" />
-                  Save Changes
+                <Button onClick={handleSaveOrg} disabled={saving}>
+                  {saving ? (
+                    <>
+                      <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                      Saving...
+                    </>
+                  ) : (
+                    <>
+                      <Save className="w-4 h-4 mr-2" />
+                      Save Changes
+                    </>
+                  )}
                 </Button>
               </div>
             </CardContent>
@@ -160,18 +321,21 @@ export default function OrganizationSettings() {
               <div className="space-y-3">
                 {businessHours.map((hour, index) => (
                   <div key={hour.day} className="flex items-center gap-4 p-3 border rounded-lg">
-                    <div className="flex items-center gap-3 min-w-35">
+                    <div className="flex items-center gap-3 min-w-[140px]">
                       <Switch
                         checked={hour.isOpen}
                         onCheckedChange={(checked) =>
                           updateBusinessHour(index, "isOpen", checked)
                         }
                       />
-                      <Label className="font-medium">{hour.day}</Label>
+                      <Label className="font-medium capitalize">
+                        {hour.day.toLowerCase()}
+                      </Label>
                     </div>
                     
                     {hour.isOpen ? (
-                      <div className="flex items-center gap-2">
+                      <div className="flex items-center gap-2 flex-1">
+                        <Clock className="w-4 h-4 text-muted-foreground" />
                         <Input
                           type="time"
                           value={hour.openTime}
@@ -200,67 +364,18 @@ export default function OrganizationSettings() {
               <Separator />
 
               <div className="flex justify-end">
-                <Button onClick={handleSaveHours}>
-                  <Save className="w-4 h-4 mr-2" />
-                  Save Hours
-                </Button>
-              </div>
-            </CardContent>
-          </Card>
-        </TabsContent>
-
-        {/* Booking Settings Tab */}
-        <TabsContent value="booking">
-          <Card>
-            <CardHeader>
-              <CardTitle>Booking Settings</CardTitle>
-              <CardDescription>Configure online booking options</CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-6">
-              <div className="flex items-center justify-between">
-                <div className="space-y-0.5">
-                  <Label>Allow Online Booking</Label>
-                  <p className="text-sm text-muted-foreground">
-                    Let clients book appointments online
-                  </p>
-                </div>
-                <Switch
-                  checked={bookingSettings.allowOnlineBooking}
-                  onCheckedChange={(checked) =>
-                    setBookingSettings({
-                      ...bookingSettings,
-                      allowOnlineBooking: checked,
-                    })
-                  }
-                />
-              </div>
-
-              <Separator />
-
-              <div className="space-y-2">
-                <Label htmlFor="advanceBooking">Advance Booking (days)</Label>
-                <Input
-                  id="advanceBooking"
-                  type="number"
-                  value={bookingSettings.advanceBookingDays}
-                  onChange={(e) =>
-                    setBookingSettings({
-                      ...bookingSettings,
-                      advanceBookingDays: parseInt(e.target.value),
-                    })
-                  }
-                />
-                <p className="text-sm text-muted-foreground">
-                  How far in advance clients can book
-                </p>
-              </div>
-
-              <Separator />
-
-              <div className="flex justify-end">
-                <Button onClick={handleSaveBooking}>
-                  <Save className="w-4 h-4 mr-2" />
-                  Save Settings
+                <Button onClick={handleSaveHours} disabled={saving}>
+                  {saving ? (
+                    <>
+                      <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                      Saving...
+                    </>
+                  ) : (
+                    <>
+                      <Save className="w-4 h-4 mr-2" />
+                      Save Hours
+                    </>
+                  )}
                 </Button>
               </div>
             </CardContent>

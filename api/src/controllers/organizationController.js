@@ -1,0 +1,63 @@
+const prisma = require('../lib/prisma');
+
+/**
+ * Update organization (ADMIN only)
+ */
+async function updateOrganization(req, res) {
+    try {
+        const userId = req.user.id;
+        const { name, location, description, businessHours } = req.body;
+
+        // Fetch admin user with organization
+        const adminUser = await prisma.user.findUnique({
+            where: { id: userId },
+            include: { adminOrganization: true },
+        });
+
+        // Check if user is organization admin
+        if (!adminUser || adminUser.role !== 'ORGANIZATION' || adminUser.isMember) {
+            return res.status(403).json({
+                success: false,
+                message: 'Only organization admins can update organization.',
+            });
+        }
+
+        if (!adminUser.adminOrganization) {
+            return res.status(400).json({
+                success: false,
+                message: 'User does not have an organization.',
+            });
+        }
+
+        const organizationId = adminUser.adminOrganization.id;
+
+        // Build update data object
+        const updateData = {};
+        if (name !== undefined) updateData.name = name;
+        if (location !== undefined) updateData.location = location;
+        if (description !== undefined) updateData.description = description;
+        if (businessHours !== undefined) updateData.businessHours = businessHours;
+
+        // Update organization
+        const updatedOrganization = await prisma.organization.update({
+            where: { id: organizationId },
+            data: updateData,
+        });
+
+        res.status(200).json({
+            success: true,
+            message: 'Organization updated successfully.',
+            data: { organization: updatedOrganization },
+        });
+    } catch (error) {
+        console.error('Update organization error:', error);
+        res.status(500).json({
+            success: false,
+            message: 'An error occurred while updating organization.',
+        });
+    }
+}
+
+module.exports = {
+    updateOrganization,
+};

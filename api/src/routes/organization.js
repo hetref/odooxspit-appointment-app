@@ -4,6 +4,7 @@ const prisma = require('../lib/prisma');
 const { hashPassword } = require('../lib/auth');
 const { sendMemberInvitationEmail } = require('../lib/mailer');
 const { createAppointment, getOrganizationAppointments, getSingleAppointment } = require('../controllers/appointmentController');
+const { updateOrganization } = require('../controllers/organizationController');
 
 const router = express.Router();
 
@@ -304,6 +305,11 @@ router.get('/members', async (req, res) => {
         });
     }
 });
+
+/**
+ * Update organization (ADMIN only)
+ */
+router.put('/update', updateOrganization);
 
 /**
  * Remove member from organization (ADMIN only)
