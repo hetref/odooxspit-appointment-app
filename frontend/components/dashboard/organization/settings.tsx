@@ -9,7 +9,8 @@ import { Textarea } from "@/components/ui/textarea";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Switch } from "@/components/ui/switch";
 import { Separator } from "@/components/ui/separator";
-import { Building2, Clock, Save, Loader2, AlertCircle, CheckCircle2 } from "lucide-react";
+import { Skeleton } from "@/components/ui/skeleton";
+import { Building2, Clock, Save, AlertCircle, CheckCircle2 } from "lucide-react";
 import { userApi, organizationApi } from "@/lib/api";
 import { BusinessHour } from "@/lib/types";
 import { authStorage } from "@/lib/auth";
@@ -192,10 +193,33 @@ export default function OrganizationSettings() {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center min-h-[400px]">
-        <div className="text-center">
-          <Loader2 className="h-8 w-8 animate-spin mx-auto mb-4 text-purple-600" />
-          <p className="text-muted-foreground">Loading organization settings...</p>
+      <div className="p-4 md:p-6 space-y-6">
+        <div className="space-y-2">
+          <Skeleton className="h-9 w-80" />
+          <Skeleton className="h-4 w-64" />
+        </div>
+        <div className="space-y-4">
+          <Skeleton className="h-10 w-full max-w-md" />
+          <div className="border rounded-lg p-6 space-y-6">
+            <div className="space-y-2">
+              <Skeleton className="h-6 w-48" />
+              <Skeleton className="h-4 w-72" />
+            </div>
+            <div className="space-y-4">
+              <div className="space-y-2">
+                <Skeleton className="h-4 w-32" />
+                <Skeleton className="h-10 w-full" />
+              </div>
+              <div className="space-y-2">
+                <Skeleton className="h-4 w-24" />
+                <Skeleton className="h-10 w-full" />
+              </div>
+              <div className="space-y-2">
+                <Skeleton className="h-4 w-28" />
+                <Skeleton className="h-20 w-full" />
+              </div>
+            </div>
+          </div>
         </div>
       </div>
     );
@@ -293,17 +317,8 @@ export default function OrganizationSettings() {
 
               <div className="flex justify-end">
                 <Button onClick={handleSaveOrg} disabled={saving}>
-                  {saving ? (
-                    <>
-                      <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                      Saving...
-                    </>
-                  ) : (
-                    <>
-                      <Save className="w-4 h-4 mr-2" />
-                      Save Changes
-                    </>
-                  )}
+                  <Save className="w-4 h-4 mr-2" />
+                  {saving ? "Saving..." : "Save Changes"}
                 </Button>
               </div>
             </CardContent>
@@ -365,17 +380,8 @@ export default function OrganizationSettings() {
 
               <div className="flex justify-end">
                 <Button onClick={handleSaveHours} disabled={saving}>
-                  {saving ? (
-                    <>
-                      <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                      Saving...
-                    </>
-                  ) : (
-                    <>
-                      <Save className="w-4 h-4 mr-2" />
-                      Save Hours
-                    </>
-                  )}
+                  <Save className="w-4 h-4 mr-2" />
+                  {saving ? "Saving..." : "Save Hours"}
                 </Button>
               </div>
             </CardContent>

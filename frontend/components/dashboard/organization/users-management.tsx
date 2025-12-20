@@ -7,7 +7,6 @@ import { useUser } from "@/contexts/UserContext";
 import {
   Plus,
   Trash2,
-  Loader2,
   AlertCircle,
   Users,
   Mail,
@@ -26,6 +25,7 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Field, FieldLabel } from "@/components/ui/field";
+import { Skeleton } from "@/components/ui/skeleton";
 
 interface Member {
   id: string;
@@ -189,10 +189,33 @@ export default function UsersManagement() {
 
   if (isLoading) {
     return (
-      <div className="flex items-center justify-center min-h-[400px]">
-        <div className="text-center">
-          <Loader2 className="h-8 w-8 animate-spin mx-auto mb-4 text-purple-600" />
-          <p className="text-muted-foreground">Loading members...</p>
+      <div className="space-y-6">
+        <div className="flex items-center justify-between">
+          <div className="space-y-2">
+            <Skeleton className="h-8 w-48" />
+            <Skeleton className="h-4 w-96" />
+          </div>
+          <Skeleton className="h-10 w-32" />
+        </div>
+        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+          {[...Array(6)].map((_, i) => (
+            <div key={i} className="border rounded-lg p-6 space-y-4">
+              <div className="flex items-start justify-between">
+                <div className="flex items-center gap-3">
+                  <Skeleton className="h-10 w-10 rounded-lg" />
+                  <div className="space-y-2">
+                    <Skeleton className="h-5 w-32" />
+                    <Skeleton className="h-4 w-24" />
+                  </div>
+                </div>
+                <Skeleton className="h-8 w-8 rounded" />
+              </div>
+              <div className="space-y-2">
+                <Skeleton className="h-4 w-full" />
+                <Skeleton className="h-3 w-24" />
+              </div>
+            </div>
+          ))}
         </div>
       </div>
     );
@@ -319,17 +342,8 @@ export default function UsersManagement() {
                 disabled={isInviting || !!inviteSuccess}
                 className="gap-2"
               >
-                {isInviting ? (
-                  <>
-                    <Loader2 className="h-4 w-4 animate-spin" />
-                    Sending Invitation...
-                  </>
-                ) : (
-                  <>
-                    <Mail className="h-4 w-4" />
-                    Send Invitation
-                  </>
-                )}
+                <Mail className="h-4 w-4" />
+                {isInviting ? "Sending Invitation..." : "Send Invitation"}
               </Button>
             </DialogFooter>
           </form>
@@ -400,11 +414,7 @@ function MemberCard({
             disabled={member.isDeleting}
             className="text-red-600 hover:text-red-700 hover:bg-red-50"
           >
-            {member.isDeleting ? (
-              <Loader2 className="h-4 w-4 animate-spin" />
-            ) : (
-              <Trash2 className="h-4 w-4" />
-            )}
+            <Trash2 className="h-4 w-4" />
           </Button>
         )}
       </div>

@@ -2,12 +2,50 @@
 
 import { useEffect, useState } from "react";
 import { useRouter, usePathname } from "next/navigation";
-import { Loader2 } from "lucide-react";
 import Navbar from "@/components/dashboard/navbar";
 import { authStorage, clearAuthData } from "@/lib/auth";
 import { userApi } from "@/lib/api";
 import { User } from "@/lib/types";
 import { UserProvider } from "@/contexts/UserContext";
+import { Skeleton } from "@/components/ui/skeleton";
+
+function DashboardSkeleton() {
+  return (
+    <div className="min-h-screen bg-background">
+      {/* Navbar Skeleton */}
+      <header className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur">
+        <div className="flex h-16 items-center justify-between gap-4 px-4 xl:px-6">
+          <div className="flex items-center gap-3">
+            <Skeleton className="h-7 w-7 rounded-md" />
+            <Skeleton className="h-5 w-20 hidden sm:block" />
+          </div>
+
+          <div className="flex items-center gap-3">
+            <Skeleton className="h-8 w-8 rounded-full" />
+            <Skeleton className="h-8 w-8 rounded-full" />
+          </div>
+        </div>
+
+        <div className="hidden md:flex w-full items-center gap-2 px-4 xl:px-6 pb-1.5">
+          {Array.from({ length: 5 }).map((_, i) => (
+            <Skeleton key={i} className="h-8 w-24 rounded-md" />
+          ))}
+        </div>
+      </header>
+
+      {/* Simple Content Skeleton */}
+      <div className="p-6 space-y-6">
+        <Skeleton className="h-10 w-48" />
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+          {Array.from({ length: 4 }).map((_, i) => (
+            <Skeleton key={i} className="h-28 rounded-lg" />
+          ))}
+        </div>
+        <Skeleton className="h-64 w-full rounded-lg" />
+      </div>  
+    </div>
+  );
+}
 
 export default function DashboardLayout({
   children,
@@ -81,20 +119,17 @@ export default function DashboardLayout({
   }, [router, pathname]);
 
   if (isChecking) {
-    return (
-      <div className="flex min-h-screen items-center justify-center bg-zinc-50 dark:bg-black">
-        <div className="flex flex-col items-center gap-4">
-          <Loader2 className="size-8 animate-spin" />
-          <p className="text-muted-foreground">Verifying authentication...</p>
-        </div>
-      </div>
-    );
+    return <DashboardSkeleton />;
   }
 
   return (
+    <>
     <UserProvider user={user} isLoading={isChecking}>
+      <div className="max-w-[1600px] mx-auto">
       <Navbar />
       <div className="">{children}</div>
+      </div>
     </UserProvider>
+    </>
   );
 }
