@@ -451,8 +451,9 @@ async function getAvailableSlots(req, res) {
             });
         }
 
-        // Get day of week from date
-        const dateObj = new Date(date);
+        // Get day of week from date (parse as local date to avoid timezone issues)
+        const [year, month, day] = date.split('-').map(Number);
+        const dateObj = new Date(year, month - 1, day);
         const dayNames = ['SUNDAY', 'MONDAY', 'TUESDAY', 'WEDNESDAY', 'THURSDAY', 'FRIDAY', 'SATURDAY'];
         const dayOfWeek = dayNames[dateObj.getDay()];
 

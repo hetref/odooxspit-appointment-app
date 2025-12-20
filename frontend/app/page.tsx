@@ -28,10 +28,10 @@ export default function Home() {
         // Fetch user data from API
         const response = await userApi.getMe(accessToken);
 
-        if (response.success && response.user) {
-          setUser(response.user);
+        if (response.success && response.data?.user) {
+          setUser(response.data.user);
           // Update stored user data
-          authStorage.setUser(response.user);
+          authStorage.setUser(response.data.user);
         } else {
           // Invalid token, clear auth and redirect
           clearAuthData();
@@ -173,9 +173,8 @@ export default function Home() {
               {/* Email Verification Status */}
               <div className="flex items-center gap-3">
                 <div
-                  className={`size-5 rounded-full flex items-center justify-center ${
-                    user.emailVerified ? "bg-green-500" : "bg-yellow-500"
-                  }`}
+                  className={`size-5 rounded-full flex items-center justify-center ${user.emailVerified ? "bg-green-500" : "bg-yellow-500"
+                    }`}
                 >
                   <svg
                     className="size-3 text-white"
@@ -204,19 +203,19 @@ export default function Home() {
               </div>
             </div>
 
-            {/* Business Details (if applicable) */}
-            {user.business && (
+            {/* Organization Details (if applicable) */}
+            {((user as any).organization || (user as any).adminOrganization) && (
               <div className="space-y-3 bg-blue-50 dark:bg-blue-900/20 rounded-lg p-6 border border-blue-200 dark:border-blue-800">
                 <h3 className="text-lg font-semibold text-black dark:text-white">
-                  Business Information
+                  Organization Information
                 </h3>
                 <div className="space-y-2">
                   <div>
                     <p className="text-sm text-zinc-600 dark:text-zinc-400">
-                      Business Name
+                      Organization Name
                     </p>
                     <p className="font-medium text-black dark:text-white">
-                      {user.business.name}
+                      {((user as any).organization || (user as any).adminOrganization)?.name}
                     </p>
                   </div>
                   <div>
@@ -224,26 +223,30 @@ export default function Home() {
                       Location
                     </p>
                     <p className="font-medium text-black dark:text-white">
-                      {user.business.location}
+                      {((user as any).organization || (user as any).adminOrganization)?.location}
                     </p>
                   </div>
-                  {user.business.workingHours && (
+                  {((user as any).organization || (user as any).adminOrganization)?.businessHours && (
                     <div>
                       <p className="text-sm text-zinc-600 dark:text-zinc-400">
-                        Working Hours
+                        Business Hours
                       </p>
-                      <p className="font-medium text-black dark:text-white">
-                        {user.business.workingHours}
-                      </p>
+                      <div className="font-medium text-black dark:text-white space-y-1">
+                        {((user as any).organization || (user as any).adminOrganization)?.businessHours.map((hour: any, idx: number) => (
+                          <div key={idx}>
+                            {hour.day}: {hour.from} - {hour.to}
+                          </div>
+                        ))}
+                      </div>
                     </div>
                   )}
-                  {user.business.description && (
+                  {((user as any).organization || (user as any).adminOrganization)?.description && (
                     <div>
                       <p className="text-sm text-zinc-600 dark:text-zinc-400">
                         Description
                       </p>
                       <p className="font-medium text-black dark:text-white">
-                        {user.business.description}
+                        {((user as any).organization || (user as any).adminOrganization)?.description}
                       </p>
                     </div>
                   )}

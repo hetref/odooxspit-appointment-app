@@ -39,7 +39,7 @@ const COOKIE_OPTIONS = {
  */
 async function register(req, res) {
   try {
-    const { email, password, name } = req.body;
+    const { email, password, name, role, business } = req.body;
 
     // Validate input
     if (!email || !password) {
@@ -144,7 +144,7 @@ async function register(req, res) {
 
     // Generate email verification token
     const verificationToken = await createEmailVerificationToken(
-      user.id,
+      result.user.id,
       email
     );
 
@@ -170,11 +170,7 @@ async function register(req, res) {
       success: true,
       message:
         "User registered successfully. Please check your email to verify your account.",
-      data: {
-        userId: user.id,
-        email: user.email,
-        name: user.name,
-      },
+      data: responseData,
     });
   } catch (error) {
     console.error("Register error:", error);

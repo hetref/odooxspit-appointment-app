@@ -1,4 +1,4 @@
-const API_BASE_URL = "https://jeanene-unexposed-ingrid.ngrok-free.dev";
+const API_BASE_URL = process.env.API_URL || "https://jeanene-unexposed-ingrid.ngrok-free.dev";
 
 export interface ApiResponse<T = any> {
   success: boolean;
@@ -21,7 +21,7 @@ class ApiClient {
     options: RequestInit = {}
   ): Promise<ApiResponse<T>> {
     const url = `${this.baseUrl}${endpoint}`;
-    
+
     const config: RequestInit = {
       ...options,
       headers: {
