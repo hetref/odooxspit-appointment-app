@@ -1,6 +1,5 @@
 const prisma = require("../lib/prisma");
 const crypto = require("crypto");
-const { createNotification, notifyOrganizationMembers } = require("../lib/notificationHelper");
 
 // Generate secret link for unpublished appointments
 const generateSecretLink = () => {
@@ -703,42 +702,6 @@ const createBooking = async (req, res) => {
             },
         });
 
-        // Notify organization members about new booking
-        await notifyOrganizationMembers({
-            organizationId: booking.appointment.organization.id,
-            type: 'BOOKING_CREATED',
-            title: 'New Booking Received',
-            message: `${booking.user.name || booking.user.email} booked "${booking.appointment.title}" for ${new Date(booking.startTime).toLocaleString()}`,
-            relatedId: booking.id,
-            relatedType: 'booking',
-            actionUrl: `/dashboard/org/bookings`,
-            metadata: {
-                bookingId: booking.id,
-                appointmentTitle: booking.appointment.title,
-                userName: booking.user.name || booking.user.email,
-                startTime: booking.startTime,
-                endTime: booking.endTime,
-                numberOfSlots: requestedSlots,
-            },
-        });
-
-        // Notify the user who made the booking
-        await createNotification({
-            userId: booking.userId,
-            type: 'BOOKING_CONFIRMED',
-            title: 'Booking Confirmed',
-            message: `Your booking for "${booking.appointment.title}" on ${new Date(booking.startTime).toLocaleString()} has been confirmed.`,
-            relatedId: booking.id,
-            relatedType: 'booking',
-            actionUrl: `/dashboard/bookings`,
-            metadata: {
-                bookingId: booking.id,
-                appointmentTitle: booking.appointment.title,
-                startTime: booking.startTime,
-                endTime: booking.endTime,
-            },
-        });
-
         res.status(201).json({
             success: true,
             message: "Booking created successfully",
@@ -862,7 +825,7 @@ const getOrganizationBookings = async (req, res) => {
     }
 };
 
-// Cancel booking
+// Cancel booking (User)
 const cancelBooking = async (req, res) => {
     try {
         const { id } = req.params;
@@ -871,18 +834,7 @@ const cancelBooking = async (req, res) => {
         const booking = await prisma.booking.findUnique({
             where: { id },
             include: {
-                appointment: {
-                    include: {
-                        organization: true,
-                    },
-                },
-                user: {
-                    select: {
-                        id: true,
-                        name: true,
-                        email: true,
-                    },
-                },
+                appointment: true,
             },
         });
 
@@ -901,18 +853,29 @@ const cancelBooking = async (req, res) => {
             });
         }
 
-        // Check cancellation policy
-        const now = new Date();
-        const bookingStart = new Date(booking.startTime);
-        const hoursUntilBooking =
-            (bookingStart.getTime() - now.getTime()) / (1000 * 60 * 60);
-
-        if (hoursUntilBooking < booking.appointment.cancellationHours) {
+        // Check if already cancelled
+        if (booking.bookingStatus === "CANCELLED") {
             return res.status(400).json({
                 success: false,
-                message: `Bookings can only be cancelled at least ${booking.appointment.cancellationHours} hours in advance`,
+                message: "Booking is already cancelled",
             });
         }
+
+        // Check cancellation policy ONLY for PAID appointments
+        if (booking.appointment.isPaid) {
+            const now = new Date();
+            const bookingStart = new Date(booking.startTime);
+            const hoursUntilBooking =
+                (bookingStart.getTime() - now.getTime()) / (1000 * 60 * 60);
+
+            if (hoursUntilBooking < booking.appointment.cancellationHours) {
+                return res.status(400).json({
+                    success: false,
+                    message: `Paid appointments can only be cancelled at least ${booking.appointment.cancellationHours} hours in advance`,
+                });
+            }
+        }
+        // Free appointments can be cancelled anytime
 
         // Update booking status
         await prisma.booking.update({
@@ -932,30 +895,95 @@ const cancelBooking = async (req, res) => {
             },
         });
 
-        // Notify organization members about booking cancellation
-        await notifyOrganizationMembers({
-            organizationId: booking.appointment.organization.id,
-            type: 'BOOKING_CANCELLED',
-            title: 'Booking Cancelled',
-            message: `${booking.user.name || booking.user.email} cancelled their booking for "${booking.appointment.title}" scheduled for ${new Date(booking.startTime).toLocaleString()}`,
-            relatedId: booking.id,
-            relatedType: 'booking',
-            actionUrl: `/dashboard/org/bookings`,
-            metadata: {
-                bookingId: booking.id,
-                appointmentTitle: booking.appointment.title,
-                userName: booking.user.name || booking.user.email,
-                startTime: booking.startTime,
-                endTime: booking.endTime,
-            },
-        });
-
         res.json({
             success: true,
             message: "Booking cancelled successfully",
         });
     } catch (error) {
         console.error("Error cancelling booking:", error);
+        res.status(500).json({
+            success: false,
+            message: "Failed to cancel booking",
+        });
+    }
+};
+
+// Cancel booking (Organization - no policy checks)
+const cancelBookingByOrganization = async (req, res) => {
+    try {
+        const { id } = req.params;
+        const user = req.user;
+
+        const booking = await prisma.booking.findUnique({
+            where: { id },
+            include: {
+                appointment: {
+                    include: {
+                        organization: true,
+                    },
+                },
+            },
+        });
+
+        if (!booking) {
+            return res.status(404).json({
+                success: false,
+                message: "Booking not found",
+            });
+        }
+
+        // Check if user is organization admin or member
+        let organizationId;
+        if (user.role === "ORGANIZATION") {
+            const org = await prisma.organization.findUnique({
+                where: { adminId: user.id },
+            });
+            if (org) {
+                organizationId = org.id;
+            }
+        } else if (user.isMember && user.organizationId) {
+            organizationId = user.organizationId;
+        }
+
+        if (!organizationId || booking.appointment.organizationId !== organizationId) {
+            return res.status(403).json({
+                success: false,
+                message: "You can only cancel bookings for your organization",
+            });
+        }
+
+        // Check if already cancelled
+        if (booking.bookingStatus === "CANCELLED") {
+            return res.status(400).json({
+                success: false,
+                message: "Booking is already cancelled",
+            });
+        }
+
+        // Organization can cancel immediately without policy checks
+        await prisma.booking.update({
+            where: { id },
+            data: {
+                bookingStatus: "CANCELLED",
+            },
+        });
+
+        // Decrement bookings count
+        await prisma.appointment.update({
+            where: { id: booking.appointmentId },
+            data: {
+                bookingsCount: {
+                    decrement: 1,
+                },
+            },
+        });
+
+        res.json({
+            success: true,
+            message: "Booking cancelled successfully by organization",
+        });
+    } catch (error) {
+        console.error("Error cancelling booking by organization:", error);
         res.status(500).json({
             success: false,
             message: "Failed to cancel booking",
@@ -971,5 +999,6 @@ module.exports = {
     getUserBookings,
     getOrganizationBookings,
     cancelBooking,
+    cancelBookingByOrganization,
     generateSecretLink,
 };

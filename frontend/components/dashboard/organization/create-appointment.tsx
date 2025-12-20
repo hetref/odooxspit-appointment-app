@@ -85,6 +85,7 @@ interface AppointmentTypeFormData {
   capacity: number;
   isPaid: boolean;
   price: string;
+  cancellationHours: string;
   description: string;
   picture: File | null;
   picturePreview: string | null;
@@ -118,6 +119,7 @@ export function CreateAppointment({ onBack }: { onBack?: () => void }) {
     capacity: 1,
     isPaid: false,
     price: "",
+    cancellationHours: "0",
     description: "",
     picture: null,
     picturePreview: null,
@@ -212,6 +214,13 @@ export function CreateAppointment({ onBack }: { onBack?: () => void }) {
       newErrors.timeSlots = "Please add at least one time slot";
     }
 
+    if (formData.isPaid) {
+      const priceValue = parseInt(formData.price, 10);
+      if (!formData.price || Number.isNaN(priceValue) || priceValue <= 0) {
+        newErrors.price = "Valid price is required for paid appointments";
+      }
+    }
+
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   };
@@ -262,6 +271,9 @@ export function CreateAppointment({ onBack }: { onBack?: () => void }) {
       }));
 
       // Prepare appointment data
+      const parsedPrice = formData.isPaid ? parseInt(formData.price, 10) : NaN;
+      const parsedCancellationHours = parseInt(formData.cancellationHours, 10);
+
       const appointmentData = {
         title: formData.title,
         description: formData.description || undefined,
@@ -272,8 +284,14 @@ export function CreateAppointment({ onBack }: { onBack?: () => void }) {
           formData.assignmentType === "automatic" ? "AUTOMATIC" as const : "BY_VISITOR" as const,
         allowMultipleSlots: formData.manageCapacity,
         isPaid: formData.isPaid,
-        price: formData.isPaid && formData.price ? parseFloat(formData.price) : undefined,
-        cancellationHours: 0,
+        price:
+          formData.isPaid && !Number.isNaN(parsedPrice) && parsedPrice > 0
+            ? parsedPrice
+            : undefined,
+        cancellationHours:
+          formData.isPaid && !Number.isNaN(parsedCancellationHours) && parsedCancellationHours >= 0
+            ? parsedCancellationHours
+            : 0,
         schedule,
         questions: formData.questions,
         picture: pictureUrl,
@@ -438,9 +456,9 @@ export function CreateAppointment({ onBack }: { onBack?: () => void }) {
   }
 
   return (
-    <div className="min-h-[calc(100vh-4rem)] pt-4 bg-background">
+    <div className="min-h-[calc(100vh-4rem)] bg-background">
       {/* Top Bar */}
-      <div className="border rounded-xl bg-card">
+      <div className="border-b bg-card">
         <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 p-4  mx-auto">
           <div className="flex items-center gap-3">
             <div>
@@ -469,7 +487,7 @@ export function CreateAppointment({ onBack }: { onBack?: () => void }) {
       </div>
 
       {/* Main Content */}
-      <div className=" mx-auto py-4 sm:py-6 lg:py-8">
+      <div className="max-w-[1800px] mx-auto p-4 sm:p-6 lg:p-8">
         {/* Error Messages */}
         {dataError && (
           <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-lg flex items-center gap-2 text-red-800">
@@ -1025,20 +1043,41 @@ export function CreateAppointment({ onBack }: { onBack?: () => void }) {
                     </div>
 
                     {formData.isPaid && (
-                      <div className="space-y-2">
-                        <Label htmlFor="price">Price</Label>
-                        <div className="relative">
-                          <DollarSign className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-                          <Input
-                            id="price"
-                            type="number"
-                            placeholder="0.00"
-                            value={formData.price}
-                            onChange={(e) => setFormData({ ...formData, price: e.target.value })}
-                            className="pl-10"
-                          />
+                      <>
+                        <div className="space-y-2">
+                          <Label htmlFor="price">Price</Label>
+                          <div className="relative">
+                            <DollarSign className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                            <Input
+                              id="price"
+                              type="number"
+                              placeholder="0.00"
+                              value={formData.price}
+                              onChange={(e) => setFormData({ ...formData, price: e.target.value })}
+                              className="pl-10"
+                            />
+                          </div>
                         </div>
-                      </div>
+
+                        <div className="space-y-2">
+                          <Label htmlFor="cancellationPolicy">Cancellation window (for users)</Label>
+                          <select
+                            id="cancellationPolicy"
+                            value={formData.cancellationHours}
+                            onChange={(e) => setFormData({ ...formData, cancellationHours: e.target.value })}
+                            className="px-3 py-2 border rounded-md bg-background w-full"
+                          >
+                            <option value="0">Users can cancel anytime before the start</option>
+                            <option value="1">Users can cancel up to 1 hour before</option>
+                            <option value="6">Users can cancel up to 6 hours before</option>
+                            <option value="24">Users can cancel up to 24 hours before</option>
+                          </select>
+                          <p className="text-xs text-muted-foreground">
+                            This policy applies only to paid appointments. Free appointments can always be
+                            cancelled anytime by users.
+                          </p>
+                        </div>
+                      </>
                     )}
 
                     <div className="space-y-2">

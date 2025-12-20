@@ -350,6 +350,9 @@ export const bookingApi = {
 
   cancelBooking: (token: string, bookingId: string) =>
     api.delete(`/bookings/${bookingId}`, token),
+
+  cancelBookingByOrganization: (token: string, bookingId: string) =>
+    api.delete(`/bookings/${bookingId}/organization`, token),
 };
 
 // Media API functions

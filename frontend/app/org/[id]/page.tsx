@@ -240,10 +240,14 @@ export default function OrganizationPage() {
                                             <CardTitle className="text-lg font-semibold group-hover:text-primary transition-colors">
                                                 {appointment.title}
                                             </CardTitle>
-                                            {appointment.isPaid && appointment.price !== null && (
-                                                <Badge variant="secondary" className="flex items-center gap-1">
+                                            {appointment.isPaid && appointment.price !== null && appointment.price > 0 ? (
+                                                <Badge variant="default" className="bg-green-500/10 text-green-700 dark:text-green-400 border border-green-500/20 flex items-center gap-1">
                                                     <DollarSign className="w-3 h-3" />
-                                                    {appointment.price}
+                                                    ${appointment.price}
+                                                </Badge>
+                                            ) : (
+                                                <Badge variant="secondary" className="bg-blue-500/10 text-blue-700 dark:text-blue-400 border border-blue-500/20">
+                                                    Free
                                                 </Badge>
                                             )}
                                         </div>

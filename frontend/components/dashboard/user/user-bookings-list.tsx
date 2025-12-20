@@ -107,6 +107,7 @@ export default function UserBookingsList() {
     const [error, setError] = React.useState<string | null>(null);
     const [searchQuery, setSearchQuery] = React.useState("");
     const [selectedBooking, setSelectedBooking] = React.useState<Booking | null>(null);
+    const [cancellingBookingId, setCancellingBookingId] = React.useState<string | null>(null);
 
     React.useEffect(() => {
         fetchBookings();
@@ -137,6 +138,34 @@ export default function UserBookingsList() {
 
     const handleRowClick = (booking: Booking) => {
         setSelectedBooking(booking);
+    };
+
+    const handleCancelBooking = async (bookingId: string) => {
+        if (!confirm("Are you sure you want to cancel this booking?")) {
+            return;
+        }
+
+        try {
+            setCancellingBookingId(bookingId);
+            const accessToken = authStorage.getAccessToken();
+            if (!accessToken) {
+                throw new Error("No access token found");
+            }
+
+            const response = await bookingApi.cancelBooking(accessToken, bookingId);
+            if (response.success) {
+                // Refresh bookings list
+                await fetchBookings();
+                setSelectedBooking(null);
+            } else {
+                alert(response.message || "Failed to cancel booking");
+            }
+        } catch (err: any) {
+            console.error("Error cancelling booking:", err);
+            alert(err.message || "Failed to cancel booking");
+        } finally {
+            setCancellingBookingId(null);
+        }
     };
 
     const filteredBookings = React.useMemo(() => {
@@ -545,6 +574,20 @@ export default function UserBookingsList() {
                                     <span>Booked on: {format(new Date(selectedBooking.createdAt), "MMM dd, yyyy 'at' h:mm a")}</span>
                                 </div>
                             </div>
+
+                            {/* Cancel Button */}
+                            {selectedBooking.bookingStatus !== "CANCELLED" && selectedBooking.bookingStatus !== "COMPLETED" && (
+                                <div className="border-t pt-4">
+                                    <Button
+                                        variant="destructive"
+                                        className="w-full"
+                                        onClick={() => handleCancelBooking(selectedBooking.id)}
+                                        disabled={cancellingBookingId === selectedBooking.id}
+                                    >
+                                        {cancellingBookingId === selectedBooking.id ? "Cancelling..." : "Cancel Booking"}
+                                    </Button>
+                                </div>
+                            )}
                         </div>
                     )}
                 </DialogContent>
