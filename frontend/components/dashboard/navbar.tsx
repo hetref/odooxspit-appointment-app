@@ -38,15 +38,11 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
+import { Skeleton } from "@/components/ui/skeleton"
+import { GetUserData } from "@/lib/auth";
 
 // ---------------------- Types ----------------------
 type UserRole = "customer" | "organizer" | "admin";
-
-interface NavbarProps {
-  userRole?: UserRole;
-  userName?: string;
-  userEmail?: string;
-}
 
 // ---------------------- Navigation Config ----------------------
 const navigationByRole = {
@@ -172,17 +168,17 @@ function MobileNav({ nav }: { nav: { name: string; items: { label: string; href:
 
 // ---------------------- User Profile Dropdown ----------------------
 function UserProfileDropdown({
-  align = "end",
-  sizeClass = "h-8 w-8",
-  userName = "User",
-  userEmail = "user@example.com",
-  userRole = "customer",
+  align,
+  sizeClass,
+  userName,
+  userEmail,
+  userRole,
 }: {
-  align?: "start" | "center" | "end"
-  sizeClass?: string
-  userName?: string
-  userEmail?: string
-  userRole?: string
+  align: "start" | "center" | "end"
+  sizeClass: string
+  userName: string
+  userEmail: string
+  userRole: string
 }) {
   const handleLogout = () => {
     console.log("Logging out...");
@@ -237,14 +233,60 @@ function UserProfileDropdown({
             </Link>
           </DropdownMenuItem>
 
-export default function Navbar({
-  userRole = "customer",
-  userName = "User",
-  userEmail = "user@example.com",
-}: NavbarProps) {
+          <DropdownMenuItem asChild className="flex items-center cursor-pointer">
+            <Link href="/dashboard/settings">
+              <Settings className="mr-2 h-4 w-4" />
+              <span>Settings</span>
+            </Link>
+          </DropdownMenuItem>
+        </DropdownMenuGroup>
+
+        <DropdownMenuSeparator />
+
+        <DropdownMenuItem 
+          className="flex items-center cursor-pointer text-red-600 focus:text-red-600"
+          onClick={handleLogout}
+        >
+          <LogOut className="mr-2 h-4 w-4" />
+          <span>Log out</span>
+        </DropdownMenuItem>
+      </DropdownMenuContent>
+    </DropdownMenu>
+  )
+}
+
+// ---------------------- Navbar ----------------------
+export default function Navbar() {
   const pathname = usePathname();
-  const navigationLinks = navigationByRole[userRole] || navigationByRole.customer;
-  const mobileNavStructure = getMobileNav(userRole);
+  const [userData, setUserData] = React.useState<{
+    name: string;
+    email: string;
+    role: UserRole;
+  } | null>(null);
+
+  const isLoading = userData === null;
+  const userRole = userData?.role || "customer";
+  const userName = userData?.name || "";
+  const userEmail = userData?.email || "";
+  const navigationLinks = userData ? navigationByRole[userData.role] : [];
+  const mobileNavStructure = userData ? getMobileNav(userData.role) : [{ name: "Main", items: [] }];
+
+  React.useEffect(() => {
+    const fetchUserData = async () => {
+      try {
+        const data = await GetUserData();
+        setUserData({
+          name: data.name,
+          email: data.email,
+          role: data.role as UserRole
+        });
+      } catch (error) {
+        console.error("Failed to fetch user data:", error);
+      }
+    };
+
+    fetchUserData();
+  }, []);
 
   return (
     <header className="sticky top-0 z-50 border-border w-full flex-col items-center justify-between gap-3 border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 px-4 xl:px-6">
@@ -294,59 +336,53 @@ export default function Navbar({
             className="hidden data-[orientation=vertical]:h-5 sm:flex"
           />
 
-          <UserProfileDropdown 
-            align="end" 
-            sizeClass="h-8 w-8" 
-            userName={userName}
-            userEmail={userEmail}
-            userRole={userRole}
-          />
+          {isLoading ? (
+            <Skeleton className="h-8 w-8 rounded-full" />
+          ) : (
+            <UserProfileDropdown 
+              align="end" 
+              sizeClass="h-8 w-8" 
+              userName={userName}
+              userEmail={userEmail}
+              userRole={userRole}
+            />
+          )}
         </div>
       </div>
 
       <div className="flex w-full items-center justify-start pb-1.5">
         <NavigationMenu className="max-md:hidden">
           <NavigationMenuList>
-            {navigationLinks.map((link, index) => {
-              const Icon = link.icon;
-              const isActive = pathname === link.href;
-              
-              return (
-                <NavigationMenuItem key={index} asChild>
-                  <Link
-                    href={link.href}
-                    data-active={isActive}
-                    className="text-foreground/60 data-[active=true]:text-accent-foreground hover:bg-accent hover:text-accent-foreground focus:bg-accent focus:text-accent-foreground flex items-center gap-2 rounded-md px-3 py-1.5 text-sm font-normal transition-all outline-none focus-visible:ring-[3px] data-[active=true]:relative"
-                  >
-                    <Icon className="h-4 w-4" />
-                    {link.label}
-                  </Link>
+            {isLoading ? (
+              // Loading skeletons - show 5 as typical count
+              Array.from({ length: 5 }).map((_, index) => (
+                <NavigationMenuItem key={index}>
+                  <div className="flex items-center gap-2 rounded-md px-3 py-1.5">
+                    <Skeleton className="h-4 w-4 rounded" />
+                    <Skeleton className="h-4 w-20" />
+                  </div>
                 </NavigationMenuItem>
-              );
-            }
-          <Separator
-            orientation="vertical"
-            className="hidden data-[orientation=vertical]:h-5 sm:flex"
-          />
-
-          <UserProfileDropdown align="end" sizeClass="h-8 w-8" />
-        </div>
-      </div>
-
-      <div className="flex w-full items-center justify-start pb-1.5">
-        <NavigationMenu className="max-md:hidden">
-          <NavigationMenuList>
-            {navigationLinks[0].items.map((link, index) => (
-              <NavigationMenuItem key={index} asChild>
-                <Link
-                  href={link.href}
-                  data-active={link.active}
-                  className="text-foreground/60 data-[active=true]:text-accent-foreground hover:bg-accent hover:text-accent-foreground focus:bg-accent focus:text-accent-foreground flex flex-col gap-1 rounded-md px-3 py-1.5 text-sm font-normal transition-all outline-none focus-visible:ring-[3px] data-[active=true]:relative"
-                >
-                  {link.label}
-                </Link>
-              </NavigationMenuItem>
-            ))}
+              ))
+            ) : (
+              // Actual navigation items
+              navigationLinks.map((link, index) => {
+                const Icon = link.icon;
+                const isActive = pathname === link.href;
+                
+                return (
+                  <NavigationMenuItem key={index} asChild>
+                    <Link
+                      href={link.href}
+                      data-active={isActive}
+                      className="text-foreground/60 data-[active=true]:text-accent-foreground hover:bg-accent hover:text-accent-foreground focus:bg-accent focus:text-accent-foreground flex items-center gap-2 rounded-md px-3 py-1.5 text-sm font-normal transition-all outline-none focus-visible:ring-[3px] data-[active=true]:relative"
+                    >
+                      <Icon className="h-4 w-4" />
+                      {link.label}
+                    </Link>
+                  </NavigationMenuItem>
+                );
+              })
+            )}
           </NavigationMenuList>
         </NavigationMenu>
       </div>
