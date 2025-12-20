@@ -70,7 +70,7 @@ const navigationByRole = {
       label: "Appointments",
       icon: CalendarCheck,
     },
-    { href: "/dashboard/org/services", label: "Services", icon: Briefcase },
+    { href: "/dashboard/org/resources", label: "Resources", icon: Briefcase },
     { href: "/dashboard/org/users", label: "Users", icon: UserCog },
     { href: "/dashboard/payments", label: "Payments", icon: CreditCard },
     { href: "/dashboard/org/settings", label: "Settings", icon: Settings },
@@ -82,7 +82,7 @@ const navigationByRole = {
       label: "Appointments",
       icon: CalendarCheck,
     },
-    { href: "/dashboard/org/services", label: "Services", icon: Briefcase },
+    { href: "/dashboard/org/resources", label: "Resources", icon: Briefcase },
     { href: "/dashboard/org/users", label: "Users", icon: UserCog },
     { href: "/dashboard/payments", label: "Payments", icon: CreditCard },
     { href: "/dashboard/org/settings", label: "Settings", icon: Settings },
@@ -407,32 +407,32 @@ export default function Navbar() {
           <NavigationMenuList>
             {isLoading
               ? // Loading skeletons - show 5 as typical count
-                Array.from({ length: 5 }).map((_, index) => (
-                  <NavigationMenuItem key={index}>
-                    <div className="flex items-center gap-2 rounded-md px-3 py-1.5">
-                      <Skeleton className="h-4 w-4 rounded" />
-                      <Skeleton className="h-4 w-20" />
-                    </div>
-                  </NavigationMenuItem>
-                ))
+              Array.from({ length: 5 }).map((_, index) => (
+                <NavigationMenuItem key={index}>
+                  <div className="flex items-center gap-2 rounded-md px-3 py-1.5">
+                    <Skeleton className="h-4 w-4 rounded" />
+                    <Skeleton className="h-4 w-20" />
+                  </div>
+                </NavigationMenuItem>
+              ))
               : // Actual navigation items
-                navigationLinks.map((link, index) => {
-                  const Icon = link.icon;
-                  const isActive = pathname === link.href;
+              navigationLinks.map((link, index) => {
+                const Icon = link.icon;
+                const isActive = pathname === link.href;
 
-                  return (
-                    <NavigationMenuItem key={index} asChild>
-                      <Link
-                        href={link.href}
-                        data-active={isActive}
-                        className="text-foreground/60 data-[active=true]:text-accent-foreground hover:bg-accent hover:text-accent-foreground focus:bg-accent focus:text-accent-foreground flex items-center gap-2 rounded-md px-3 py-1.5 text-sm font-normal transition-all outline-none focus-visible:ring-[3px] data-[active=true]:relative"
-                      >
-                        <Icon className="h-4 w-4" />
-                        {link.label}
-                      </Link>
-                    </NavigationMenuItem>
-                  );
-                })}
+                return (
+                  <NavigationMenuItem key={index} asChild>
+                    <Link
+                      href={link.href}
+                      data-active={isActive}
+                      className="text-foreground/60 data-[active=true]:text-accent-foreground hover:bg-accent hover:text-accent-foreground focus:bg-accent focus:text-accent-foreground flex items-center gap-2 rounded-md px-3 py-1.5 text-sm font-normal transition-all outline-none focus-visible:ring-[3px] data-[active=true]:relative"
+                    >
+                      <Icon className="h-4 w-4" />
+                      {link.label}
+                    </Link>
+                  </NavigationMenuItem>
+                );
+              })}
           </NavigationMenuList>
         </NavigationMenu>
       </div>
