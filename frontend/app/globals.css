@@ -4,7 +4,6 @@
 @custom-variant dark (&:is(.dark *));
 
 :root {
-  --chart-3: oklch(0.577 0.245 27.325);
   --background: oklch(0.9854 0.0022 67.7975);
   --foreground: oklch(0.3050 0.0182 285.2681);
   --card: oklch(1.0000 0 0);
