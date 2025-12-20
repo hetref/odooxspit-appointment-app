@@ -33,7 +33,7 @@ export default function OrganizationSettings() {
   const [isOrgAdmin, setIsOrgAdmin] = useState(false);
   const [razorpayConnected, setRazorpayConnected] = useState(false);
   const [isMember, setIsMember] = useState(false);
-  
+
   const [orgData, setOrgData] = useState({
     name: "",
     location: "",
@@ -59,14 +59,14 @@ export default function OrganizationSettings() {
       setError(null);
 
       const accessToken = authStorage.getAccessToken();
-      
+
       if (!accessToken) {
         setError("Not authenticated");
         return;
       }
 
       const response = await userApi.getMe(accessToken);
-      
+
       if (response.success && response.data?.user) {
         const user = response.data.user;
         const isAdmin = user.role === "ORGANIZATION" && user.isMember === false;
@@ -74,7 +74,7 @@ export default function OrganizationSettings() {
         setIsMember(Boolean(user.isMember));
         setRazorpayConnected(Boolean((user as any).razorpayConnected));
         const org = user.adminOrganization || user.organization;
-        
+
         if (org) {
           setOrgData({
             name: org.name || "",
@@ -88,7 +88,7 @@ export default function OrganizationSettings() {
               const apiHour = org.businessHours?.find(
                 (h: BusinessHour) => h.day.toUpperCase() === day
               );
-              
+
               if (apiHour) {
                 return {
                   day,
@@ -97,7 +97,7 @@ export default function OrganizationSettings() {
                   closeTime: apiHour.to,
                 };
               }
-              
+
               return {
                 day,
                 isOpen: false,
@@ -105,7 +105,7 @@ export default function OrganizationSettings() {
                 closeTime: "17:00",
               };
             });
-            
+
             setBusinessHours(mappedHours);
           }
         }
@@ -133,7 +133,7 @@ export default function OrganizationSettings() {
       setSuccessMessage(null);
 
       const accessToken = authStorage.getAccessToken();
-      
+
       if (!accessToken) {
         setError("Not authenticated");
         return;
@@ -196,7 +196,7 @@ export default function OrganizationSettings() {
       setSuccessMessage(null);
 
       const accessToken = authStorage.getAccessToken();
-      
+
       if (!accessToken) {
         setError("Not authenticated");
         return;
@@ -421,7 +421,7 @@ export default function OrganizationSettings() {
                         {hour.day.toLowerCase()}
                       </Label>
                     </div>
-                    
+
                     {hour.isOpen ? (
                       <div className="flex items-center gap-2 flex-1">
                         <Clock className="w-4 h-4 text-muted-foreground" />
