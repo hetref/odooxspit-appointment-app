@@ -235,6 +235,47 @@ export const userApi = {
     api.post<ConvertToOrganizationResponse>("/user/convert-to-organization", { business }, token),
 };
 
+// Media API functions
+export const mediaApi = {
+  uploadFile: async (token: string, file: File, path?: string): Promise<ApiResponse<{
+    fileName: string;
+    originalName: string;
+    path: string;
+    bucket: string;
+    url: string;
+    size: number;
+    mimeType: string;
+    uploadedAt: string;
+  }>> => {
+    const formData = new FormData();
+    formData.append('file', file);
+    if (path) {
+      formData.append('path', path);
+    }
+
+    const url = `${API_BASE_URL}/media/upload`;
+    const response = await fetch(url, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'ngrok-skip-browser-warning': 'true',
+      },
+      body: formData,
+    });
+
+    if (!response.ok) {
+      const error: any = new Error('Upload failed');
+      error.status = response.status;
+      throw error;
+    }
+
+    return response.json();
+  },
+
+  deleteFile: (token: string, filePath: string, bucket?: string) =>
+    api.delete('/media/delete', token),
+};
+
 // Organization API functions
 export const organizationApi = {
   // Member Management
@@ -268,4 +309,38 @@ export const organizationApi = {
     businessHours?: Array<{ day: string; from: string; to: string }>;
   }) =>
     api.put("/organization/update", data, token),
+
+  // Appointment Management
+  createAppointment: (token: string, data: {
+    title: string;
+    description?: string;
+    location: string;
+    durationMinutes: number;
+    bookType: "USER" | "RESOURCE";
+    assignmentType: "AUTOMATIC" | "BY_VISITOR";
+    allowMultipleSlots?: boolean;
+    isPaid?: boolean;
+    price?: number;
+    cancellationHours?: number;
+    schedule: Array<{ day: string; from: string; to: string }>;
+    questions: Array<{
+      id: string;
+      question: string;
+      type: string;
+      required: boolean;
+      options?: string[];
+    }>;
+    picture?: string;
+    introMessage?: string;
+    confirmationMessage?: string;
+    allowedUserIds?: string[];
+    allowedResourceIds?: string[];
+  }) =>
+    api.post("/organization/appointments", data, token),
+
+  getAppointments: (token: string) =>
+    api.get("/organization/appointments", token),
+
+  getAppointment: (token: string, appointmentId: string) =>
+    api.get(`/organization/appointments/${appointmentId}`, token),
 };
