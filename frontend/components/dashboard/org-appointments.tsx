@@ -1,7 +1,18 @@
+"use client";
+
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
-import { Calendar, Clock, Share2, Pencil } from "lucide-react";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
+import { Calendar, Clock, Share2, Pencil, Copy, Check } from "lucide-react";
+import { useState } from "react";
 
 // Mock data for appointments
 const appointments = [
@@ -31,24 +42,65 @@ const appointments = [
   },
 ];
 
-export default function OrgAppointments() {
+function ShareModal({ appointmentName }: { appointmentName: string }) {
+  const [copied, setCopied] = useState(false);
+  const shareUrl = `https://bookingapp.com/appointments/${appointmentName
+    .toLowerCase()
+    .replace(/\s+/g, "-")}`;
+
+  const handleCopy = () => {
+    navigator.clipboard.writeText(shareUrl);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  };
+
+  return (
+    <DialogContent className="sm:max-w-md">
+      <DialogHeader>
+        <DialogTitle>Share Appointment</DialogTitle>
+        <DialogDescription>
+          Share this appointment link with others. Anyone with the link can book
+          an appointment.
+        </DialogDescription>
+      </DialogHeader>
+      <div className="flex items-center gap-2">
+        <Input readOnly value={shareUrl} className="flex-1 bg-muted" />
+        <Button size="sm" onClick={handleCopy} className="shrink-0">
+          {copied ? (
+            <>
+              <Check className="h-4 w-4 mr-1.5" />
+              Copied
+            </>
+          ) : (
+            <>
+              <Copy className="h-4 w-4 mr-1.5" />
+              Copy
+            </>
+          )}
+        </Button>
+      </div>
+    </DialogContent>
+  );
+}
+
+export default function AppointmentsPage() {
   return (
     <div className="min-h-screen bg-muted/30">
       {/* Header */}
 
       {/* Main Content */}
-      <main className="mx-auto max-w-7xl px-6 py-8">
+      <main className="mx-auto max-w-7xl px-4 py-6 sm:px-6 sm:py-8">
         {/* Page Title Section */}
-        <div className="mb-8 flex items-start justify-between">
+        <div className="mb-6 flex flex-col gap-4 sm:mb-8 sm:flex-row sm:items-start sm:justify-between">
           <div>
-            <h1 className="mb-1 text-3xl font-semibold tracking-tight text-foreground">
+            <h1 className="mb-1 text-2xl font-semibold tracking-tight text-foreground sm:text-3xl">
               Appointments
             </h1>
             <p className="text-sm text-muted-foreground">
               Manage and configure your appointment types
             </p>
           </div>
-          <Button className="bg-foreground text-background hover:bg-foreground/90">
+          <Button className="bg-foreground text-background hover:bg-foreground/90 w-full sm:w-auto">
             New Appointment
           </Button>
         </div>
@@ -58,7 +110,7 @@ export default function OrgAppointments() {
           <Input
             type="search"
             placeholder="Search appointments"
-            className="max-w-md bg-background"
+            className="w-full bg-background sm:max-w-md"
           />
         </div>
 
@@ -67,11 +119,11 @@ export default function OrgAppointments() {
           {appointments.map((appointment) => (
             <div
               key={appointment.id}
-              className="flex items-center gap-6 rounded-lg border bg-card px-6 py-5 shadow-sm transition-shadow hover:shadow-md"
+              className="flex flex-col gap-4 rounded-lg border bg-card px-4 py-4 shadow-sm transition-shadow hover:shadow-md sm:flex-row sm:items-center sm:gap-6 sm:px-6 sm:py-5"
             >
               {/* Appointment Details */}
               <div className="flex-1">
-                <div className="mb-2 flex items-center gap-4">
+                <div className="mb-2 flex flex-col gap-2 sm:flex-row sm:items-center sm:gap-4">
                   <h3 className="text-base font-semibold text-card-foreground">
                     {appointment.name}
                   </h3>
@@ -80,7 +132,7 @@ export default function OrgAppointments() {
                     {appointment.duration}
                   </span>
                 </div>
-                <div className="flex items-center gap-4">
+                <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:gap-4">
                   {/* Resources */}
                   <div className="flex items-center gap-1.5">
                     {appointment.resources.map((resource) => (
@@ -101,7 +153,7 @@ export default function OrgAppointments() {
               </div>
 
               {/* Status and Actions */}
-              <div className="flex items-center gap-3">
+              <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:gap-3">
                 {/* Status Badge */}
                 <Badge
                   variant={
@@ -109,8 +161,8 @@ export default function OrgAppointments() {
                   }
                   className={
                     appointment.status === "published"
-                      ? "bg-emerald-100 text-emerald-700 hover:bg-emerald-100 dark:bg-emerald-950 dark:text-emerald-400"
-                      : "bg-muted text-muted-foreground hover:bg-muted"
+                      ? "bg-emerald-100 text-emerald-700 hover:bg-emerald-100 dark:bg-emerald-950 dark:text-emerald-400 w-fit"
+                      : "bg-muted text-muted-foreground hover:bg-muted w-fit"
                   }
                 >
                   {appointment.status === "published"
@@ -119,22 +171,29 @@ export default function OrgAppointments() {
                 </Badge>
 
                 {/* Action Buttons */}
-                <Button
-                  variant="secondary"
-                  size="sm"
-                  className="gap-1.5 bg-secondary text-secondary-foreground hover:bg-secondary/80"
-                >
-                  <Share2 className="h-3.5 w-3.5" />
-                  Share
-                </Button>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  className="gap-1.5 border-border text-foreground bg-transparent"
-                >
-                  <Pencil className="h-3.5 w-3.5" />
-                  Edit
-                </Button>
+                <div className="flex gap-2">
+                  <Dialog>
+                    <DialogTrigger asChild>
+                      <Button
+                        variant="secondary"
+                        size="sm"
+                        className="flex-1 gap-1.5 bg-secondary text-secondary-foreground hover:bg-secondary/80 sm:flex-none"
+                      >
+                        <Share2 className="h-3.5 w-3.5" />
+                        Share
+                      </Button>
+                    </DialogTrigger>
+                    <ShareModal appointmentName={appointment.name} />
+                  </Dialog>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="flex-1 gap-1.5 border-border bg-transparent text-foreground sm:flex-none"
+                  >
+                    <Pencil className="h-3.5 w-3.5" />
+                    Edit
+                  </Button>
+                </div>
               </div>
             </div>
           ))}
