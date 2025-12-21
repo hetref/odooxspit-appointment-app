@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -10,78 +10,131 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
-import { Bell, Calendar, User, AlertCircle, Info, X } from "lucide-react";
+import { Bell, Calendar, User, AlertCircle, Info, X, Loader2 } from "lucide-react";
 import { format } from "date-fns";
-
-interface Notification {
-  id: string;
-  type: "appointment" | "user" | "system" | "alert";
-  title: string;
-  message: string;
-  time: string;
-  read: boolean;
-}
-
-const dummyNotifications: Notification[] = [
-  {
-    id: "1",
-    type: "appointment",
-    title: "New Appointment",
-    message: "John Doe booked a consultation",
-    time: "2025-01-20T14:30:00",
-    read: false,
-  },
-  {
-    id: "2",
-    type: "appointment",
-    title: "Appointment Cancelled",
-    message: "Jane Smith cancelled their appointment",
-    time: "2025-01-20T13:15:00",
-    read: false,
-  },
-  {
-    id: "3",
-    type: "user",
-    title: "New User",
-    message: "Alice joined your organization",
-    time: "2025-01-20T11:45:00",
-    read: true,
-  },
-];
+import { notificationApi } from "@/lib/api";
+import { authStorage } from "@/lib/auth";
+import { Notification } from "@/lib/types";
+import { useRouter } from "next/navigation";
 
 export default function NotificationDropdown() {
-  const [notifications, setNotifications] = useState<Notification[]>(dummyNotifications);
+  const [notifications, setNotifications] = useState<Notification[]>([]);
+  const [unreadCount, setUnreadCount] = useState(0);
   const [open, setOpen] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const router = useRouter();
 
-  const unreadCount = notifications.filter((n) => !n.read).length;
+  // Fetch notifications when dropdown opens
+  useEffect(() => {
+    if (open) {
+      fetchNotifications();
+    }
+  }, [open]);
 
-  const markAsRead = (id: string) => {
-    setNotifications(
-      notifications.map((n) => (n.id === id ? { ...n, read: true } : n))
-    );
+  // Poll for unread count every 30 seconds
+  useEffect(() => {
+    fetchUnreadCount();
+    const interval = setInterval(fetchUnreadCount, 30000);
+    return () => clearInterval(interval);
+  }, []);
+
+  const fetchNotifications = async () => {
+    try {
+      setLoading(true);
+      const token = authStorage.getAccessToken();
+      if (!token) return;
+
+      const response = await notificationApi.getNotifications(token, {
+        page: 1,
+        limit: 10,
+      });
+
+      if (response.success && response.data) {
+        setNotifications(response.data.notifications);
+        setUnreadCount(response.data.unreadCount);
+      }
+    } catch (error) {
+      console.error("Failed to fetch notifications:", error);
+    } finally {
+      setLoading(false);
+    }
   };
 
-  const markAllAsRead = () => {
-    setNotifications(notifications.map((n) => ({ ...n, read: true })));
+  const fetchUnreadCount = async () => {
+    try {
+      const token = authStorage.getAccessToken();
+      if (!token) return;
+
+      const response = await notificationApi.getUnreadCount(token);
+      if (response.success && response.data) {
+        setUnreadCount(response.data.unreadCount);
+      }
+    } catch (error) {
+      console.error("Failed to fetch unread count:", error);
+    }
   };
 
-  const deleteNotification = (id: string) => {
-    setNotifications(notifications.filter((n) => n.id !== id));
+  const markAsRead = async (id: string) => {
+    try {
+      const token = authStorage.getAccessToken();
+      if (!token) return;
+
+      await notificationApi.markAsRead(token, id);
+      
+      // Update local state
+      setNotifications(
+        notifications.map((n) => (n.id === id ? { ...n, read: true } : n))
+      );
+      setUnreadCount(Math.max(0, unreadCount - 1));
+    } catch (error) {
+      console.error("Failed to mark as read:", error);
+    }
+  };
+
+  const markAllAsRead = async () => {
+    try {
+      const token = authStorage.getAccessToken();
+      if (!token) return;
+
+      await notificationApi.markAllAsRead(token);
+      
+      // Update local state
+      setNotifications(notifications.map((n) => ({ ...n, read: true })));
+      setUnreadCount(0);
+    } catch (error) {
+      console.error("Failed to mark all as read:", error);
+    }
+  };
+
+  const deleteNotification = async (id: string) => {
+    try {
+      const token = authStorage.getAccessToken();
+      if (!token) return;
+
+      await notificationApi.deleteNotification(token, id);
+      
+      // Update local state
+      const notification = notifications.find((n) => n.id === id);
+      setNotifications(notifications.filter((n) => n.id !== id));
+      if (notification && !notification.read) {
+        setUnreadCount(Math.max(0, unreadCount - 1));
+      }
+    } catch (error) {
+      console.error("Failed to delete notification:", error);
+    }
   };
 
   const getIcon = (type: string) => {
-    switch (type) {
-      case "appointment":
-        return <Calendar className="w-4 h-4 text-blue-600" />;
-      case "user":
-        return <User className="w-4 h-4 text-green-600" />;
-      case "system":
-        return <Info className="w-4 h-4 text-purple-600" />;
-      case "alert":
-        return <AlertCircle className="w-4 h-4 text-orange-600" />;
-      default:
-        return <Bell className="w-4 h-4 text-gray-600" />;
+    if (type.includes("APPOINTMENT") || type.includes("BOOKING")) {
+      return <Calendar className="w-4 h-4 text-blue-600" />;
     }
+    if (type.includes("MEMBER") || type.includes("USER")) {
+      return <User className="w-4 h-4 text-green-600" />;
+    }
+    if (type.includes("RESOURCE") || type.includes("ORGANIZATION")) {
+      return <Info className="w-4 h-4 text-purple-600" />;
+    }
+    return <Bell className="w-4 h-4 text-gray-600" />;
   };
 
   return (
@@ -115,7 +168,11 @@ export default function NotificationDropdown() {
         </div>
 
         <ScrollArea className="h-100">
-          {notifications.length === 0 ? (
+          {loading ? (
+            <div className="p-8 text-center">
+              <Loader2 className="w-6 h-6 mx-auto animate-spin text-muted-foreground" />
+            </div>
+          ) : notifications.length === 0 ? (
             <div className="p-8 text-center text-sm text-muted-foreground">
               <Bell className="w-8 h-8 mx-auto mb-2 opacity-50" />
               <p>No notifications</p>
@@ -145,7 +202,7 @@ export default function NotificationDropdown() {
                           {notification.message}
                         </p>
                         <p className="text-xs text-muted-foreground mt-1">
-                          {format(new Date(notification.time), "MMM d, h:mm a")}
+                          {format(new Date(notification.createdAt), "MMM d, h:mm a")}
                         </p>
                       </div>
                       <Button
@@ -173,7 +230,10 @@ export default function NotificationDropdown() {
             <Button
               variant="ghost"
               className="w-full text-sm"
-              onClick={() => setOpen(false)}
+              onClick={() => {
+                setOpen(false);
+                router.push("/dashboard/notifications");
+              }}
             >
               View All Notifications
             </Button>

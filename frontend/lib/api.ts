@@ -1,4 +1,4 @@
-import { User, Organization, Appointment, Booking, TimeSlot } from "./types";
+import { User, Organization, Appointment, Booking, TimeSlot, Notification } from "./types";
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "https://jeanene-unexposed-ingrid.ngrok-free.dev";
 
@@ -425,4 +425,53 @@ export const publicApi = {
   }>> => {
     return api.get(`/public/organizations/${organizationId}`);
   },
+};
+
+// Notification API functions
+export const notificationApi = {
+  // Get all notifications for current user
+  getNotifications: (token: string, params?: {
+    page?: number;
+    limit?: number;
+    read?: boolean;
+    type?: string;
+  }): Promise<ApiResponse<{
+    notifications: Notification[];
+    pagination: {
+      page: number;
+      limit: number;
+      total: number;
+      totalPages: number;
+    };
+    unreadCount: number;
+  }>> => {
+    const queryParams = new URLSearchParams();
+    if (params?.page) queryParams.append("page", params.page.toString());
+    if (params?.limit) queryParams.append("limit", params.limit.toString());
+    if (params?.read !== undefined) queryParams.append("read", params.read.toString());
+    if (params?.type) queryParams.append("type", params.type);
+
+    const endpoint = `/notifications${queryParams.toString() ? `?${queryParams.toString()}` : ""}`;
+    return api.get(endpoint, token);
+  },
+
+  // Get unread notification count
+  getUnreadCount: (token: string): Promise<ApiResponse<{ unreadCount: number }>> =>
+    api.get("/notifications/unread-count", token),
+
+  // Mark notification as read
+  markAsRead: (token: string, notificationId: string) =>
+    api.put(`/notifications/${notificationId}/read`, {}, token),
+
+  // Mark all notifications as read
+  markAllAsRead: (token: string) =>
+    api.put("/notifications/mark-all-read", {}, token),
+
+  // Delete a notification
+  deleteNotification: (token: string, notificationId: string) =>
+    api.delete(`/notifications/${notificationId}`, token),
+
+  // Delete all read notifications
+  deleteAllRead: (token: string) =>
+    api.delete("/notifications/read", token),
 };

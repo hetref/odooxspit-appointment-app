@@ -121,3 +121,34 @@ export interface TimeSlot {
   endTime?: string;
   availableCount?: number; // Number of available spots in this slot
 }
+
+export type NotificationType =
+  | "APPOINTMENT_CREATED"
+  | "APPOINTMENT_UPDATED"
+  | "APPOINTMENT_PUBLISHED"
+  | "BOOKING_CREATED"
+  | "BOOKING_CONFIRMED"
+  | "BOOKING_CANCELLED"
+  | "MEMBER_ADDED"
+  | "MEMBER_REMOVED"
+  | "RESOURCE_CREATED"
+  | "RESOURCE_DELETED"
+  | "ORGANIZATION_UPDATED"
+  | "EMAIL_VERIFIED"
+  | "PASSWORD_CHANGED";
+
+export interface Notification {
+  id: string;
+  userId: string;
+  type: NotificationType;
+  title: string;
+  message: string;
+  read: boolean;
+  readAt?: string;
+  relatedId?: string;
+  relatedType?: string;
+  actionUrl?: string;
+  metadata?: any;
+  createdAt: string;
+  updatedAt: string;
+}

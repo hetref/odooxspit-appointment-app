@@ -1,5 +1,6 @@
 const prisma = require('../lib/prisma');
 const crypto = require('crypto');
+const { notifyOrganizationMembers } = require('../lib/notificationHelper');
 
 // Generate secret link for unpublished appointments
 const generateSecretLink = () => {
@@ -224,6 +225,17 @@ async function createAppointment(req, res) {
                     },
                 },
             },
+        });
+
+        // Notify organization members about new appointment
+        await notifyOrganizationMembers({
+            organizationId,
+            type: 'APPOINTMENT_CREATED',
+            title: 'New Appointment Created',
+            message: `${user.name} created a new appointment: "${title}"`,
+            relatedId: appointment.id,
+            relatedType: 'appointment',
+            actionUrl: `/dashboard/org/appointments`,
         });
 
         res.status(201).json({
@@ -485,6 +497,17 @@ async function publishAppointment(req, res) {
             },
         });
 
+        // Notify organization members about appointment being published
+        await notifyOrganizationMembers({
+            organizationId: user.adminOrganization.id,
+            type: 'APPOINTMENT_PUBLISHED',
+            title: 'Appointment Published',
+            message: `${user.name} published the appointment: "${appointment.title}"`,
+            relatedId: appointment.id,
+            relatedType: 'appointment',
+            actionUrl: `/dashboard/org/appointments`,
+        });
+
         res.json({
             success: true,
             message: 'Appointment published successfully.',
@@ -714,6 +737,17 @@ async function updateAppointment(req, res) {
                     },
                 },
             },
+        });
+
+        // Notify organization members about appointment update
+        await notifyOrganizationMembers({
+            organizationId: user.adminOrganization.id,
+            type: 'APPOINTMENT_UPDATED',
+            title: 'Appointment Updated',
+            message: `${user.name} updated the appointment: "${updatedAppointment.title}"`,
+            relatedId: updatedAppointment.id,
+            relatedType: 'appointment',
+            actionUrl: `/dashboard/org/appointments`,
         });
 
         res.json({

@@ -14,6 +14,7 @@ const appointmentRoutes = require('./routes/appointment');
 const bookingRoutes = require('./routes/booking');
 const publicRoutes = require('./routes/public');
 const notificationRoutes = require('./routes/notification');
+const reminderRoutes = require('./routes/reminder');
 const paymentRoutes = require('./routes/payments');
 
 const app = express();
@@ -87,6 +88,7 @@ app.use('/', appointmentRoutes); // Public routes
 app.use('/', bookingRoutes); // Booking routes (public + protected)
 app.use('/', paymentRoutes); // Payments and webhooks
 app.use('/notifications', notificationRoutes);
+app.use('/reminders', reminderRoutes); // Reminder routes for n8n scheduler
 
 // 404 handler
 app.use((req, res) => {
