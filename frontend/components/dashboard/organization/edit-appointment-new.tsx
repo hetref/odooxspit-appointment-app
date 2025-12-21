@@ -97,12 +97,7 @@ interface AppointmentTypeFormData {
 
 const daysOfWeek = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"];
 
-interface EditAppointmentProps {
-  appointmentId: string;
-  onBack?: () => void;
-}
-
-export function EditAppointment({ appointmentId, onBack }: EditAppointmentProps) {
+export function CreateAppointment({ onBack }: { onBack?: () => void }) {
   const [currentTab, setCurrentTab] = useState("schedule");
   const [isQuestionModalOpen, setIsQuestionModalOpen] = useState(false);
   const [editingQuestion, setEditingQuestion] = useState<Question | null>(null);
@@ -135,11 +130,10 @@ export function EditAppointment({ appointmentId, onBack }: EditAppointmentProps)
   });
 
   const [isLoading, setIsLoading] = useState(false);
-  const [isLoadingAppointment, setIsLoadingAppointment] = useState(true);
   const [success, setSuccess] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
 
-  // Fetch appointment data, users, resources, and organization on mount
+  // Fetch users, resources, and organization on mount
   useEffect(() => {
     const fetchData = async () => {
       try {
@@ -150,11 +144,10 @@ export function EditAppointment({ appointmentId, onBack }: EditAppointmentProps)
           return;
         }
 
-        const [membersResponse, resourcesResponse, userResponse, appointmentResponse] = await Promise.all([
+        const [membersResponse, resourcesResponse, userResponse] = await Promise.all([
           organizationApi.getMembers(token),
           organizationApi.getResources(token),
           userApi.getMe(token),
-          organizationApi.getAppointment(token, appointmentId),
         ]);
 
         if (membersResponse.success && membersResponse.data) {
@@ -176,71 +169,19 @@ export function EditAppointment({ appointmentId, onBack }: EditAppointmentProps)
           if (org?.businessHours) {
             const orgBusinessHours = org.businessHours as BusinessHour[];
             setBusinessHours(orgBusinessHours);
+
+            // Auto-populate time slots with business hours
+            const initialSlots: TimeSlot[] = orgBusinessHours.map((bh, index) => ({
+              id: `${index + 1}`,
+              day: bh.day.charAt(0).toUpperCase() + bh.day.slice(1).toLowerCase(),
+              from: bh.from,
+              to: bh.to,
+            }));
+            setFormData(prev => ({ ...prev, timeSlots: initialSlots }));
           }
         }
 
-        // Populate form with existing appointment data
-        if (appointmentResponse.success && appointmentResponse.data) {
-          const appointment = appointmentResponse.data.appointment;
-
-          // Convert schedule to timeSlots
-          const timeSlots = Array.isArray(appointment.schedule)
-            ? appointment.schedule.map((slot: any, index: number) => ({
-              id: `slot-${index}`,
-              day: slot.day.charAt(0) + slot.day.slice(1).toLowerCase(),
-              from: slot.from,
-              to: slot.to,
-            }))
-            : [];
-
-          // Convert questions
-          const questions = Array.isArray(appointment.questions)
-            ? appointment.questions.map((q: any, index: number) => ({
-              id: q.id || `q-${index}`,
-              question: q.question,
-              type: q.type.toLowerCase() as Question["type"],
-              required: q.required || false,
-              options: q.options || [],
-            }))
-            : [];
-
-          // Convert durationMinutes to duration and unit
-          const durationMinutes = appointment.durationMinutes || 30;
-          const duration = durationMinutes >= 60 && durationMinutes % 60 === 0
-            ? (durationMinutes / 60).toString()
-            : durationMinutes.toString();
-          const durationUnit = durationMinutes >= 60 && durationMinutes % 60 === 0 ? "hours" : "minutes";
-
-          // Get selected users/resources
-          const selectedUsers = appointment.allowedUsers?.map((u: any) => u.id) || [];
-          const selectedResources = appointment.allowedResources?.map((r: any) => r.id) || [];
-
-          setFormData({
-            title: appointment.title || "",
-            duration,
-            durationUnit: durationUnit as "hours" | "minutes",
-            location: appointment.location || "",
-            bookingType: appointment.bookType === "USER" ? "user" : "resource",
-            assignmentType: appointment.assignmentType === "AUTOMATIC" ? "automatic" : "visitor",
-            selectedUsers,
-            selectedResources,
-            manageCapacity: appointment.allowMultipleSlots || false,
-            capacity: appointment.maxSlotsPerBooking || 1,
-            isPaid: appointment.isPaid || false,
-            price: appointment.price ? appointment.price.toString() : "",
-            cancellationHours: appointment.cancellationHours?.toString() || "0",
-            description: appointment.description || "",
-            picture: null,
-            picturePreview: appointment.picture || null,
-            timeSlots,
-            questions,
-            introMessage: appointment.introMessage || "",
-            confirmationMessage: appointment.confirmationMessage || "",
-          });
-        }
-
         setIsLoadingData(false);
-        setIsLoadingAppointment(false);
       } catch (error: any) {
         console.error("Error fetching data:", error);
         setDataError(error.message || "Failed to load data");
@@ -300,8 +241,21 @@ export function EditAppointment({ appointmentId, onBack }: EditAppointmentProps)
         return;
       }
 
-      // Don't allow picture update - keep existing picture
-      const pictureUrl = formData.picturePreview; // Use existing picture URL
+      // Upload image if present
+      let pictureUrl: string | undefined = undefined;
+      if (formData.picture) {
+        try {
+          const uploadResponse = await mediaApi.uploadFile(token, formData.picture, 'appointments');
+          if (uploadResponse.success && uploadResponse.data) {
+            pictureUrl = uploadResponse.data.url;
+          }
+        } catch (uploadError: any) {
+          console.error('Image upload error:', uploadError);
+          setErrors({ submit: "Failed to upload image. Please try again." });
+          setIsLoading(false);
+          return;
+        }
+      }
 
       // Convert duration to minutes
       const durationMinutes =
@@ -349,7 +303,7 @@ export function EditAppointment({ appointmentId, onBack }: EditAppointmentProps)
           formData.bookingType === "resource" ? formData.selectedResources : undefined,
       };
 
-      const response = await organizationApi.updateAppointment(token, appointmentId, appointmentData);
+      const response = await organizationApi.createAppointment(token, appointmentData);
 
       if (response.success) {
         setSuccess(true);
@@ -359,7 +313,7 @@ export function EditAppointment({ appointmentId, onBack }: EditAppointmentProps)
           if (onBack) onBack();
         }, 2000);
       } else {
-        setErrors({ submit: response.message || "Failed to update appointment" });
+        setErrors({ submit: response.message || "Failed to create appointment" });
       }
     } catch (error: any) {
       console.error("Error creating appointment:", error);
@@ -476,17 +430,6 @@ export function EditAppointment({ appointmentId, onBack }: EditAppointmentProps)
     setIsQuestionModalOpen(true);
   };
 
-  if (isLoadingAppointment) {
-    return (
-      <div className="min-h-[calc(100vh-4rem)] flex items-center justify-center">
-        <div className="text-center space-y-4">
-          <div className="w-12 h-12 border-4 border-primary border-t-transparent rounded-full animate-spin mx-auto" />
-          <p className="text-muted-foreground">Loading appointment...</p>
-        </div>
-      </div>
-    );
-  }
-
   if (success) {
     return (
       <div className="min-h-[calc(100vh-4rem)] flex items-center justify-center p-4 sm:p-6">
@@ -497,9 +440,9 @@ export function EditAppointment({ appointmentId, onBack }: EditAppointmentProps)
                 <CheckCircle2 className="w-10 h-10 sm:w-12 sm:h-12 text-green-600" />
               </div>
               <div className="space-y-2">
-                <h2 className="text-2xl sm:text-3xl font-bold">Appointment Updated!</h2>
+                <h2 className="text-2xl sm:text-3xl font-bold">Appointment Created!</h2>
                 <p className="text-muted-foreground text-sm sm:text-base">
-                  {formData.title} has been successfully updated.
+                  {formData.title} has been successfully created. You can publish it to make it available for public booking.
                 </p>
               </div>
               <Button onClick={onBack} className="w-full sm:w-auto" size="lg">
@@ -519,9 +462,9 @@ export function EditAppointment({ appointmentId, onBack }: EditAppointmentProps)
         <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 p-4  mx-auto">
           <div className="flex items-center gap-3">
             <div>
-              <h1 className="text-xl sm:text-2xl font-bold">Edit Appointment</h1>
+              <h1 className="text-xl sm:text-2xl font-bold">Appointment Form View</h1>
               <p className="text-xs sm:text-sm text-muted-foreground">
-                Update appointment settings
+                Configure appointment type settings
               </p>
             </div>
           </div>
@@ -537,7 +480,7 @@ export function EditAppointment({ appointmentId, onBack }: EditAppointmentProps)
               size="sm"
             >
               <Save className="w-4 h-4" />
-              {isLoading ? "Saving..." : "Save Changes"}
+              {isLoading ? "Creating..." : "Create Appointment"}
             </Button>
           </div>
         </div>
@@ -589,33 +532,41 @@ export function EditAppointment({ appointmentId, onBack }: EditAppointmentProps)
                     )}
                   </div>
 
-                  {/* Picture Display (Read-only) */}
+                  {/* Picture Upload */}
                   <div className="space-y-2">
                     <Label>Picture</Label>
-                    <div className="border-2 border-dashed rounded-lg p-4 text-center bg-muted/30">
+                    <div className="border-2 border-dashed rounded-lg p-4 text-center hover:border-primary/50 transition-colors">
                       {formData.picturePreview ? (
                         <div className="relative">
                           <img
                             src={formData.picturePreview}
-                            alt="Appointment"
-                            className="w-full h-24 object-cover rounded opacity-75"
+                            alt="Preview"
+                            className="w-full h-24 object-cover rounded"
                           />
-                          <div className="absolute inset-0 bg-black/20 rounded flex items-center justify-center">
-                            <Badge variant="secondary" className="text-xs">
-                              Read Only
-                            </Badge>
-                          </div>
+                          <Button
+                            variant="destructive"
+                            size="icon"
+                            className="absolute top-1 right-1 h-6 w-6"
+                            onClick={removePicture}
+                          >
+                            <X className="w-4 h-4" />
+                          </Button>
                         </div>
                       ) : (
-                        <div className="flex flex-col items-center gap-2 text-muted-foreground py-4">
-                          <ImageIcon className="w-8 h-8 opacity-50" />
-                          <span className="text-xs">No image</span>
-                        </div>
+                        <label className="cursor-pointer block">
+                          <input
+                            type="file"
+                            accept="image/*"
+                            className="hidden"
+                            onChange={handlePictureUpload}
+                          />
+                          <div className="flex flex-col items-center gap-2 text-muted-foreground">
+                            <ImageIcon className="w-8 h-8" />
+                            <span className="text-xs">Upload</span>
+                          </div>
+                        </label>
                       )}
                     </div>
-                    <p className="text-xs text-muted-foreground">
-                      Picture cannot be updated in edit mode
-                    </p>
                   </div>
                 </div>
               </CardContent>
