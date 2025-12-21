@@ -27,6 +27,7 @@ async function createAppointment(req, res) {
             questions,
             allowedUserIds,
             allowedResourceIds,
+            location,
         } = req.body;
 
         // Fetch user with organization
@@ -204,6 +205,7 @@ async function createAppointment(req, res) {
                 questions,
                 introMessage: req.body.introMessage || null,
                 confirmationMessage: req.body.confirmationMessage || null,
+                location: location || null,
                 organizationId,
                 allowedUsers: bookType === 'USER' ? { connect: allowedUserIds.map((id) => ({ id })) } : undefined,
                 allowedResources:
@@ -666,6 +668,7 @@ async function updateAppointment(req, res) {
             confirmationMessage,
             allowedUserIds,
             allowedResourceIds,
+            location,
         } = req.body;
 
         const user = await prisma.user.findUnique({
@@ -705,6 +708,7 @@ async function updateAppointment(req, res) {
         if (questions) updateData.questions = questions;
         if (introMessage !== undefined) updateData.introMessage = introMessage;
         if (confirmationMessage !== undefined) updateData.confirmationMessage = confirmationMessage;
+        if (location !== undefined) updateData.location = location;
 
         // Handle user/resource updates
         if (allowedUserIds && appointment.bookType === 'USER') {
