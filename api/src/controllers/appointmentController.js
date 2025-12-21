@@ -1,6 +1,12 @@
 const prisma = require('../lib/prisma');
 const crypto = require('crypto');
 const { notifyOrganizationMembers } = require('../lib/notificationHelper');
+const {
+    emitAppointmentCreated,
+    emitAppointmentUpdated,
+    emitAppointmentPublished,
+    emitAppointmentUnpublished,
+} = require('../socket');
 
 // Generate secret link for unpublished appointments
 const generateSecretLink = () => {
@@ -239,6 +245,9 @@ async function createAppointment(req, res) {
             relatedType: 'appointment',
             actionUrl: `/dashboard/org/appointments`,
         });
+
+        // Emit socket event for real-time update
+        emitAppointmentCreated(organizationId, appointment);
 
         res.status(201).json({
             success: true,
@@ -510,6 +519,22 @@ async function publishAppointment(req, res) {
             actionUrl: `/dashboard/org/appointments`,
         });
 
+        // Fetch full appointment data for socket emit
+        const publishedAppointment = await prisma.appointment.findUnique({
+            where: { id },
+            include: {
+                allowedUsers: {
+                    select: { id: true, name: true, email: true },
+                },
+                allowedResources: {
+                    select: { id: true, name: true, capacity: true },
+                },
+            },
+        });
+
+        // Emit socket event for real-time update
+        emitAppointmentPublished(user.adminOrganization.id, publishedAppointment);
+
         res.json({
             success: true,
             message: 'Appointment published successfully.',
@@ -563,6 +588,9 @@ async function unpublishAppointment(req, res) {
                 isPublished: false,
             },
         });
+
+        // Emit socket event for real-time update
+        emitAppointmentUnpublished(user.adminOrganization.id, appointment.id);
 
         res.json({
             success: true,
@@ -753,6 +781,9 @@ async function updateAppointment(req, res) {
             relatedType: 'appointment',
             actionUrl: `/dashboard/org/appointments`,
         });
+
+        // Emit socket event for real-time update
+        emitAppointmentUpdated(user.adminOrganization.id, updatedAppointment);
 
         res.json({
             success: true,

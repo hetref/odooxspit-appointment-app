@@ -18,6 +18,7 @@ import {
     AlertCircle,
 } from "lucide-react";
 import { publicApi } from "@/lib/api";
+import { socket, socketHelpers } from "@/lib/socket";
 
 interface Organization {
     id: string;
@@ -39,6 +40,29 @@ export default function SearchPage() {
 
     React.useEffect(() => {
         fetchOrganizations();
+
+        // Connect socket and join public room for real-time updates
+        socketHelpers.connect();
+        socketHelpers.joinPublic();
+
+        // Listen for new organizations
+        socket.on('organization:created', (newOrg: Organization) => {
+            setOrganizations((prev) => [newOrg, ...prev]);
+        });
+
+        // Listen for organization updates
+        socket.on('organization:updated', (updatedOrg: Organization) => {
+            setOrganizations((prev) =>
+                prev.map((org) => (org.id === updatedOrg.id ? updatedOrg : org))
+            );
+        });
+
+        // Cleanup on unmount
+        return () => {
+            socket.off('organization:created');
+            socket.off('organization:updated');
+            socketHelpers.disconnect();
+        };
     }, []);
 
     const fetchOrganizations = async (search?: string) => {

@@ -37,6 +37,7 @@ import {
 import { bookingApi, paymentsApi } from "@/lib/api";
 import { authStorage } from "@/lib/auth";
 import { format } from "date-fns";
+import { socket, socketHelpers } from "@/lib/socket";
 
 interface Appointment {
     id: string;
@@ -137,6 +138,36 @@ export function MultiStepBooking({ appointment, onSuccess, onCancel }: MultiStep
             return () => window.removeEventListener('mouseup', handleGlobalMouseUp);
         }
     }, [isDragging]);
+
+    // Socket integration for real-time slot updates
+    React.useEffect(() => {
+        // Connect socket and join appointment room
+        socketHelpers.connect();
+        socketHelpers.joinAppointment(appointment.id);
+
+        // Listen for booking created - refresh slots
+        socket.on('booking:created', (data: any) => {
+            if (data._refreshSlots && selectedDate) {
+                console.log('Booking created, refreshing slots...');
+                fetchAvailableSlots();
+            }
+        });
+
+        // Listen for booking cancelled - refresh slots
+        socket.on('booking:cancelled', (data: any) => {
+            if (data._refreshSlots && selectedDate) {
+                console.log('Booking cancelled, refreshing slots...');
+                fetchAvailableSlots();
+            }
+        });
+
+        // Cleanup on unmount
+        return () => {
+            socket.off('booking:created');
+            socket.off('booking:cancelled');
+            socketHelpers.leaveAppointment(appointment.id);
+        };
+    }, [appointment.id, selectedDate]);
 
     const fetchAvailableSlots = async () => {
         if (!selectedDate) return;
