@@ -1,4 +1,5 @@
 const prisma = require('../lib/prisma');
+const { notifyOrganizationMembers } = require('../lib/notificationHelper');
 
 /**
  * Update organization (ADMIN only)
@@ -42,6 +43,27 @@ async function updateOrganization(req, res) {
         const updatedOrganization = await prisma.organization.update({
             where: { id: organizationId },
             data: updateData,
+            select: {
+                id: true,
+                name: true,
+                location: true,
+                description: true,
+                businessHours: true,
+                createdAt: true,
+                updatedAt: true,
+            },
+        });
+
+        // Notify organization members about settings update
+        await notifyOrganizationMembers({
+            organizationId,
+            type: 'ORGANIZATION_UPDATED',
+            title: 'Organization Settings Updated',
+            message: `Organization settings have been updated by the admin.`,
+            relatedId: organizationId,
+            relatedType: 'organization',
+            actionUrl: '/dashboard/org/settings',
+            excludeUserId: userId,
         });
 
         res.status(200).json({

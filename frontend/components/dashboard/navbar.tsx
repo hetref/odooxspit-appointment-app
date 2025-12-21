@@ -46,6 +46,7 @@ import { Skeleton } from "@/components/ui/skeleton"
 import { GetUserData, clearAuthData } from "@/lib/auth";
 import NotificationDropdown from "./notification-dropdown";
 import { useRouter } from "next/navigation";
+import { ModeToggle } from "../theme-toggle";
 
 // ---------------------- Types ----------------------
 type UserRole = "customer" | "organizer" | "admin";
@@ -223,7 +224,7 @@ function UserProfileDropdown({
           aria-label="Open user menu"
         >
           <Avatar className={cn("h-full w-full")}>
-            <AvatarImage src="/avatar-1.png" alt="User avatar" />
+            <AvatarImage src={`https://api.dicebear.com/7.x/initials/svg?seed=${userName || 'User'}`} alt="User avatar" />
             <AvatarFallback>{initials}</AvatarFallback>
           </Avatar>
         </button>
@@ -252,7 +253,7 @@ function UserProfileDropdown({
             </Link>
           </DropdownMenuItem>
 
-       
+
         </DropdownMenuGroup>
 
         <DropdownMenuSeparator />
@@ -347,7 +348,7 @@ export default function Navbar() {
             orientation="vertical"
             className="hidden data-[orientation=vertical]:h-5 md:flex"
           />
-
+            <ModeToggle/>
           <div className="flex items-center gap-1.5">
             <NotificationDropdown />
           </div>

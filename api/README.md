@@ -9,13 +9,26 @@ A complete, production-ready authentication API built with Express, Prisma 7, JW
 - ✅ **Organization management with admin and member roles**
 - ✅ **Automatic organization creation on role upgrade**
 - ✅ **USER to ORGANIZATION conversion**
-- ✅ **Member management (add/view members)**
+- ✅ **Member management (add/view/add/remove members)**
 - ✅ **Resource management (create/view/delete resources)**
 - ✅ **Appointment system with complex booking logic**
-- ✅ **Public appointment discovery (no auth)**
-- ✅ **Available time slot calculation**
+- ✅ **Appointment Publish/Unpublish functionality**
+- ✅ **Secret link generation for private appointments with expiry**
+- ✅ **Expiry by time or capacity for appointments**
+- ✅ **Public appointment discovery and search**
+- ✅ **Complete booking system with time slot management**
+- ✅ **Available time slot calculation with conflict detection**
 - ✅ **USER and RESOURCE book types**
 - ✅ **Automatic and visitor-based assignment**
+- ✅ **Booking cancellation with policy enforcement**
+- ✅ **User and organization booking history**
+- ✅ **Custom questions for appointment bookings**
+- ✅ **Introduction and confirmation messages**
+- ✅ **Payment status tracking (PENDING/PAID/FAILED/REFUNDED)**
+- ✅ **Booking status management (PENDING/CONFIRMED/CANCELLED/COMPLETED)**
+ - ✅ **Per-appointment paid/free pricing with price field**
+ - ✅ **Razorpay Connect (OAuth) per-organization payment accounts**
+ - ✅ **Razorpay order creation and webhook-driven payment updates**
 - ✅ JWT-based access tokens (15 minutes expiry)
 - ✅ Rotating refresh tokens (30 days expiry, stored as HttpOnly cookies)
 - ✅ Password reset via email
@@ -107,6 +120,17 @@ AWS_REGION=us-east-1
 AWS_ACCESS_KEY_ID=your-aws-access-key-id
 AWS_SECRET_ACCESS_KEY=your-aws-secret-access-key
 AWS_S3_BUCKET=demo-test-aryu-me
+
+# Razorpay Partner / Connect Configuration
+RAZORPAY_CLIENT_ID=your-razorpay-partner-client-id
+RAZORPAY_CLIENT_SECRET=your-razorpay-partner-client-secret
+RAZORPAY_OAUTH_AUTHORIZE_URL=https://auth.razorpay.com/authorize
+RAZORPAY_OAUTH_TOKEN_URL=https://auth.razorpay.com/token
+RAZORPAY_API_BASE_URL=https://api.razorpay.com/v1
+RAZORPAY_REDIRECT_URI=http://localhost:4000/auth/razorpay/callback
+RAZORPAY_WEBHOOK_SECRET=your-razorpay-webhook-signing-secret
+RAZORPAY_WEBHOOK_URL=http://localhost:4000/webhooks/razorpay
+RAZORPAY_STATE_SECRET=change-this-state-secret
 ```
 
 **Important Notes**:
@@ -2235,19 +2259,23 @@ api/
 │   │   ├── authController.js     # Auth logic
 │   │   ├── userController.js     # User logic
 │   │   ├── sessionController.js  # Session management logic
-│   │   └── mediaController.js    # Media upload/delete logic
+│   │   ├── mediaController.js    # Media upload/delete logic
+│   │   ├── paymentController.js  # Razorpay order creation and webhooks
+│   │   └── razorpayController.js # Razorpay OAuth connect/callback
 │   ├── lib/
 │   │   ├── auth.js            # Auth utilities (JWT, tokens, hashing, sessions)
 │   │   ├── mailer.js          # Email sending
 │   │   ├── prisma.js          # Prisma client
-│   │   └── s3.js              # AWS S3 client configuration
+│   │   ├── s3.js              # AWS S3 client configuration
+│   │   └── razorpay.js        # Razorpay OAuth + API helper
 │   ├── middlewares/
 │   │   └── requireAuth.js     # Auth middleware
 │   ├── routes/
 │   │   ├── auth.js            # Auth routes
 │   │   ├── user.js            # User routes
 │   │   ├── session.js         # Session management routes
-│   │   └── media.js           # Media upload/delete routes
+│   │   ├── media.js           # Media upload/delete routes
+│   │   └── payments.js        # Payment order + webhook routes
 │   ├── utils/
 │   │   ├── crypto.js          # Crypto utilities
 │   │   └── deviceParser.js    # Device/browser/OS parsing
@@ -2301,6 +2329,15 @@ npm run prisma:reset           # Reset database (delete all data)
 | `AWS_ACCESS_KEY_ID` | AWS access key ID | Required |
 | `AWS_SECRET_ACCESS_KEY` | AWS secret access key | Required |
 | `AWS_S3_BUCKET` | S3 bucket name | `demo-test-aryu-me` |
+| `RAZORPAY_CLIENT_ID` | Razorpay partner app client ID | Required for paid appointments |
+| `RAZORPAY_CLIENT_SECRET` | Razorpay partner app client secret | Required for paid appointments |
+| `RAZORPAY_OAUTH_AUTHORIZE_URL` | Razorpay OAuth authorize endpoint | `https://auth.razorpay.com/authorize` |
+| `RAZORPAY_OAUTH_TOKEN_URL` | Razorpay OAuth token endpoint | `https://auth.razorpay.com/token` |
+| `RAZORPAY_API_BASE_URL` | Razorpay API base URL | `https://api.razorpay.com/v1` |
+| `RAZORPAY_REDIRECT_URI` | Backend callback URL for Razorpay OAuth | `http://localhost:4000/auth/razorpay/callback` |
+| `RAZORPAY_WEBHOOK_SECRET` | Shared secret for verifying Razorpay webhooks | Required for webhooks |
+| `RAZORPAY_WEBHOOK_URL` | Public URL of Razorpay webhook endpoint | `http://localhost:4000/webhooks/razorpay` |
+| `RAZORPAY_STATE_SECRET` | HMAC secret for signing OAuth state | Change from default in production |
 
 ---
 
@@ -2353,6 +2390,157 @@ npx prisma migrate dev
 **Solution**: Update `CORS_ORIGIN` in `.env` to match your frontend URL
 
 ---
+
+## 💳 Razorpay Connect & Payments
+
+This API supports **per-organization paid appointments** using **Razorpay Partner / Connect**. Each organization connects its own Razorpay account via OAuth, and all funds are settled **directly to that organization**, not to the platform.
+
+### High-Level Flow
+
+- Organization admin clicks **Connect Razorpay** in the dashboard → browser hits `GET /auth/razorpay/connect`.
+- Backend builds a signed OAuth URL and redirects to Razorpay.
+- After consent, Razorpay redirects to `GET /auth/razorpay/callback?code=...&state=...`.
+- Backend exchanges `code` for `access_token`/`refresh_token` and stores them in `OrganizationRazorpayConnection`.
+- Backend creates webhooks for the connected merchant pointing to `POST /webhooks/razorpay`.
+- When a user books a **paid** appointment:
+  - Booking is created in the database with `paymentStatus=PENDING`.
+  - Frontend calls `POST /payments/create-order` for that booking.
+  - Backend creates a Razorpay Order using the organization’s access token.
+  - Frontend opens Razorpay Checkout using the merchant’s `key_id` and order id.
+- Razorpay sends webhooks (`payment.captured`, `payment.failed`, `refund.processed`) to `/webhooks/razorpay`.
+- Backend verifies the webhook signature and updates `Booking.paymentStatus`, `Booking.bookingStatus`, and creates `Notification` records.
+
+### Required Razorpay Setup
+
+1. **Create a Razorpay Partner Account**
+   - Sign up as a **Technology Partner** in the Razorpay dashboard.
+   - Create an OAuth application and obtain:
+     - `RAZORPAY_CLIENT_ID`
+     - `RAZORPAY_CLIENT_SECRET`
+
+2. **Configure Redirect URI (OAuth Callback)**
+   - In the Razorpay dashboard, set the redirect URI to:
+     - Local development: `http://localhost:4000/auth/razorpay/callback`
+     - Production: `https://your-api-domain.com/auth/razorpay/callback`
+   - Use the same value in `RAZORPAY_REDIRECT_URI`.
+
+3. **Configure Webhook URL**
+   - In the Razorpay dashboard for your partner app / merchant webhooks, configure the webhook URL:
+     - Local (if accessible via tunnel like ngrok): `https://your-tunnel-domain.ngrok.io/webhooks/razorpay`
+     - Production: `https://your-api-domain.com/webhooks/razorpay`
+   - Set the same URL in `RAZORPAY_WEBHOOK_URL`.
+   - Set a strong `RAZORPAY_WEBHOOK_SECRET` and copy the same value to the environment.
+
+4. **Configure Environment Variables**
+   - See the **Environment Variables** table above for all Razorpay-related keys.
+   - For production, always use:
+     - Strong, unique `RAZORPAY_STATE_SECRET`.
+     - HTTPS URLs for redirect and webhook.
+
+### Backend Endpoints
+
+**1. Connect Razorpay (Organization Admin Only)**
+
+- Endpoint: `GET /auth/razorpay/connect`
+- Auth: Bearer token, user must be an organization admin.
+- Behavior:
+  - Finds the admin’s organization.
+  - Builds a signed OAuth URL with a secure `state` containing the `organizationId`.
+  - Redirects to Razorpay OAuth consent screen.
+
+**2. Razorpay OAuth Callback**
+
+- Endpoint: `GET /auth/razorpay/callback`
+- Query parameters: `code`, `state`, or `error` from Razorpay.
+- Behavior:
+  - Verifies and decodes `state` to obtain `organizationId`.
+  - Exchanges `code` for tokens via Razorpay OAuth token endpoint.
+  - Upserts `OrganizationRazorpayConnection` with:
+    - `accessToken`, `refreshToken`, `razorpayMerchantId`, `merchantKeyId`, `tokenExpiresAt`.
+  - Creates webhooks for that merchant pointing to `/webhooks/razorpay`.
+  - Redirects back to the frontend (e.g. `/dashboard/org/settings?razorpay=connected`).
+
+**3. Create Razorpay Order for a Booking**
+
+- Endpoint: `POST /payments/create-order`
+- Auth: Bearer token (USER).
+- Request body:
+  ```json
+  { "bookingId": "BOOKING_ID" }
+  ```
+- Behavior:
+  - Loads the booking (with appointment) and verifies it belongs to the current user.
+  - Ensures the appointment is paid and `booking.totalAmount > 0`.
+  - Retrieves a valid `OrganizationRazorpayConnection` for the appointment’s organization (refreshing tokens if needed).
+  - Creates a Razorpay Order with:
+    - `amount = booking.totalAmount * 100` (paise).
+    - `currency = "INR"`.
+    - `receipt = booking.id`.
+    - `notes` including `bookingId`, `appointmentId`, `organizationId`.
+  - Returns JSON:
+    ```json
+    {
+      "success": true,
+      "data": {
+        "orderId": "order_xxx",
+        "amount": 500000,
+        "currency": "INR",
+        "bookingId": "BOOKING_ID",
+        "merchantKeyId": "rzp_test_xxx"
+      }
+    }
+    ```
+
+The frontend uses `merchantKeyId` as the `key` for Razorpay Checkout and `orderId` as `order_id`.
+
+**4. Razorpay Webhook Endpoint**
+
+- Endpoint: `POST /webhooks/razorpay`
+- Auth: None (called by Razorpay; secured via HMAC signature).
+- Headers:
+  - `x-razorpay-signature`: HMAC-SHA256 signature of the raw request body.
+- Behavior:
+  - Uses `req.rawBody` and `RAZORPAY_WEBHOOK_SECRET` to verify the signature.
+  - Reads event data and `account_id` (connected merchant account).
+  - Resolves the `OrganizationRazorpayConnection` by `razorpayMerchantId = account_id`.
+  - Extracts `bookingId` from `notes` on the payment/order.
+  - Updates the corresponding `Booking` and creates `Notification` entries:
+    - `payment.captured`:
+      - `paymentStatus = PAID`.
+      - `bookingStatus = CONFIRMED` (if previously PENDING).
+      - Notification type `PAYMENT_RECEIVED`.
+    - `payment.failed`:
+      - `paymentStatus = FAILED`.
+      - `bookingStatus = CANCELLED` (if not already cancelled).
+      - Notification type `PAYMENT_FAILED`.
+    - `refund.processed`:
+      - `paymentStatus = REFUNDED`.
+      - Booking status left unchanged.
+
+### Frontend Integration (Overview)
+
+- After creating a booking for a **paid** appointment, the frontend:
+  - Calls `POST /payments/create-order` with the booking id.
+  - Loads the Razorpay Checkout script.
+  - Initializes `Razorpay` with:
+    - `key`: `merchantKeyId` (per-organization key_id).
+    - `order_id`: returned from the backend.
+    - `amount`, `currency`, and `notes.bookingId`.
+  - Opens the Checkout widget.
+  - On successful payment, shows confirmation to the user; final authoritative status is derived from webhooks.
+
+### Test vs Live
+
+- Use Razorpay **test mode** credentials and sandbox accounts during development.
+- Ensure:
+  - Test `RAZORPAY_CLIENT_ID` / `RAZORPAY_CLIENT_SECRET` and redirect/webhook URLs point to your dev environment.
+  - Live credentials and HTTPS URLs are used only in production.
+- Verify end-to-end in test mode:
+  1. Organization connects Razorpay.
+  2. Create a paid appointment with a price.
+  3. Book the appointment as a user.
+  4. Complete a test payment via Razorpay Checkout.
+  5. Confirm that booking `paymentStatus`/`bookingStatus` and notifications update after webhook delivery.
 
 ## 📊 Database Schema
 
@@ -2479,6 +2667,22 @@ npx prisma migrate dev
   }
 ]
 ```
+
+### OrganizationRazorpayConnection
+- `id`: String (CUID)
+- `organizationId`: String (unique, foreign key to Organization)
+- `razorpayMerchantId`: String (connected merchant account id from Razorpay)
+- `accessToken`: String (OAuth access token for the merchant)
+- `refreshToken`: String (OAuth refresh token for the merchant)
+- `tokenExpiresAt`: DateTime (when the access token expires)
+- `merchantKeyId`: String (optional, safe-to-expose Razorpay key_id used by Checkout)
+- `createdAt`: DateTime
+- `updatedAt`: DateTime
+
+**Razorpay Connection Rules**:
+- Each organization can have at most one Razorpay connection.
+- Tokens are stored per organization; the platform never charges via a central account.
+- Access tokens are refreshed automatically when close to expiry.
 
 ### RefreshToken (Session)
 - `id`: String (CUID)

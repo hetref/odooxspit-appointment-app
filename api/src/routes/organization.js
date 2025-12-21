@@ -5,6 +5,7 @@ const { hashPassword } = require('../lib/auth');
 const { sendMemberInvitationEmail } = require('../lib/mailer');
 const { createAppointment, getOrganizationAppointments, getSingleAppointment } = require('../controllers/appointmentController');
 const { updateOrganization } = require('../controllers/organizationController');
+const { createNotification, notifyOrganizationMembers } = require('../lib/notificationHelper');
 
 const router = express.Router();
 
@@ -162,6 +163,29 @@ router.post('/members', async (req, res) => {
                 // Don't fail the request if email fails - member is already added
             }
 
+            // Notify the new member
+            await createNotification({
+                userId: memberUser.id,
+                type: 'MEMBER_ADDED',
+                title: 'Added to Organization',
+                message: `You have been added to ${organizationName}.`,
+                relatedId: organizationId,
+                relatedType: 'organization',
+                actionUrl: '/dashboard/org/settings',
+            });
+
+            // Notify other organization members
+            await notifyOrganizationMembers({
+                organizationId,
+                type: 'MEMBER_ADDED',
+                title: 'New Member Added',
+                message: `${memberUser.name || memberUser.email} has been added to the organization.`,
+                relatedId: memberUser.id,
+                relatedType: 'user',
+                actionUrl: '/dashboard/org/members',
+                excludeUserId: memberUser.id,
+            });
+
             return res.status(200).json({
                 success: true,
                 message: 'Existing user added as member successfully. Notification email sent.',
@@ -205,6 +229,29 @@ router.post('/members', async (req, res) => {
                 console.error('Email send error:', emailError);
                 // Don't fail the request if email fails - member is already created
             }
+
+            // Notify the new member
+            await createNotification({
+                userId: memberUser.id,
+                type: 'MEMBER_ADDED',
+                title: 'Welcome to Organization',
+                message: `You have been invited to join ${organizationName}. Check your email for login credentials.`,
+                relatedId: organizationId,
+                relatedType: 'organization',
+                actionUrl: '/dashboard/org/settings',
+            });
+
+            // Notify other organization members
+            await notifyOrganizationMembers({
+                organizationId,
+                type: 'MEMBER_ADDED',
+                title: 'New Member Added',
+                message: `${memberUser.name || memberUser.email} has been added to the organization.`,
+                relatedId: memberUser.id,
+                relatedType: 'user',
+                actionUrl: '/dashboard/org/members',
+                excludeUserId: memberUser.id,
+            });
 
             return res.status(201).json({
                 success: true,
@@ -386,6 +433,28 @@ router.delete('/members/:id', async (req, res) => {
             },
         });
 
+        // Notify the removed member
+        await createNotification({
+            userId: memberId,
+            type: 'MEMBER_REMOVED',
+            title: 'Removed from Organization',
+            message: `You have been removed from ${adminUser.adminOrganization.name}.`,
+            relatedId: organizationId,
+            relatedType: 'organization',
+        });
+
+        // Notify other organization members
+        await notifyOrganizationMembers({
+            organizationId,
+            type: 'MEMBER_REMOVED',
+            title: 'Member Removed',
+            message: `${member.name || member.email} has been removed from the organization.`,
+            relatedId: memberId,
+            relatedType: 'user',
+            actionUrl: '/dashboard/org/members',
+            excludeUserId: memberId,
+        });
+
         res.status(200).json({
             success: true,
             message: 'Member removed successfully.',
@@ -511,6 +580,18 @@ router.post('/resources', async (req, res) => {
             },
         });
 
+        // Notify organization members about new resource
+        await notifyOrganizationMembers({
+            organizationId,
+            type: 'RESOURCE_CREATED',
+            title: 'New Resource Created',
+            message: `A new resource "${name}" with capacity ${capacity} has been created.`,
+            relatedId: resource.id,
+            relatedType: 'resource',
+            actionUrl: '/dashboard/org/resources',
+            excludeUserId: userId,
+        });
+
         res.status(201).json({
             success: true,
             message: 'Resource created successfully.',
@@ -626,6 +707,18 @@ router.delete('/resources/:id', async (req, res) => {
         // Delete resource
         await prisma.resource.delete({
             where: { id },
+        });
+
+        // Notify organization members about resource deletion
+        await notifyOrganizationMembers({
+            organizationId,
+            type: 'RESOURCE_DELETED',
+            title: 'Resource Deleted',
+            message: `The resource "${resource.name}" has been deleted.`,
+            relatedId: resource.id,
+            relatedType: 'resource',
+            actionUrl: '/dashboard/org/resources',
+            excludeUserId: userId,
         });
 
         res.status(200).json({

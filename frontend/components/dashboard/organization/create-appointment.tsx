@@ -36,7 +36,7 @@ import {
   HelpCircle,
   X,
 } from "lucide-react";
-import { organizationApi, mediaApi } from "@/lib/api";
+import { organizationApi, mediaApi, userApi } from "@/lib/api";
 import { authStorage } from "@/lib/auth";
 
 interface TimeSlot {
@@ -66,6 +66,12 @@ interface Resource {
   capacity: number;
 }
 
+interface BusinessHour {
+  day: string;
+  from: string;
+  to: string;
+}
+
 interface AppointmentTypeFormData {
   title: string;
   duration: string;
@@ -79,6 +85,7 @@ interface AppointmentTypeFormData {
   capacity: number;
   isPaid: boolean;
   price: string;
+  cancellationHours: string;
   description: string;
   picture: File | null;
   picturePreview: string | null;
@@ -96,6 +103,7 @@ export function CreateAppointment({ onBack }: { onBack?: () => void }) {
   const [editingQuestion, setEditingQuestion] = useState<Question | null>(null);
   const [users, setUsers] = useState<User[]>([]);
   const [resources, setResources] = useState<Resource[]>([]);
+  const [businessHours, setBusinessHours] = useState<BusinessHour[]>([]);
   const [isLoadingData, setIsLoadingData] = useState(true);
   const [dataError, setDataError] = useState("");
   const [formData, setFormData] = useState<AppointmentTypeFormData>({
@@ -111,13 +119,11 @@ export function CreateAppointment({ onBack }: { onBack?: () => void }) {
     capacity: 1,
     isPaid: false,
     price: "",
+    cancellationHours: "0",
     description: "",
     picture: null,
     picturePreview: null,
-    timeSlots: [
-      { id: "1", day: "Monday", from: "09:00", to: "12:00" },
-      { id: "2", day: "Monday", from: "14:00", to: "17:00" },
-    ],
+    timeSlots: [],
     questions: [],
     introMessage: "",
     confirmationMessage: "",
@@ -127,7 +133,7 @@ export function CreateAppointment({ onBack }: { onBack?: () => void }) {
   const [success, setSuccess] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
 
-  // Fetch users and resources on mount
+  // Fetch users, resources, and organization on mount
   useEffect(() => {
     const fetchData = async () => {
       try {
@@ -138,9 +144,10 @@ export function CreateAppointment({ onBack }: { onBack?: () => void }) {
           return;
         }
 
-        const [membersResponse, resourcesResponse] = await Promise.all([
+        const [membersResponse, resourcesResponse, userResponse] = await Promise.all([
           organizationApi.getMembers(token),
           organizationApi.getResources(token),
+          userApi.getMe(token),
         ]);
 
         if (membersResponse.success && membersResponse.data) {
@@ -151,6 +158,27 @@ export function CreateAppointment({ onBack }: { onBack?: () => void }) {
         if (resourcesResponse.success && resourcesResponse.data) {
           const resourcesData = resourcesResponse.data as { resources: Resource[] };
           setResources(resourcesData.resources || []);
+        }
+
+        // Extract business hours from user's organization
+        if (userResponse.success && userResponse.data) {
+          const userData = userResponse.data as any;
+          // Check both adminOrganization (for org admin) and organization (for members)
+          const org = userData.user?.adminOrganization || userData.user?.organization;
+
+          if (org?.businessHours) {
+            const orgBusinessHours = org.businessHours as BusinessHour[];
+            setBusinessHours(orgBusinessHours);
+
+            // Auto-populate time slots with business hours
+            const initialSlots: TimeSlot[] = orgBusinessHours.map((bh, index) => ({
+              id: `${index + 1}`,
+              day: bh.day.charAt(0).toUpperCase() + bh.day.slice(1).toLowerCase(),
+              from: bh.from,
+              to: bh.to,
+            }));
+            setFormData(prev => ({ ...prev, timeSlots: initialSlots }));
+          }
         }
 
         setIsLoadingData(false);
@@ -184,6 +212,13 @@ export function CreateAppointment({ onBack }: { onBack?: () => void }) {
     }
     if (formData.timeSlots.length === 0) {
       newErrors.timeSlots = "Please add at least one time slot";
+    }
+
+    if (formData.isPaid) {
+      const priceValue = parseInt(formData.price, 10);
+      if (!formData.price || Number.isNaN(priceValue) || priceValue <= 0) {
+        newErrors.price = "Valid price is required for paid appointments";
+      }
     }
 
     setErrors(newErrors);
@@ -236,6 +271,9 @@ export function CreateAppointment({ onBack }: { onBack?: () => void }) {
       }));
 
       // Prepare appointment data
+      const parsedPrice = formData.isPaid ? parseInt(formData.price, 10) : NaN;
+      const parsedCancellationHours = parseInt(formData.cancellationHours, 10);
+
       const appointmentData = {
         title: formData.title,
         description: formData.description || undefined,
@@ -246,8 +284,14 @@ export function CreateAppointment({ onBack }: { onBack?: () => void }) {
           formData.assignmentType === "automatic" ? "AUTOMATIC" as const : "BY_VISITOR" as const,
         allowMultipleSlots: formData.manageCapacity,
         isPaid: formData.isPaid,
-        price: formData.isPaid && formData.price ? parseFloat(formData.price) : undefined,
-        cancellationHours: 0,
+        price:
+          formData.isPaid && !Number.isNaN(parsedPrice) && parsedPrice > 0
+            ? parsedPrice
+            : undefined,
+        cancellationHours:
+          formData.isPaid && !Number.isNaN(parsedCancellationHours) && parsedCancellationHours >= 0
+            ? parsedCancellationHours
+            : 0,
         schedule,
         questions: formData.questions,
         picture: pictureUrl,
@@ -300,6 +344,22 @@ export function CreateAppointment({ onBack }: { onBack?: () => void }) {
       to: "17:00",
     };
     setFormData({ ...formData, timeSlots: [...formData.timeSlots, newSlot] });
+  };
+
+  const loadBusinessHours = () => {
+    if (businessHours.length === 0) {
+      setDataError("No business hours configured for your organization");
+      return;
+    }
+
+    const slots: TimeSlot[] = businessHours.map((bh, index) => ({
+      id: `${Date.now()}-${index}`,
+      day: bh.day.charAt(0).toUpperCase() + bh.day.slice(1).toLowerCase(),
+      from: bh.from,
+      to: bh.to,
+    }));
+
+    setFormData({ ...formData, timeSlots: slots });
   };
 
   const removeTimeSlot = (id: string) => {
@@ -380,9 +440,9 @@ export function CreateAppointment({ onBack }: { onBack?: () => void }) {
                 <CheckCircle2 className="w-10 h-10 sm:w-12 sm:h-12 text-green-600" />
               </div>
               <div className="space-y-2">
-                <h2 className="text-2xl sm:text-3xl font-bold">Appointment Type Created!</h2>
+                <h2 className="text-2xl sm:text-3xl font-bold">Appointment Created!</h2>
                 <p className="text-muted-foreground text-sm sm:text-base">
-                  {formData.title} has been successfully created and is now available for booking.
+                  {formData.title} has been successfully created. You can publish it to make it available for public booking.
                 </p>
               </div>
               <Button onClick={onBack} className="w-full sm:w-auto" size="lg">
@@ -396,9 +456,9 @@ export function CreateAppointment({ onBack }: { onBack?: () => void }) {
   }
 
   return (
-    <div className="min-h-[calc(100vh-4rem)] pt-4 bg-background">
+    <div className="min-h-[calc(100vh-4rem)] bg-background">
       {/* Top Bar */}
-      <div className="border rounded-xl bg-card">
+      <div className="border-b bg-card">
         <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 p-4  mx-auto">
           <div className="flex items-center gap-3">
             <div>
@@ -420,14 +480,14 @@ export function CreateAppointment({ onBack }: { onBack?: () => void }) {
               size="sm"
             >
               <Save className="w-4 h-4" />
-              {isLoading ? "Publishing..." : "Publish"}
+              {isLoading ? "Creating..." : "Create Appointment"}
             </Button>
           </div>
         </div>
       </div>
 
       {/* Main Content */}
-      <div className=" mx-auto py-4 sm:py-6 lg:py-8">
+      <div className="max-w-[1800px] mx-auto p-4 sm:p-6 lg:p-8">
         {/* Error Messages */}
         {dataError && (
           <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-lg flex items-center gap-2 text-red-800">
@@ -766,6 +826,32 @@ export function CreateAppointment({ onBack }: { onBack?: () => void }) {
 
                 <CardContent>
                   <TabsContent value="schedule" className="mt-0 space-y-4">
+                    {/* Business Hours Info */}
+                    {businessHours.length > 0 && formData.timeSlots.length > 0 && (
+                      <div className="bg-blue-50 dark:bg-blue-950/20 border border-blue-200 dark:border-blue-800 rounded-lg p-3">
+                        <div className="flex items-start gap-2">
+                          <CalendarIcon className="w-4 h-4 text-blue-600 dark:text-blue-400 flex-shrink-0 mt-0.5" />
+                          <div className="text-xs text-blue-800 dark:text-blue-200">
+                            <p className="font-medium">Schedule loaded from business hours</p>
+                            <p className="text-blue-600 dark:text-blue-300 mt-1">
+                              These time slots match your organization's business hours. You can modify them as needed or reload them anytime.
+                            </p>
+                          </div>
+                        </div>
+                      </div>
+                    )}
+
+                    {businessHours.length === 0 && !isLoadingData && (
+                      <div className="bg-amber-50 dark:bg-amber-950/20 border border-amber-200 dark:border-amber-800 rounded-lg p-3">
+                        <div className="flex items-start gap-2">
+                          <AlertCircle className="w-4 h-4 text-amber-600 dark:text-amber-400 flex-shrink-0 mt-0.5" />
+                          <p className="text-xs text-amber-800 dark:text-amber-200">
+                            No business hours configured. Add time slots manually or set up your organization's business hours first.
+                          </p>
+                        </div>
+                      </div>
+                    )}
+
                     <div className="overflow-x-auto -mx-6 px-6">
                       <table className="w-full min-w-[600px]">
                         <thead>
@@ -840,15 +926,27 @@ export function CreateAppointment({ onBack }: { onBack?: () => void }) {
                       </p>
                     )}
 
-                    <Button
-                      type="button"
-                      variant="outline"
-                      onClick={addTimeSlot}
-                      className="w-full sm:w-auto gap-2"
-                    >
-                      <Plus className="w-4 h-4" />
-                      Add a Line
-                    </Button>
+                    <div className="flex flex-col sm:flex-row gap-2">
+                      <Button
+                        type="button"
+                        variant="outline"
+                        onClick={addTimeSlot}
+                        className="flex-1 sm:flex-none gap-2"
+                      >
+                        <Plus className="w-4 h-4" />
+                        Add a Line
+                      </Button>
+                      <Button
+                        type="button"
+                        variant="secondary"
+                        onClick={loadBusinessHours}
+                        disabled={businessHours.length === 0}
+                        className="flex-1 sm:flex-none gap-2"
+                      >
+                        <CalendarIcon className="w-4 h-4" />
+                        Load Business Hours
+                      </Button>
+                    </div>
                   </TabsContent>
 
                   <TabsContent value="questions" className="mt-0">
@@ -945,20 +1043,41 @@ export function CreateAppointment({ onBack }: { onBack?: () => void }) {
                     </div>
 
                     {formData.isPaid && (
-                      <div className="space-y-2">
-                        <Label htmlFor="price">Price</Label>
-                        <div className="relative">
-                          <DollarSign className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-                          <Input
-                            id="price"
-                            type="number"
-                            placeholder="0.00"
-                            value={formData.price}
-                            onChange={(e) => setFormData({ ...formData, price: e.target.value })}
-                            className="pl-10"
-                          />
+                      <>
+                        <div className="space-y-2">
+                          <Label htmlFor="price">Price</Label>
+                          <div className="relative">
+                            <DollarSign className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                            <Input
+                              id="price"
+                              type="number"
+                              placeholder="0.00"
+                              value={formData.price}
+                              onChange={(e) => setFormData({ ...formData, price: e.target.value })}
+                              className="pl-10"
+                            />
+                          </div>
                         </div>
-                      </div>
+
+                        <div className="space-y-2">
+                          <Label htmlFor="cancellationPolicy">Cancellation window (for users)</Label>
+                          <select
+                            id="cancellationPolicy"
+                            value={formData.cancellationHours}
+                            onChange={(e) => setFormData({ ...formData, cancellationHours: e.target.value })}
+                            className="px-3 py-2 border rounded-md bg-background w-full"
+                          >
+                            <option value="0">Users can cancel anytime before the start</option>
+                            <option value="1">Users can cancel up to 1 hour before</option>
+                            <option value="6">Users can cancel up to 6 hours before</option>
+                            <option value="24">Users can cancel up to 24 hours before</option>
+                          </select>
+                          <p className="text-xs text-muted-foreground">
+                            This policy applies only to paid appointments. Free appointments can always be
+                            cancelled anytime by users.
+                          </p>
+                        </div>
+                      </>
                     )}
 
                     <div className="space-y-2">
@@ -1197,7 +1316,7 @@ function QuestionModal({
     setNewOption("");
   };
 
- 
+
   useEffect(() => {
     if (editingQuestion) {
       setQuestionText(editingQuestion.question);

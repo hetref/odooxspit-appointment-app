@@ -105,7 +105,9 @@ async function sendVerificationEmail(email, token) {
  * Send password reset email
  */
 async function sendPasswordResetEmail(email, token) {
-  const resetUrl = `${BASE_URL}/auth/reset-password?token=${token}&email=${encodeURIComponent(email)}`;
+  // Use frontend URL for password reset (not backend)
+  const FRONTEND_URL = process.env.FRONTEND_URL || 'http://localhost:3000';
+  const resetUrl = `${FRONTEND_URL}/reset-password?token=${token}&email=${encodeURIComponent(email)}`;
 
   const html = `
     <!DOCTYPE html>
@@ -251,6 +253,88 @@ async function sendMemberInvitationEmail(email, organizationName, password, admi
   return await sendEmail(email, `Invitation to Join ${organizationName}`, html);
 }
 
+/**
+ * Send notification email (generic for all notification types)
+ */
+async function sendNotificationEmail(email, notificationType, title, message, actionUrl = null) {
+  const FRONTEND_URL = process.env.FRONTEND_URL || 'http://localhost:3000';
+  const fullActionUrl = actionUrl ? `${FRONTEND_URL}${actionUrl}` : null;
+
+  // Determine notification color and icon based on type
+  const notificationStyles = {
+    BOOKING_CREATED: { color: '#10b981', icon: '📅', emoji: '🎉' },
+    BOOKING_CANCELLED: { color: '#ef4444', icon: '❌', emoji: '⚠️' },
+    BOOKING_CONFIRMED: { color: '#3b82f6', icon: '✅', emoji: '✓' },
+    APPOINTMENT_CREATED: { color: '#8b5cf6', icon: '📋', emoji: '✨' },
+    APPOINTMENT_UPDATED: { color: '#f59e0b', icon: '📝', emoji: '🔄' },
+    APPOINTMENT_PUBLISHED: { color: '#06b6d4', icon: '🌐', emoji: '🚀' },
+    MEMBER_ADDED: { color: '#ec4899', icon: '👥', emoji: '👋' },
+    MEMBER_REMOVED: { color: '#f43f5e', icon: '👤', emoji: '👋' },
+    RESOURCE_CREATED: { color: '#14b8a6', icon: '🏢', emoji: '✨' },
+    RESOURCE_DELETED: { color: '#f97316', icon: '🗑️', emoji: '🗑️' },
+    ORGANIZATION_UPDATED: { color: '#6366f1', icon: '⚙️', emoji: '🔧' },
+    EMAIL_VERIFIED: { color: '#22c55e', icon: '✉️', emoji: '✓' },
+    PASSWORD_CHANGED: { color: '#eab308', icon: '🔒', emoji: '🔐' },
+    default: { color: '#6b7280', icon: '🔔', emoji: '📢' },
+  };
+
+  const style = notificationStyles[notificationType] || notificationStyles.default;
+
+  const html = `
+    <!DOCTYPE html>
+    <html>
+    <head>
+      <style>
+        body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; margin: 0; padding: 0; }
+        .container { max-width: 600px; margin: 0 auto; padding: 20px; }
+        .header { background-color: ${style.color}; color: white; padding: 20px; text-align: center; border-radius: 8px 8px 0 0; }
+        .icon { font-size: 48px; margin-bottom: 10px; }
+        .content { background-color: #f9f9f9; padding: 30px; border-radius: 0 0 8px 8px; }
+        .message-box { background-color: white; padding: 20px; border-left: 4px solid ${style.color}; margin: 20px 0; border-radius: 4px; }
+        .button { display: inline-block; padding: 12px 30px; background-color: ${style.color}; color: white; text-decoration: none; border-radius: 5px; margin: 20px 0; }
+        .footer { text-align: center; padding: 20px; color: #666; font-size: 12px; }
+        .notification-type { background-color: ${style.color}20; color: ${style.color}; padding: 4px 12px; border-radius: 12px; font-size: 12px; font-weight: bold; display: inline-block; margin-bottom: 15px; }
+      </style>
+    </head>
+    <body>
+      <div class="container">
+        <div class="header">
+          <div class="icon">${style.icon}</div>
+          <h1>${style.emoji} ${title}</h1>
+        </div>
+        <div class="content">
+          <span class="notification-type">${notificationType.replace(/_/g, ' ')}</span>
+          
+          <div class="message-box">
+            <p style="margin: 0; font-size: 16px;">${message}</p>
+          </div>
+          
+          ${fullActionUrl ? `
+            <div style="text-align: center;">
+              <a href="${fullActionUrl}" class="button">View Details</a>
+            </div>
+            <p style="text-align: center; color: #666; font-size: 14px;">Or copy this link: <br><span style="word-break: break-all;">${fullActionUrl}</span></p>
+          ` : ''}
+          
+          <p style="color: #666; font-size: 14px; margin-top: 30px;">
+            You received this email because you have notifications enabled for your account.
+            You can manage your notification preferences in your account settings.
+          </p>
+        </div>
+        <div class="footer">
+          <p>&copy; ${new Date().getFullYear()} ${FROM_NAME}. All rights reserved.</p>
+          <p style="margin-top: 10px;">
+            <a href="${FRONTEND_URL}/dashboard/notifications" style="color: #666; text-decoration: none;">View All Notifications</a>
+          </p>
+        </div>
+      </div>
+    </body>
+    </html>
+  `;
+
+  return await sendEmail(email, `${style.emoji} ${title}`, html);
+}
+
 module.exports = {
   initializeMailer,
   sendEmail,
@@ -258,4 +342,5 @@ module.exports = {
   sendPasswordResetEmail,
   sendWelcomeEmail,
   sendMemberInvitationEmail,
+  sendNotificationEmail,
 };

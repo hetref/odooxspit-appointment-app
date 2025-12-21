@@ -1,4 +1,4 @@
-import { User, Organization } from "./types";
+import { User, Organization, Appointment, Booking, TimeSlot, Notification } from "./types";
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "https://jeanene-unexposed-ingrid.ngrok-free.dev";
 
@@ -235,47 +235,6 @@ export const userApi = {
     api.post<ConvertToOrganizationResponse>("/user/convert-to-organization", { business }, token),
 };
 
-// Media API functions
-export const mediaApi = {
-  uploadFile: async (token: string, file: File, path?: string): Promise<ApiResponse<{
-    fileName: string;
-    originalName: string;
-    path: string;
-    bucket: string;
-    url: string;
-    size: number;
-    mimeType: string;
-    uploadedAt: string;
-  }>> => {
-    const formData = new FormData();
-    formData.append('file', file);
-    if (path) {
-      formData.append('path', path);
-    }
-
-    const url = `${API_BASE_URL}/media/upload`;
-    const response = await fetch(url, {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${token}`,
-        'ngrok-skip-browser-warning': 'true',
-      },
-      body: formData,
-    });
-
-    if (!response.ok) {
-      const error: any = new Error('Upload failed');
-      error.status = response.status;
-      throw error;
-    }
-
-    return response.json();
-  },
-
-  deleteFile: (token: string, filePath: string, bucket?: string) =>
-    api.delete('/media/delete', token),
-};
-
 // Organization API functions
 export const organizationApi = {
   // Member Management
@@ -311,36 +270,206 @@ export const organizationApi = {
     api.put("/organization/update", data, token),
 
   // Appointment Management
-  createAppointment: (token: string, data: {
-    title: string;
-    description?: string;
-    location: string;
-    durationMinutes: number;
-    bookType: "USER" | "RESOURCE";
-    assignmentType: "AUTOMATIC" | "BY_VISITOR";
-    allowMultipleSlots?: boolean;
-    isPaid?: boolean;
-    price?: number;
-    cancellationHours?: number;
-    schedule: Array<{ day: string; from: string; to: string }>;
-    questions: Array<{
-      id: string;
-      question: string;
-      type: string;
-      required: boolean;
-      options?: string[];
-    }>;
-    picture?: string;
-    introMessage?: string;
-    confirmationMessage?: string;
-    allowedUserIds?: string[];
-    allowedResourceIds?: string[];
-  }) =>
+  createAppointment: (token: string, data: any) =>
     api.post("/organization/appointments", data, token),
 
-  getAppointments: (token: string) =>
-    api.get("/organization/appointments", token),
+  getAppointments: (token: string): Promise<ApiResponse<{ appointments: Appointment[] }>> =>
+    api.get<{ appointments: Appointment[] }>("/organization/appointments", token),
 
-  getAppointment: (token: string, appointmentId: string) =>
-    api.get(`/organization/appointments/${appointmentId}`, token),
+  getOrganizationAppointments: (token: string): Promise<ApiResponse<{ appointments: Appointment[] }>> =>
+    api.get<{ appointments: Appointment[] }>("/organization/appointments", token),
+
+  getAppointment: (token: string, appointmentId: string): Promise<ApiResponse<{ appointment: Appointment }>> =>
+    api.get<{ appointment: Appointment }>(`/organization/appointments/${appointmentId}`, token),
+
+  updateAppointment: (token: string, appointmentId: string, data: any) =>
+    api.put(`/appointments/${appointmentId}`, data, token),
+
+  publishAppointment: (token: string, appointmentId: string) =>
+    api.post(`/appointments/${appointmentId}/publish`, {}, token),
+
+  unpublishAppointment: (token: string, appointmentId: string) =>
+    api.post(`/appointments/${appointmentId}/unpublish`, {}, token),
+
+  generateSecretLink: (token: string, appointmentId: string, data: {
+    expiryTime?: string;
+    expiryCapacity?: number;
+  }) =>
+    api.post(`/appointments/${appointmentId}/secret-link`, data, token),
+};
+
+// Booking API functions
+export const bookingApi = {
+  // Public endpoints
+  getPublishedAppointments: (params?: {
+    organizationId?: string;
+    search?: string;
+  }): Promise<ApiResponse<Appointment[]>> => {
+    const queryParams = new URLSearchParams();
+    if (params?.organizationId) queryParams.append("organizationId", params.organizationId);
+    if (params?.search) queryParams.append("search", params.search);
+
+    const endpoint = `/appointments/published${queryParams.toString() ? `?${queryParams.toString()}` : ""}`;
+    return api.get<Appointment[]>(endpoint);
+  },
+
+  getAppointmentDetails: (appointmentId: string, secretLink?: string): Promise<ApiResponse<Appointment>> => {
+    const queryParams = secretLink ? `?secretLink=${secretLink}` : "";
+    return api.get<Appointment>(`/appointments/${appointmentId}/details${queryParams}`);
+  },
+
+  getAvailableSlots: (
+    appointmentId: string,
+    date: string,
+    userId?: string,
+    resourceId?: string
+  ): Promise<ApiResponse<TimeSlot[]>> => {
+    const queryParams = new URLSearchParams({ date });
+    if (userId) queryParams.append("userId", userId);
+    if (resourceId) queryParams.append("resourceId", resourceId);
+
+    return api.get<TimeSlot[]>(`/appointments/${appointmentId}/slots?${queryParams.toString()}`);
+  },
+
+  // Protected endpoints (require authentication)
+  createBooking: (token: string, appointmentId: string, bookingData: {
+    startTime: string;
+    resourceId?: string;
+    assignedUserId?: string;
+    userResponses?: any;
+    secretLink?: string;
+    numberOfSlots?: number; // Number of continuous slots to book
+  }): Promise<ApiResponse<Booking>> =>
+    api.post<Booking>(`/appointments/${appointmentId}/book`, bookingData, token),
+
+  getUserBookings: (token: string): Promise<ApiResponse<Booking[]>> =>
+    api.get<Booking[]>("/bookings/my", token),
+
+  getOrganizationBookings: (token: string): Promise<ApiResponse<Booking[]>> =>
+    api.get<Booking[]>("/bookings/organization", token),
+
+  cancelBooking: (token: string, bookingId: string) =>
+    api.delete(`/bookings/${bookingId}`, token),
+
+  cancelBookingByOrganization: (token: string, bookingId: string) =>
+    api.delete(`/bookings/${bookingId}/organization`, token),
+};
+
+// Payments API functions
+export const paymentsApi = {
+  createOrder: (token: string, bookingId: string) =>
+    api.post<{ orderId: string; amount: number; currency: string; bookingId: string; merchantKeyId: string | null }>(
+      "/payments/create-order",
+      { bookingId },
+      token
+    ),
+};
+
+// Media API functions
+export const mediaApi = {
+  uploadFile: async (token: string, file: File, folder: string = "general") => {
+    const formData = new FormData();
+    formData.append("file", file);
+    formData.append("folder", folder);
+
+    const response = await fetch(`${API_BASE_URL}/media/upload`, {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+      body: formData,
+    });
+
+    return response.json();
+  },
+
+  deleteFile: async (token: string, fileUrl: string) => {
+    const response = await fetch(`${API_BASE_URL}/media/delete`, {
+      method: "DELETE",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${token}`,
+      },
+      body: JSON.stringify({ fileUrl }),
+    });
+
+    return response.json();
+  },
+};
+
+// Public API functions (no authentication required)
+export const publicApi = {
+  // Get all organizations with search
+  getAllOrganizations: (search?: string): Promise<ApiResponse<{
+    organizations: Array<{
+      id: string;
+      name: string;
+      description: string | null;
+      location: string | null;
+      businessHours: any;
+      createdAt: string;
+      publishedAppointmentsCount: number;
+    }>
+  }>> => {
+    const queryParams = search ? `?search=${encodeURIComponent(search)}` : "";
+    return api.get(`/public/organizations${queryParams}`);
+  },
+
+  // Get single organization with published appointments
+  getOrganizationById: (organizationId: string): Promise<ApiResponse<{
+    organization: Organization & {
+      appointments: Appointment[];
+    };
+  }>> => {
+    return api.get(`/public/organizations/${organizationId}`);
+  },
+};
+
+// Notification API functions
+export const notificationApi = {
+  // Get all notifications for current user
+  getNotifications: (token: string, params?: {
+    page?: number;
+    limit?: number;
+    read?: boolean;
+    type?: string;
+  }): Promise<ApiResponse<{
+    notifications: Notification[];
+    pagination: {
+      page: number;
+      limit: number;
+      total: number;
+      totalPages: number;
+    };
+    unreadCount: number;
+  }>> => {
+    const queryParams = new URLSearchParams();
+    if (params?.page) queryParams.append("page", params.page.toString());
+    if (params?.limit) queryParams.append("limit", params.limit.toString());
+    if (params?.read !== undefined) queryParams.append("read", params.read.toString());
+    if (params?.type) queryParams.append("type", params.type);
+
+    const endpoint = `/notifications${queryParams.toString() ? `?${queryParams.toString()}` : ""}`;
+    return api.get(endpoint, token);
+  },
+
+  // Get unread notification count
+  getUnreadCount: (token: string): Promise<ApiResponse<{ unreadCount: number }>> =>
+    api.get("/notifications/unread-count", token),
+
+  // Mark notification as read
+  markAsRead: (token: string, notificationId: string) =>
+    api.put(`/notifications/${notificationId}/read`, {}, token),
+
+  // Mark all notifications as read
+  markAllAsRead: (token: string) =>
+    api.put("/notifications/mark-all-read", {}, token),
+
+  // Delete a notification
+  deleteNotification: (token: string, notificationId: string) =>
+    api.delete(`/notifications/${notificationId}`, token),
+
+  // Delete all read notifications
+  deleteAllRead: (token: string) =>
+    api.delete("/notifications/read", token),
 };

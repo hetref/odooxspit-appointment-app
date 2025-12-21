@@ -443,8 +443,6 @@ export default function UserProfile() {
           </Card>
         </TabsContent>
       </Tabs>
-        </>
-      )}
     </div>
   );
 }
