@@ -2,11 +2,11 @@
 
 import Link from 'next/link'
 import { useUser } from '@/contexts/UserContext'
-import { 
-    User, 
-    Building2, 
-    Mail, 
-    Shield, 
+import {
+    User,
+    Building2,
+    Mail,
+    Shield,
     Hash,
     Calendar,
     Heart,
@@ -33,7 +33,7 @@ export default function UserDashboardPage() {
                     <Skeleton className="h-10 w-64" />
                     <Skeleton className="h-5 w-96" />
                 </div>
-                
+
                 {/* Quick Actions Skeleton */}
                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                     {[...Array(3)].map((_, i) => (
@@ -56,7 +56,7 @@ export default function UserDashboardPage() {
             <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-rose-500/10 via-red-500/5 to-background border p-8">
                 <div className="absolute top-0 right-0 w-64 h-64 bg-rose-500/10 rounded-full blur-3xl -translate-y-1/2 translate-x-1/2" />
                 <div className="absolute bottom-0 left-0 w-48 h-48 bg-red-500/10 rounded-full blur-2xl translate-y-1/2 -translate-x-1/2" />
-                
+
                 <div className="relative z-10 flex flex-col md:flex-row md:items-center md:justify-between gap-6">
                     <div className="flex items-center gap-5">
                         <div className="h-20 w-20 rounded-2xl bg-gradient-to-br from-rose-500 to-red-600 flex items-center justify-center text-white text-3xl font-bold shadow-lg">
@@ -71,7 +71,7 @@ export default function UserDashboardPage() {
                             </p>
                         </div>
                     </div>
-                    
+
                     <Badge variant="secondary" className="w-fit px-3 py-1.5 text-sm">
                         <User className="h-3.5 w-3.5 mr-1.5" />
                         {user?.role}
@@ -96,7 +96,7 @@ export default function UserDashboardPage() {
                     </Card>
                 </Link>
 
-                <Link href="/dashboard/bookings" className="group">
+                <Link href="/dashboard/user/appointments" className="group">
                     <Card className="h-full hover:shadow-lg hover:border-red-500/50 transition-all duration-300 cursor-pointer bg-gradient-to-br from-red-500/5 to-transparent">
                         <CardContent className="pt-6">
                             <div className="flex items-center justify-between">
@@ -191,7 +191,7 @@ export default function UserDashboardPage() {
                 {/* Upgrade Card - Takes 1 column */}
                 <Card className="relative overflow-hidden hover:shadow-lg transition-shadow duration-300 border-primary/20">
                     <div className="absolute top-0 right-0 w-32 h-32 bg-primary/10 rounded-full blur-2xl -translate-y-1/2 translate-x-1/2" />
-                    
+
                     <CardHeader className="relative">
                         <div className="flex items-center gap-3">
                             <div className="p-2 bg-primary/10 rounded-lg">
@@ -247,7 +247,7 @@ export default function UserDashboardPage() {
                         <div className="flex-1">
                             <h3 className="font-semibold text-lg">Quick Tip</h3>
                             <p className="text-muted-foreground mt-1">
-                                Use the search feature to discover appointments from various organizations. 
+                                Use the search feature to discover appointments from various organizations.
                                 You can filter by category, location, and availability to find the perfect match!
                             </p>
                         </div>

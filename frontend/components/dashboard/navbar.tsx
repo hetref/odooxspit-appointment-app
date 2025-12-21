@@ -61,10 +61,10 @@ const navigationByRole = {
   organizer: [
     { href: "/dashboard", label: "Dashboard", icon: Home },
     { href: "/dashboard/org/appointments", label: "Appointments", icon: CalendarCheck },
-    { href: "/dashboard/org/all-appointments", label: "All Appointments", icon: CalendarCheck },
+    { href: "/dashboard/org/all-appointments", label: "Booked Appointments", icon: CalendarCheck },
     { href: "/dashboard/org/resources", label: "Resources", icon: Briefcase },
     { href: "/dashboard/org/users", label: "Team", icon: Users },
-    { href: "/dashboard/payments", label: "Payments", icon: CreditCard },
+    { href: "/dashboard/org/payments", label: "Payments", icon: CreditCard },
     { href: "/dashboard/org/settings", label: "Settings", icon: Settings },
   ],
   admin: [
@@ -339,7 +339,7 @@ export default function Navbar() {
             orientation="vertical"
             className="hidden data-[orientation=vertical]:h-5 md:flex"
           />
-            <ModeToggle/>
+          <ModeToggle />
           <div className="flex items-center gap-1.5">
             <NotificationDropdown />
           </div>

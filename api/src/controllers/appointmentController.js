@@ -697,7 +697,7 @@ async function updateAppointment(req, res) {
             allowedUserIds,
             allowedResourceIds,
             location,
-        } = req.body;
+            assignmentType } = req.body;
 
         const user = await prisma.user.findUnique({
             where: { id: userId },
@@ -737,6 +737,7 @@ async function updateAppointment(req, res) {
         if (introMessage !== undefined) updateData.introMessage = introMessage;
         if (confirmationMessage !== undefined) updateData.confirmationMessage = confirmationMessage;
         if (location !== undefined) updateData.location = location;
+        if (assignmentType) updateData.assignmentType = assignmentType;
 
         // Handle user/resource updates
         if (allowedUserIds && appointment.bookType === 'USER') {
