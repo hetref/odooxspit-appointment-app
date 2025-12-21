@@ -17,6 +17,7 @@ import {
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Separator } from "@/components/ui/separator";
 import {
     AlertCircle,
@@ -60,7 +61,7 @@ interface Appointment {
     customQuestions?: Array<{
         id: string;
         question: string;
-        type: "TEXT" | "TEXTAREA" | "SELECT" | "RADIO";
+        type: "TEXT" | "TEXTAREA" | "SELECT" | "RADIO" | "CHECKBOX" | "text" | "textarea" | "select" | "radio" | "checkbox";
         options?: string[];
         required: boolean;
     }>;
@@ -92,7 +93,7 @@ export function MultiStepBooking({ appointment, onSuccess, onCancel }: MultiStep
     const [selectedSlot, setSelectedSlot] = React.useState("");
     const [timeSlots, setTimeSlots] = React.useState<TimeSlot[]>([]);
     const [numberOfSlots, setNumberOfSlots] = React.useState(1);
-    const [customAnswers, setCustomAnswers] = React.useState<Record<string, string>>({});
+    const [customAnswers, setCustomAnswers] = React.useState<Record<string, string | string[]>>({});
     // For paid appointments we always use online payment (Razorpay)
     const [paymentMethod] = React.useState("online");
     const [bookingNotes, setBookingNotes] = React.useState("");
@@ -315,7 +316,16 @@ export function MultiStepBooking({ appointment, onSuccess, onCancel }: MultiStep
                 return !!selectedSlot;
             case 5:
                 if (appointment.customQuestions) {
-                    return appointment.customQuestions.every(q => !q.required || customAnswers[q.id]);
+                    return appointment.customQuestions.every(q => {
+                        if (!q.required) return true;
+                        const answer = customAnswers[q.id];
+                        // For checkbox (array answers), check if array has at least one item
+                        if (Array.isArray(answer)) {
+                            return answer.length > 0;
+                        }
+                        // For other types, check if answer exists and is not empty
+                        return answer && answer.toString().trim() !== '';
+                    });
                 }
                 return true;
             case 6:
@@ -642,71 +652,119 @@ export function MultiStepBooking({ appointment, onSuccess, onCancel }: MultiStep
                 </div>
 
                 <div className="space-y-4">
-                    {appointment.customQuestions.map((question) => (
-                        <div key={question.id} className="space-y-2">
-                            <Label>
-                                {question.question}
-                                {question.required && <span className="text-destructive ml-1">*</span>}
-                            </Label>
+                    {appointment.customQuestions.map((question) => {
+                        const questionType = question.type.toUpperCase();
+                        return (
+                            <div key={question.id} className="space-y-2">
+                                <Label>
+                                    {question.question}
+                                    {question.required && <span className="text-destructive ml-1">*</span>}
+                                </Label>
 
-                            {question.type === "TEXT" && (
-                                <Input
-                                    value={customAnswers[question.id] || ""}
-                                    onChange={(e) =>
-                                        setCustomAnswers((prev) => ({ ...prev, [question.id]: e.target.value }))
-                                    }
-                                    placeholder="Enter your answer"
-                                />
-                            )}
+                                {questionType === "TEXT" && (
+                                    <Input
+                                        value={customAnswers[question.id] || ""}
+                                        onChange={(e) =>
+                                            setCustomAnswers((prev) => ({ ...prev, [question.id]: e.target.value }))
+                                        }
+                                        placeholder="Enter your answer"
+                                    />
+                                )}
 
-                            {question.type === "TEXTAREA" && (
-                                <Textarea
-                                    value={customAnswers[question.id] || ""}
-                                    onChange={(e) =>
-                                        setCustomAnswers((prev) => ({ ...prev, [question.id]: e.target.value }))
-                                    }
-                                    placeholder="Enter your answer"
-                                    rows={4}
-                                />
-                            )}
+                                {questionType === "TEXTAREA" && (
+                                    <Textarea
+                                        value={customAnswers[question.id] || ""}
+                                        onChange={(e) =>
+                                            setCustomAnswers((prev) => ({ ...prev, [question.id]: e.target.value }))
+                                        }
+                                        placeholder="Enter your answer"
+                                        rows={4}
+                                    />
+                                )}
 
-                            {question.type === "SELECT" && question.options && (
-                                <Select
-                                    value={customAnswers[question.id] || ""}
-                                    onValueChange={(value) =>
-                                        setCustomAnswers((prev) => ({ ...prev, [question.id]: value }))
-                                    }
-                                >
-                                    <SelectTrigger>
-                                        <SelectValue placeholder="Select an option" />
-                                    </SelectTrigger>
-                                    <SelectContent>
+                                {questionType === "SELECT" && question.options && (
+                                    <Select
+                                        value={typeof customAnswers[question.id] === 'string' ? customAnswers[question.id] : ""}
+                                        onValueChange={(value) =>
+                                            setCustomAnswers((prev) => ({ ...prev, [question.id]: value }))
+                                        }
+                                    >
+                                        <SelectTrigger>
+                                            <SelectValue placeholder="Select an option" />
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                            {question.options.map((option) => (
+                                                <SelectItem key={option} value={option}>
+                                                    {option}
+                                                </SelectItem>
+                                            ))}
+                                        </SelectContent>
+                                    </Select>
+                                )}
+
+                                {questionType === "RADIO" && question.options && (
+                                    <RadioGroup
+                                        value={typeof customAnswers[question.id] === 'string' ? customAnswers[question.id] : ""}
+                                        onValueChange={(value) =>
+                                            setCustomAnswers((prev) => ({ ...prev, [question.id]: value }))
+                                        }
+                                    >
                                         {question.options.map((option) => (
-                                            <SelectItem key={option} value={option}>
-                                                {option}
-                                            </SelectItem>
+                                            <div key={option} className="flex items-center space-x-2">
+                                                <RadioGroupItem value={option} id={`${question.id}-${option}`} />
+                                                <Label htmlFor={`${question.id}-${option}`}>{option}</Label>
+                                            </div>
                                         ))}
-                                    </SelectContent>
-                                </Select>
-                            )}
+                                    </RadioGroup>
+                                )}
 
-                            {question.type === "RADIO" && question.options && (
-                                <RadioGroup
-                                    value={customAnswers[question.id] || ""}
-                                    onValueChange={(value) =>
-                                        setCustomAnswers((prev) => ({ ...prev, [question.id]: value }))
-                                    }
-                                >
-                                    {question.options.map((option) => (
-                                        <div key={option} className="flex items-center space-x-2">
-                                            <RadioGroupItem value={option} id={`${question.id}-${option}`} />
-                                            <Label htmlFor={`${question.id}-${option}`}>{option}</Label>
-                                        </div>
-                                    ))}
-                                </RadioGroup>
-                            )}
-                        </div>
-                    ))}
+                                {questionType === "CHECKBOX" && question.options && (
+                                    <div className="space-y-3">
+                                        {question.options.map((option) => {
+                                            const currentAnswers = Array.isArray(customAnswers[question.id])
+                                                ? (customAnswers[question.id] as string[])
+                                                : [];
+                                            const isChecked = currentAnswers.includes(option);
+
+                                            return (
+                                                <div key={option} className="flex items-center space-x-2">
+                                                    <Checkbox
+                                                        id={`${question.id}-${option}`}
+                                                        checked={isChecked}
+                                                        onCheckedChange={(checked: boolean) => {
+                                                            setCustomAnswers((prev) => {
+                                                                const currentAnswers = Array.isArray(prev[question.id])
+                                                                    ? (prev[question.id] as string[])
+                                                                    : [];
+
+                                                                if (checked) {
+                                                                    return {
+                                                                        ...prev,
+                                                                        [question.id]: [...currentAnswers, option]
+                                                                    };
+                                                                } else {
+                                                                    return {
+                                                                        ...prev,
+                                                                        [question.id]: currentAnswers.filter((v: string) => v !== option)
+                                                                    };
+                                                                }
+                                                            });
+                                                        }}
+                                                    />
+                                                    <Label
+                                                        htmlFor={`${question.id}-${option}`}
+                                                        className="font-normal cursor-pointer"
+                                                    >
+                                                        {option}
+                                                    </Label>
+                                                </div>
+                                            );
+                                        })}
+                                    </div>
+                                )}
+                            </div>
+                        );
+                    })}
 
                     <Separator />
 
