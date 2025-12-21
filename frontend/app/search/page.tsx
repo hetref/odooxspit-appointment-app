@@ -105,14 +105,6 @@ export default function SearchPage() {
                         <Calendar className="h-6 w-6 text-primary" />
                         <span className="text-xl font-bold">BookNow</span>
                     </Link>
-                    <div className="flex items-center gap-3">
-                        <Button variant="ghost" asChild>
-                            <Link href="/login">Sign In</Link>
-                        </Button>
-                        <Button asChild>
-                            <Link href="/register">Get Started</Link>
-                        </Button>
-                    </div>
                 </div>
             </header>
 

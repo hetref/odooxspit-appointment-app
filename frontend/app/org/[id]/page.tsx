@@ -274,14 +274,14 @@ export default function OrganizationPage() {
                         <ArrowLeft className="w-4 h-4" />
                         Back to Search
                     </Button>
-                    <div className="flex items-center gap-3">
+                    {/* <div className="flex items-center gap-3">
                         <Button variant="ghost" asChild>
                             <Link href="/login">Sign In</Link>
                         </Button>
                         <Button asChild>
                             <Link href="/register">Get Started</Link>
                         </Button>
-                    </div>
+                    </div> */}
                 </div>
             </header>
 
