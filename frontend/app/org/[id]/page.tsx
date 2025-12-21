@@ -18,6 +18,7 @@ import {
     Building2,
 } from "lucide-react";
 import { publicApi } from "@/lib/api";
+import { Organization as OrgType } from "@/lib/types";
 
 interface Appointment {
     id: string;
@@ -35,13 +36,7 @@ interface Appointment {
     createdAt: string;
 }
 
-interface Organization {
-    id: string;
-    name: string;
-    description: string | null;
-    location: string | null;
-    businessHours: any;
-    createdAt: string;
+interface Organization extends OrgType {
     appointments: Appointment[];
 }
 
@@ -63,7 +58,7 @@ export default function OrganizationPage() {
             const response = await publicApi.getOrganizationById(organizationId);
 
             if (response.success && response.data) {
-                setOrganization(response.data.organization);
+                setOrganization(response.data.organization as Organization);
             } else {
                 setError("Organization not found");
             }
