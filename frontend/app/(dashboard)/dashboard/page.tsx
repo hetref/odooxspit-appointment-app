@@ -47,11 +47,29 @@ export default function DashboardPage() {
                     // Update cached user data
                     authStorage.setUser(userData);
                     setError(null);
+                    
+                    // Redirect based on user role
+                    if (userData.role === "ORGANIZATION") {
+                        router.replace("/dashboard/org");
+                        return;
+                    } else if (userData.role === "USER") {
+                        router.replace("/dashboard/user");
+                        return;
+                    }
                 } else {
                     // Try to use cached data
                     const cachedUser = authStorage.getUser();
                     if (cachedUser) {
                         setUser(cachedUser);
+                        
+                        // Redirect based on cached user role
+                        if (cachedUser.role === "ORGANIZATION") {
+                            router.replace("/dashboard/org");
+                            return;
+                        } else if (cachedUser.role === "USER") {
+                            router.replace("/dashboard/user");
+                            return;
+                        }
                     } else {
                         setError("Unable to load user data");
                     }
@@ -63,6 +81,15 @@ export default function DashboardPage() {
                 const cachedUser = authStorage.getUser();
                 if (cachedUser) {
                     setUser(cachedUser);
+                    
+                    // Redirect based on cached user role
+                    if (cachedUser.role === "ORGANIZATION") {
+                        router.replace("/dashboard/org");
+                        return;
+                    } else if (cachedUser.role === "USER") {
+                        router.replace("/dashboard/user");
+                        return;
+                    }
                 } else {
                     setError("Failed to load user data. Please refresh the page.");
                 }
@@ -74,6 +101,16 @@ export default function DashboardPage() {
         if (!contextLoading) {
             if (contextUser) {
                 setUser(contextUser);
+                
+                // Redirect based on context user role
+                if (contextUser.role === "ORGANIZATION") {
+                    router.replace("/dashboard/org");
+                    return;
+                } else if (contextUser.role === "USER") {
+                    router.replace("/dashboard/user");
+                    return;
+                }
+                
                 setIsLoading(false);
             } else {
                 fetchUserData();
