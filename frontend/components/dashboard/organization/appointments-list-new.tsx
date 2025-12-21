@@ -1,7 +1,6 @@
 "use client";
 
 import * as React from "react";
-import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -33,9 +32,7 @@ import {
     CheckCircle2,
     XCircle,
     AlertCircle,
-    DollarSign,
     Mail,
-    Phone,
     FileText,
     ArrowUpDown,
     ArrowUp,
@@ -53,11 +50,6 @@ import {
     SelectTrigger,
     SelectValue,
 } from "@/components/ui/select";
-import {
-    Popover,
-    PopoverContent,
-    PopoverTrigger,
-} from "@/components/ui/popover";
 
 type SortField = "date" | "customer" | "appointment" | "status";
 type SortDirection = "asc" | "desc";
@@ -449,7 +441,7 @@ export default function OrganizationAppointmentsList() {
                                         <SelectTrigger>
                                             <SelectValue placeholder="All statuses" />
                                         </SelectTrigger>
-                                        <SelectContent>
+                                        <SelectContent position="popper" sideOffset={4}>
                                             <SelectItem value="all">All Statuses</SelectItem>
                                             <SelectItem value="PENDING">Pending</SelectItem>
                                             <SelectItem value="CONFIRMED">Confirmed</SelectItem>
@@ -469,7 +461,7 @@ export default function OrganizationAppointmentsList() {
                                         <SelectTrigger>
                                             <SelectValue placeholder="All payments" />
                                         </SelectTrigger>
-                                        <SelectContent>
+                                        <SelectContent position="popper" sideOffset={4}>
                                             <SelectItem value="all">All Payments</SelectItem>
                                             <SelectItem value="PENDING">Pending</SelectItem>
                                             <SelectItem value="PAID">Paid</SelectItem>
@@ -694,7 +686,7 @@ export default function OrganizationAppointmentsList() {
 
             {/* Booking Details Dialog */}
             <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-                <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+                <DialogContent className="max-w-2xl max-h-[85vh] flex flex-col">
                     {selectedBooking && (
                         <>
                             <DialogHeader>
@@ -704,7 +696,7 @@ export default function OrganizationAppointmentsList() {
                                 </DialogDescription>
                             </DialogHeader>
 
-                            <div className="space-y-6 py-4">
+                            <div className="space-y-6 py-4 overflow-y-auto flex-1">
                                 {/* Customer Information */}
                                 <div className="space-y-3">
                                     <h3 className="text-lg font-semibold flex items-center gap-2">
