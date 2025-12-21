@@ -218,6 +218,12 @@ export function MultiStepBooking({ appointment, onSuccess, onCancel }: MultiStep
 
                     if (!orderResponse.success || !orderResponse.data) {
                         setError(orderResponse.message || "Failed to initiate payment");
+                        // Cancel the booking since payment couldn't be initiated
+                        try {
+                            await bookingApi.cancelBooking(token, createdBooking.id);
+                        } catch (cancelErr) {
+                            console.error("Error cancelling booking:", cancelErr);
+                        }
                         return;
                     }
 
@@ -225,6 +231,12 @@ export function MultiStepBooking({ appointment, onSuccess, onCancel }: MultiStep
 
                     if (!merchantKeyId) {
                         setError("Payment configuration is incomplete for this organization");
+                        // Cancel the booking since payment can't proceed
+                        try {
+                            await bookingApi.cancelBooking(token, createdBooking.id);
+                        } catch (cancelErr) {
+                            console.error("Error cancelling booking:", cancelErr);
+                        }
                         return;
                     }
 
@@ -244,8 +256,14 @@ export function MultiStepBooking({ appointment, onSuccess, onCancel }: MultiStep
                             onSuccess?.();
                         },
                         modal: {
-                            ondismiss: function () {
-                                setError("Payment was cancelled. You can retry from your bookings page.");
+                            ondismiss: async function () {
+                                setError("Payment was cancelled. The booking has been cancelled.");
+                                // Cancel the booking since payment was dismissed
+                                try {
+                                    await bookingApi.cancelBooking(token, createdBooking.id);
+                                } catch (cancelErr) {
+                                    console.error("Error cancelling booking:", cancelErr);
+                                }
                             },
                         },
                     };
@@ -255,6 +273,12 @@ export function MultiStepBooking({ appointment, onSuccess, onCancel }: MultiStep
                 } catch (err: any) {
                     console.error("Error during payment:", err);
                     setError(err.message || "Payment initialization failed");
+                    // Cancel the booking since payment failed to initialize
+                    try {
+                        await bookingApi.cancelBooking(token, createdBooking.id);
+                    } catch (cancelErr) {
+                        console.error("Error cancelling booking:", cancelErr);
+                    }
                 }
             } else {
                 // Free appointment – just show confirmation

@@ -190,9 +190,15 @@ const getAppointmentDetails = async (req, res) => {
             }
         }
 
+        // Transform questions field to customQuestions for frontend compatibility
+        const responseData = {
+            ...appointment,
+            customQuestions: appointment.questions || [],
+        };
+
         res.json({
             success: true,
-            data: appointment,
+            data: responseData,
         });
     } catch (error) {
         console.error("Error fetching appointment details:", error);

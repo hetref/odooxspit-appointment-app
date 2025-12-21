@@ -592,22 +592,22 @@ export function EditAppointment({ appointmentId, onBack }: EditAppointmentProps)
                   {/* Picture Display (Read-only) */}
                   <div className="space-y-2">
                     <Label>Picture</Label>
-                    <div className="border-2 border-dashed rounded-lg p-4 text-center bg-muted/30">
+                    <div className="border-2 border-dashed rounded-lg overflow-hidden bg-muted/30">
                       {formData.picturePreview ? (
                         <div className="relative">
                           <img
                             src={formData.picturePreview}
                             alt="Appointment"
-                            className="w-full h-24 object-cover rounded opacity-75"
+                            className="w-full h-24 object-cover"
                           />
-                          <div className="absolute inset-0 bg-black/20 rounded flex items-center justify-center">
-                            <Badge variant="secondary" className="text-xs">
+                          <div className="absolute top-2 right-2">
+                            <Badge variant="secondary" className="text-xs shadow-md">
                               Read Only
                             </Badge>
                           </div>
                         </div>
                       ) : (
-                        <div className="flex flex-col items-center gap-2 text-muted-foreground py-4">
+                        <div className="flex flex-col items-center gap-2 text-muted-foreground py-8">
                           <ImageIcon className="w-8 h-8 opacity-50" />
                           <span className="text-xs">No image</span>
                         </div>
