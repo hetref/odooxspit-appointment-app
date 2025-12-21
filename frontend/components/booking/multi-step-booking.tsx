@@ -732,7 +732,7 @@ export function MultiStepBooking({ appointment, onSuccess, onCancel }: MultiStep
                 <div className="bg-muted/50 rounded-lg p-4">
                     <p className="text-sm text-muted-foreground">
                         <Info className="w-4 h-4 inline mr-1" />
-                        Payment is processed securely via Razorpay in your organization&apos;s account. You will see the Razorpay checkout after clicking Pay Now.
+                        Payment is processed securely via Razorpay. Funds will be transferred directly to {appointment.organization.name}&apos;s connected Razorpay account.
                     </p>
                 </div>
             </div>

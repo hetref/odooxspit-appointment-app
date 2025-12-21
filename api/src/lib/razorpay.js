@@ -56,6 +56,11 @@ function buildAuthorizeUrl(organizationId) {
 
 async function exchangeCodeForTokens(code) {
     if (!RAZORPAY_CLIENT_ID || !RAZORPAY_CLIENT_SECRET || !RAZORPAY_REDIRECT_URI) {
+        console.error("Razorpay OAuth configuration missing:", {
+            hasClientId: !!RAZORPAY_CLIENT_ID,
+            hasClientSecret: !!RAZORPAY_CLIENT_SECRET,
+            hasRedirectUri: !!RAZORPAY_REDIRECT_URI
+        });
         throw new Error("Razorpay OAuth is not configured correctly on the server");
     }
 
@@ -66,26 +71,47 @@ async function exchangeCodeForTokens(code) {
     params.set("client_id", RAZORPAY_CLIENT_ID);
     params.set("client_secret", RAZORPAY_CLIENT_SECRET);
 
-    const { data } = await axios.post(RAZORPAY_OAUTH_TOKEN_URL, params.toString(), {
-        headers: { "Content-Type": "application/x-www-form-urlencoded" },
-    });
+    console.log("Exchanging code with Razorpay token endpoint:", RAZORPAY_OAUTH_TOKEN_URL);
+    console.log("Using client_id:", RAZORPAY_CLIENT_ID);
+    console.log("Using redirect_uri:", RAZORPAY_REDIRECT_URI);
 
-    // Razorpay typically returns: access_token, refresh_token, expires_in, razorpay_user_id, etc.
-    const { access_token, refresh_token, expires_in, razorpay_user_id, key_id } = data;
+    try {
+        const { data } = await axios.post(RAZORPAY_OAUTH_TOKEN_URL, params.toString(), {
+            headers: { "Content-Type": "application/x-www-form-urlencoded" },
+        });
 
-    if (!access_token || !refresh_token || !razorpay_user_id) {
-        throw new Error("Invalid token response from Razorpay");
+        console.log("Token exchange successful. Response keys:", Object.keys(data));
+
+        // Razorpay returns: access_token, refresh_token, expires_in, razorpay_account_id, public_token, etc.
+        const { access_token, refresh_token, expires_in, razorpay_account_id, public_token } = data;
+
+        if (!access_token || !refresh_token || !razorpay_account_id) {
+            console.error("Invalid token response. Missing fields:", {
+                hasAccessToken: !!access_token,
+                hasRefreshToken: !!refresh_token,
+                hasAccountId: !!razorpay_account_id
+            });
+            throw new Error("Invalid token response from Razorpay");
+        }
+
+        const expiresAt = new Date(Date.now() + (expires_in || 3600) * 1000);
+
+        return {
+            accessToken: access_token,
+            refreshToken: refresh_token,
+            razorpayMerchantId: razorpay_account_id,
+            merchantKeyId: public_token || null,
+            tokenExpiresAt: expiresAt,
+        };
+    } catch (error) {
+        console.error("Token exchange failed:", {
+            message: error.message,
+            response: error.response?.data,
+            status: error.response?.status
+        });
+        const errorMsg = error.response?.data?.error?.description || error.response?.data?.error || error.message;
+        throw new Error(`Token exchange failed: ${errorMsg}`);
     }
-
-    const expiresAt = new Date(Date.now() + (expires_in || 3600) * 1000);
-
-    return {
-        accessToken: access_token,
-        refreshToken: refresh_token,
-        razorpayMerchantId: razorpay_user_id,
-        merchantKeyId: key_id || null,
-        tokenExpiresAt: expiresAt,
-    };
 }
 
 async function refreshAccessToken(connection) {
@@ -103,7 +129,7 @@ async function refreshAccessToken(connection) {
         headers: { "Content-Type": "application/x-www-form-urlencoded" },
     });
 
-    const { access_token, refresh_token, expires_in, razorpay_user_id, key_id } = data;
+    const { access_token, refresh_token, expires_in, razorpay_account_id, public_token } = data;
 
     const expiresAt = new Date(Date.now() + (expires_in || 3600) * 1000);
 
@@ -113,8 +139,8 @@ async function refreshAccessToken(connection) {
             accessToken: access_token,
             refreshToken: refresh_token || connection.refreshToken,
             tokenExpiresAt: expiresAt,
-            razorpayMerchantId: razorpay_user_id || connection.razorpayMerchantId,
-            merchantKeyId: key_id || connection.merchantKeyId,
+            razorpayMerchantId: razorpay_account_id || connection.razorpayMerchantId,
+            merchantKeyId: public_token || connection.merchantKeyId,
         },
     });
 

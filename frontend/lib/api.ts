@@ -266,8 +266,6 @@ export const organizationApi = {
     location?: string;
     description?: string;
     businessHours?: Array<{ day: string; from: string; to: string }>;
-    razorpayKeyId?: string | null;
-    razorpayKeySecret?: string | null;
   }) =>
     api.put("/organization/update", data, token),
 

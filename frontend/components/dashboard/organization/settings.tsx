@@ -34,9 +34,6 @@ export default function OrganizationSettings() {
   const [razorpayConnected, setRazorpayConnected] = useState(false);
   const [isMember, setIsMember] = useState(false);
 
-  const [razorpayKeyId, setRazorpayKeyId] = useState("");
-  const [razorpayKeySecret, setRazorpayKeySecret] = useState("");
-
   const [orgData, setOrgData] = useState({
     name: "",
     location: "",
@@ -392,78 +389,11 @@ export default function OrganizationSettings() {
                       OAuth Status: {razorpayConnected ? "Connected" : "Not connected"}
                     </div>
                     <p className="text-muted-foreground max-w-md">
-                      You can either connect via Razorpay OAuth (recommended) or configure your Razorpay Key ID and Key Secret directly as a fallback.
+                      Connect via Razorpay OAuth to enable payment processing for your paid appointments. Payments will be received directly in your Razorpay account.
                     </p>
                   </div>
                   <div className="flex items-center gap-2">
-                    <ConnectRazorpayButton />
-                  </div>
-                </div>
-
-                <Separator className="my-4" />
-
-                <div className="space-y-3">
-                  <div className="space-y-2">
-                    <Label htmlFor="razorpayKeyId">Razorpay Key ID (fallback)</Label>
-                    <Input
-                      id="razorpayKeyId"
-                      value={razorpayKeyId}
-                      onChange={(e) => setRazorpayKeyId(e.target.value)}
-                      placeholder="Enter Razorpay Key ID"
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="razorpayKeySecret">Razorpay Key Secret (fallback)</Label>
-                    <Input
-                      id="razorpayKeySecret"
-                      type="password"
-                      value={razorpayKeySecret}
-                      onChange={(e) => setRazorpayKeySecret(e.target.value)}
-                      placeholder="Enter Razorpay Key Secret"
-                    />
-                    <p className="text-xs text-muted-foreground">
-                      These credentials are used only on the server to create Razorpay orders directly in your account. They are never exposed to visitors.
-                    </p>
-                  </div>
-                  <div className="flex justify-end">
-                    <Button
-                      type="button"
-                      variant="outline"
-                      disabled={saving}
-                      onClick={async () => {
-                        try {
-                          setSaving(true);
-                          setError(null);
-                          setSuccessMessage(null);
-
-                          const accessToken = authStorage.getAccessToken();
-
-                          if (!accessToken) {
-                            setError("Not authenticated");
-                            return;
-                          }
-
-                          const response = await organizationApi.updateOrganization(accessToken, {
-                            razorpayKeyId: razorpayKeyId || null,
-                            razorpayKeySecret: razorpayKeySecret || null,
-                          });
-
-                          if (response.success) {
-                            setSuccessMessage("Razorpay keys updated successfully");
-                            setRazorpayKeySecret("");
-                          } else {
-                            setError(response.message || "Failed to update Razorpay keys");
-                          }
-                        } catch (err: any) {
-                          console.error("Error updating Razorpay keys:", err);
-                          setError(err.message || "Failed to update Razorpay keys");
-                        } finally {
-                          setSaving(false);
-                        }
-                      }}
-                    >
-                      {saving ? "Saving..." : "Save Razorpay Keys"}
-                    </Button>
+                    <ConnectRazorpayButton isConnected={razorpayConnected} />
                   </div>
                 </div>
               </CardContent>

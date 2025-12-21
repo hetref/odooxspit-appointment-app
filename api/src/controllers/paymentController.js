@@ -2,7 +2,6 @@ const prisma = require("../lib/prisma");
 const {
     getValidAccessTokenForOrganization,
     createOrderForBooking,
-    createOrderForBookingWithKeys,
     verifyWebhookSignature,
 } = require("../lib/razorpay");
 
@@ -51,65 +50,41 @@ async function createOrder(req, res) {
             });
         }
 
-        let order;
-        let merchantKeyId = null;
-
-        // Try OAuth-based Razorpay connection first (if configured)
-        let connection = null;
+        // Get OAuth-based Razorpay connection (required)
+        let connection;
         try {
             connection = await getValidAccessTokenForOrganization(appointment.organizationId);
         } catch (err) {
-            connection = null;
+            console.error("Organization Razorpay connection error:", err.message);
+            return res.status(400).json({
+                success: false,
+                message: "This organization has not connected their Razorpay account. Please contact the organization.",
+            });
         }
 
-        if (connection) {
-            try {
-                order = await createOrderForBooking(connection, booking, appointment);
-                merchantKeyId = connection.merchantKeyId || null;
-            } catch (err) {
-                console.error(
-                    "Error creating Razorpay order with OAuth connection:",
-                    err.response?.data || err.message || err
-                );
-                return res.status(502).json({
-                    success: false,
-                    message: "Failed to create Razorpay order",
-                });
-            }
-        } else {
-            // Fallback: use organization's direct Razorpay key id / key secret
-            const organization = await prisma.organization.findUnique({
-                where: { id: appointment.organizationId },
-                select: { razorpayKeyId: true, razorpayKeySecret: true },
+        // Create order using OAuth connection
+        let order;
+        try {
+            order = await createOrderForBooking(connection, booking, appointment);
+        } catch (err) {
+            console.error(
+                "Error creating Razorpay order:",
+                err.response?.data || err.message || err
+            );
+            return res.status(502).json({
+                success: false,
+                message: "Failed to create payment order. Please try again later.",
             });
+        }
 
-            if (!organization || !organization.razorpayKeyId || !organization.razorpayKeySecret) {
-                return res.status(400).json({
-                    success: false,
-                    message: "Organization has not configured Razorpay payments",
-                });
-            }
+        const merchantKeyId = connection.merchantKeyId || null;
 
-            try {
-                order = await createOrderForBookingWithKeys(
-                    {
-                        keyId: organization.razorpayKeyId,
-                        keySecret: organization.razorpayKeySecret,
-                    },
-                    booking,
-                    appointment
-                );
-                merchantKeyId = organization.razorpayKeyId;
-            } catch (err) {
-                console.error(
-                    "Error creating Razorpay order with direct keys:",
-                    err.response?.data || err.message || err
-                );
-                return res.status(502).json({
-                    success: false,
-                    message: "Failed to create Razorpay order",
-                });
-            }
+        if (!merchantKeyId) {
+            console.error("Missing merchantKeyId for organization:", appointment.organizationId);
+            return res.status(400).json({
+                success: false,
+                message: "Payment configuration is incomplete. Please contact the organization.",
+            });
         }
 
         return res.json({
@@ -232,19 +207,125 @@ async function handleWebhook(req, res) {
 
         if (notificationType) {
             try {
+                // Notify the user who made the booking
                 await prisma.notification.create({
                     data: {
                         userId: booking.userId,
                         type: notificationType,
                         title:
                             notificationType === "PAYMENT_RECEIVED"
-                                ? "Payment update"
-                                : "Payment failed",
+                                ? "Payment Received"
+                                : "Payment Failed",
                         message: notificationMessage,
                         relatedId: booking.id,
                         relatedType: "BOOKING",
                     },
                 });
+
+                // If payment was successful, notify organization admin about payment
+                if (eventType === "payment.captured" && paymentStatusUpdate === "PAID") {
+                    const bookingWithDetails = await prisma.booking.findUnique({
+                        where: { id: bookingId },
+                        include: {
+                            appointment: {
+                                include: {
+                                    organization: {
+                                        include: {
+                                            admin: true,
+                                        },
+                                    },
+                                },
+                            },
+                            user: {
+                                select: {
+                                    name: true,
+                                    email: true,
+                                },
+                            },
+                        },
+                    });
+
+                    if (bookingWithDetails && bookingWithDetails.appointment.organization.admin) {
+                        const orgAdmin = bookingWithDetails.appointment.organization.admin;
+                        const amount = bookingWithDetails.totalAmount || 0;
+
+                        // Notify organization admin about payment received
+                        await prisma.notification.create({
+                            data: {
+                                userId: orgAdmin.id,
+                                type: "PAYMENT_RECEIVED",
+                                title: "Payment Received",
+                                message: `Payment of ₹${amount} received from ${bookingWithDetails.user.name} for "${bookingWithDetails.appointment.title}"`,
+                                relatedId: booking.id,
+                                relatedType: "BOOKING",
+                                actionUrl: "/dashboard/org/appointments",
+                            },
+                        });
+
+                        // Send WhatsApp notification to organization admin about payment
+                        if (orgAdmin.phone) {
+                            try {
+                                const axios = require('axios');
+                                
+                                const formattedDate = new Date(bookingWithDetails.startTime).toLocaleDateString('en-US', {
+                                    weekday: 'long',
+                                    year: 'numeric',
+                                    month: 'long',
+                                    day: 'numeric',
+                                    hour: '2-digit',
+                                    minute: '2-digit',
+                                });
+
+                                const whatsappMessage = `Payment of ₹${amount} received from ${bookingWithDetails.user.name} for "${bookingWithDetails.appointment.title}" scheduled on ${formattedDate}.`;
+
+                                // Remove any non-digit characters from phone number
+                                const cleanPhone = orgAdmin.phone.replace(/\D/g, '');
+
+                                const whatsappPayload = {
+                                    to: cleanPhone,
+                                    template: {
+                                        name: "notification_reminder",
+                                        language: "en_US",
+                                        components: [
+                                            {
+                                                type: "header",
+                                                parameters: [
+                                                    {
+                                                        type: "text",
+                                                        text: orgAdmin.name || "Admin"
+                                                    }
+                                                ]
+                                            },
+                                            {
+                                                type: "body",
+                                                parameters: [
+                                                    {
+                                                        type: "text",
+                                                        text: whatsappMessage
+                                                    }
+                                                ]
+                                            }
+                                        ]
+                                    }
+                                };
+
+                                // Send WhatsApp notification (don't wait for response)
+                                axios.post('https://wachat.aryanshinde.in/api/wc/messages/template', whatsappPayload, {
+                                    headers: {
+                                        'Authorization': 'Bearer wc_live_e34b933d161fec7c64654d6e2383f5f7c31108968dc97393878af967e3ab677c',
+                                        'Content-Type': 'application/json',
+                                    },
+                                }).then(() => {
+                                    console.log('WhatsApp payment notification sent successfully to:', cleanPhone);
+                                }).catch((error) => {
+                                    console.error('Error sending WhatsApp payment notification:', error.response?.data || error.message);
+                                });
+                            } catch (error) {
+                                console.error('Error preparing WhatsApp payment notification:', error);
+                            }
+                        }
+                    }
+                }
             } catch (err) {
                 console.error("Failed to create payment notification:", err);
             }

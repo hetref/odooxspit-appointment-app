@@ -93,9 +93,6 @@ model Organization {
   admin              User                            @relation("OrganizationAdmin", fields: [adminId], references: [id], onDelete: Cascade)
   resources          Resource[]
   members            User[]                          @relation("OrganizationMembers")
-  // Optional direct Razorpay keys (fallback when OAuth connect is not used)
-  razorpayKeyId      String?
-  razorpayKeySecret  String?
   razorpayConnection OrganizationRazorpayConnection?
 
   @@index([adminId])

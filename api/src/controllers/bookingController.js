@@ -703,12 +703,33 @@ const createBooking = async (req, res) => {
             },
         });
 
+        // Get organization admin details for notifications
+        const orgAdmin = await prisma.user.findUnique({
+            where: { id: booking.appointment.organization.adminId },
+            select: {
+                id: true,
+                name: true,
+                email: true,
+                phone: true,
+            },
+        });
+
+        // Format date for notifications
+        const formattedDate = start.toLocaleDateString('en-US', {
+            weekday: 'long',
+            year: 'numeric',
+            month: 'long',
+            day: 'numeric',
+            hour: '2-digit',
+            minute: '2-digit',
+        });
+
         // Notify organization members about new booking
         await notifyOrganizationMembers({
             organizationId: booking.appointment.organizationId,
             type: 'BOOKING_CREATED',
             title: 'New Booking Received',
-            message: `${booking.user.name} booked "${booking.appointment.title}" for ${start.toLocaleString()}`,
+            message: `${booking.user.name} booked "${booking.appointment.title}" for ${formattedDate}`,
             relatedId: booking.id,
             relatedType: 'booking',
             actionUrl: `/dashboard/org/appointments`,
@@ -719,11 +740,83 @@ const createBooking = async (req, res) => {
             userId: booking.userId,
             type: 'BOOKING_CONFIRMED',
             title: 'Booking Confirmed',
-            message: `Your booking for "${booking.appointment.title}" on ${start.toLocaleString()} has been confirmed`,
+            message: `Your booking for "${booking.appointment.title}" on ${formattedDate} has been confirmed`,
             relatedId: booking.id,
             relatedType: 'booking',
-            actionUrl: `/dashboard/bookings`,
+            actionUrl: `/dashboard/user/appointments`,
         });
+
+        // If paid appointment, notify organization about payment
+        if (appointment.isPaid && totalAmount > 0) {
+            await createNotification({
+                userId: orgAdmin.id,
+                type: 'PAYMENT_RECEIVED',
+                title: 'Payment Pending',
+                message: `A paid booking for ₹${totalAmount} is pending payment for "${booking.appointment.title}"`,
+                relatedId: booking.id,
+                relatedType: 'booking',
+                actionUrl: `/dashboard/org/appointments`,
+            });
+        }
+
+        // Send WhatsApp notification to organization admin
+        if (orgAdmin && orgAdmin.phone) {
+            try {
+                const axios = require('axios');
+                
+                // Prepare WhatsApp message body
+                const bookingType = appointment.isPaid 
+                    ? `a paid appointment (₹${totalAmount})` 
+                    : 'an appointment';
+                const whatsappMessage = `You got ${bookingType} booked by ${booking.user.name} for "${booking.appointment.title}" on ${formattedDate}.`;
+
+                // Remove any non-digit characters from phone number
+                const cleanPhone = orgAdmin.phone.replace(/\D/g, '');
+
+                const whatsappPayload = {
+                    to: cleanPhone,
+                    template: {
+                        name: "notification_reminder",
+                        language: "en_US",
+                        components: [
+                            {
+                                type: "header",
+                                parameters: [
+                                    {
+                                        type: "text",
+                                        text: orgAdmin.name || "Admin"
+                                    }
+                                ]
+                            },
+                            {
+                                type: "body",
+                                parameters: [
+                                    {
+                                        type: "text",
+                                        text: whatsappMessage
+                                    }
+                                ]
+                            }
+                        ]
+                    }
+                };
+
+                // Send WhatsApp notification (don't wait for response)
+                axios.post('https://wachat.aryanshinde.in/api/wc/messages/template', whatsappPayload, {
+                    headers: {
+                        'Authorization': 'Bearer wc_live_e34b933d161fec7c64654d6e2383f5f7c31108968dc97393878af967e3ab677c',
+                        'Content-Type': 'application/json',
+                    },
+                }).then(() => {
+                    console.log('WhatsApp notification sent successfully to:', cleanPhone);
+                }).catch((error) => {
+                    console.error('Error sending WhatsApp notification:', error.response?.data || error.message);
+                });
+            } catch (error) {
+                console.error('Error preparing WhatsApp notification:', error);
+                // Don't fail the booking creation if WhatsApp fails
+            }
+        }
 
         res.status(201).json({
             success: true,

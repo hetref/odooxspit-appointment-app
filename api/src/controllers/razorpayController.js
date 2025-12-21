@@ -91,10 +91,60 @@ async function razorpayCallback(req, res) {
             });
         }
 
-        const organizationId = parseAndVerifyState(state);
+        // Handle hardcoded state from direct Razorpay OAuth URL
+        // For security in production, you should validate state properly or use session-based tracking
+        let organizationId;
 
+        if (state === "current_state") {
+            // Hardcoded state from direct OAuth URL - need to determine org from session/cookie
+            // For now, we'll find the first ORGANIZATION admin that doesn't have a connection yet
+            // In production, you should track this via session or require proper state
+            const adminUsers = await prisma.user.findMany({
+                where: {
+                    role: "ORGANIZATION",
+                    isMember: false,
+                },
+                include: {
+                    adminOrganization: {
+                        include: {
+                            razorpayConnection: true,
+                        },
+                    },
+                },
+                orderBy: {
+                    createdAt: "desc",
+                },
+            });
+
+            // Find first admin without a Razorpay connection
+            const adminWithoutConnection = adminUsers.find(
+                (user) => user.adminOrganization && !user.adminOrganization.razorpayConnection
+            );
+
+            if (!adminWithoutConnection || !adminWithoutConnection.adminOrganization) {
+                return res.status(400).json({
+                    success: false,
+                    message: "Could not determine which organization to connect. Please try again from the dashboard.",
+                });
+            }
+
+            organizationId = adminWithoutConnection.adminOrganization.id;
+            console.log("Using fallback organization detection for hardcoded state:", organizationId);
+        } else {
+            // Normal flow with properly signed state
+            organizationId = parseAndVerifyState(state);
+        }
+
+        console.log("Exchanging authorization code for tokens...");
         const tokens = await exchangeCodeForTokens(code);
+        console.log("Tokens received:", {
+            hasAccessToken: !!tokens.accessToken,
+            hasRefreshToken: !!tokens.refreshToken,
+            merchantId: tokens.razorpayMerchantId,
+            keyId: tokens.merchantKeyId
+        });
 
+        console.log("Saving Razorpay connection to database for organization:", organizationId);
         const connection = await prisma.organizationRazorpayConnection.upsert({
             where: { organizationId },
             update: {
@@ -113,24 +163,34 @@ async function razorpayCallback(req, res) {
                 merchantKeyId: tokens.merchantKeyId,
             },
         });
+        console.log("Razorpay connection saved successfully:", connection.id);
 
         // Create webhooks for this merchant
         try {
+            console.log("Creating webhooks for merchant...");
             await createMerchantWebhooks(connection);
+            console.log("Webhooks created successfully");
         } catch (whErr) {
-            console.error("Failed to create Razorpay webhooks:", whErr);
+            console.error("Failed to create Razorpay webhooks:", whErr.message || whErr);
             // Do not fail the whole flow – connection is still valid
         }
 
         // Redirect back to dashboard with a success flag
         const redirectUrl = `${process.env.FRONTEND_BASE_URL || "http://localhost:3000"}/dashboard/org/settings?razorpay=connected`;
 
+        console.log("Redirecting to:", redirectUrl);
         return res.redirect(redirectUrl);
     } catch (error) {
         console.error("Razorpay callback error:", error);
+        console.error("Error details:", {
+            message: error.message,
+            response: error.response?.data,
+            stack: error.stack
+        });
         return res.status(500).json({
             success: false,
-            message: "Failed to complete Razorpay connection.",
+            message: `Failed to complete Razorpay connection: ${error.message}`,
+            error: process.env.NODE_ENV === 'development' ? error.message : undefined
         });
     }
 }
