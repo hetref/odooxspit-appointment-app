@@ -473,3 +473,235 @@ export const notificationApi = {
   deleteAllRead: (token: string) =>
     api.delete("/notifications/read", token),
 };
+
+// Admin API functions (requires admin privileges)
+export const adminApi = {
+  // Get admin dashboard statistics
+  getStats: (token: string): Promise<ApiResponse<{
+    totalUsers: number;
+    totalOrganizations: number;
+    totalAppointments: number;
+    totalBookings: number;
+    verifiedUsers: number;
+    activeUsers: number;
+    pendingAppointments: number;
+    confirmedAppointments: number;
+    completedAppointments: number;
+    cancelledAppointments: number;
+    revenueThisMonth: number;
+    recentBookings: number;
+  }>> => api.get("/admin/stats", token),
+
+  // Get all users with pagination and filters
+  getAllUsers: (token: string, params?: {
+    page?: number;
+    limit?: number;
+    role?: string;
+    search?: string;
+    status?: string;
+  }): Promise<ApiResponse<{
+    users: Array<{
+      id: string;
+      name: string;
+      email: string;
+      role: "USER" | "ORGANIZATION";
+      emailVerified: boolean;
+      isActive: boolean;
+      isMember?: boolean;
+      createdAt: string;
+      updatedAt: string;
+      organization?: { id: string; name: string };
+    }>;
+    pagination: {
+      page: number;
+      limit: number;
+      total: number;
+      totalPages: number;
+    };
+  }>> => {
+    const queryParams = new URLSearchParams();
+    if (params?.page) queryParams.append("page", params.page.toString());
+    if (params?.limit) queryParams.append("limit", params.limit.toString());
+    if (params?.role) queryParams.append("role", params.role);
+    if (params?.search) queryParams.append("search", params.search);
+    if (params?.status) queryParams.append("status", params.status);
+
+    const endpoint = `/admin/users${queryParams.toString() ? `?${queryParams.toString()}` : ""}`;
+    return api.get(endpoint, token);
+  },
+
+  // Get reports and analytics data
+  getReports: (token: string, days?: number): Promise<ApiResponse<{
+    totalAppointments: number;
+    completedAppointments: number;
+    cancelledAppointments: number;
+    totalRevenue: number;
+    averageBookingValue: number;
+    peakHours: Array<{ hour: string; count: number }>;
+    providerUtilization: Array<{ name: string; percentage: number; bookings: number }>;
+    monthlyTrends: Array<{ month: string; appointments: number }>;
+  }>> => {
+    const endpoint = days ? `/admin/reports?days=${days}` : "/admin/reports";
+    return api.get(endpoint, token);
+  },
+
+  // Get recent activity
+  getRecentActivity: (token: string, limit?: number): Promise<ApiResponse<{
+    activities: Array<{
+      type: string;
+      icon: string;
+      text: string;
+      time: string;
+      color: string;
+    }>;
+  }>> => {
+    const endpoint = limit ? `/admin/activity?limit=${limit}` : "/admin/activity";
+    return api.get(endpoint, token);
+  },
+
+  // Delete a user by ID
+  deleteUser: (token: string, userId: string): Promise<ApiResponse<void>> =>
+    api.delete(`/admin/users/${userId}`, token),
+};
+
+// Bolna AI Voice Agent API
+export const bolnaApi = {
+  // API Key Management
+  saveApiKey: (token: string, apiKey: string) =>
+    api.post("/bolna/api-key", { apiKey }, token),
+
+  getApiKeyStatus: (token: string): Promise<ApiResponse<{
+    isConfigured: boolean;
+    isValid: boolean;
+  }>> => api.get("/bolna/api-key/status", token),
+
+  deleteApiKey: (token: string) =>
+    api.delete("/bolna/api-key", token),
+
+  // Agent Management
+  createAgent: (token: string, data: {
+    name: string;
+    welcomeMessage: string;
+    instructions: string;
+    language?: string;
+    voiceId?: string;
+  }) => api.post("/bolna/agents", data, token),
+
+  getAgents: (token: string): Promise<ApiResponse<{
+    agents: Array<{
+      id: string;
+      bolnaAgentId: string;
+      name: string;
+      welcomeMessage: string;
+      instructions: string;
+      language: string;
+      voiceId: string | null;
+      isActive: boolean;
+      callCount: number;
+      createdAt: string;
+      updatedAt: string;
+    }>;
+  }>> => api.get("/bolna/agents", token),
+
+  getAgent: (token: string, agentId: string): Promise<ApiResponse<{
+    agent: {
+      id: string;
+      bolnaAgentId: string;
+      name: string;
+      welcomeMessage: string;
+      instructions: string;
+      language: string;
+      voiceId: string | null;
+      isActive: boolean;
+      callCount: number;
+      createdAt: string;
+      updatedAt: string;
+    };
+  }>> => api.get(`/bolna/agents/${agentId}`, token),
+
+  updateAgent: (token: string, agentId: string, data: {
+    name?: string;
+    welcomeMessage?: string;
+    instructions?: string;
+    language?: string;
+    voiceId?: string;
+    isActive?: boolean;
+  }) => api.put(`/bolna/agents/${agentId}`, data, token),
+
+  deleteAgent: (token: string, agentId: string) =>
+    api.delete(`/bolna/agents/${agentId}`, token),
+
+  // Call Management
+  makeCall: (token: string, data: {
+    agentId: string;
+    recipientPhone: string;
+  }): Promise<ApiResponse<{
+    call: {
+      id: string;
+      bolnaCallId: string | null;
+      recipientPhone: string;
+      status: string;
+      createdAt: string;
+    };
+  }>> => api.post("/bolna/calls", data, token),
+
+  getCalls: (token: string, params?: {
+    page?: number;
+    limit?: number;
+    agentId?: string;
+    status?: string;
+    startDate?: string;
+    endDate?: string;
+  }): Promise<ApiResponse<{
+    calls: Array<{
+      id: string;
+      bolnaCallId: string | null;
+      recipientPhone: string;
+      status: string;
+      duration: number | null;
+      recordingUrl: string | null;
+      transcript: string | null;
+      createdAt: string;
+      completedAt: string | null;
+      agent: { id: string; name: string };
+    }>;
+    pagination: {
+      page: number;
+      limit: number;
+      total: number;
+      totalPages: number;
+    };
+    stats: {
+      totalCalls: number;
+      completedCalls: number;
+      failedCalls: number;
+      avgDuration: number;
+    };
+  }>> => {
+    const queryParams = new URLSearchParams();
+    if (params?.page) queryParams.append("page", params.page.toString());
+    if (params?.limit) queryParams.append("limit", params.limit.toString());
+    if (params?.agentId) queryParams.append("agentId", params.agentId);
+    if (params?.status) queryParams.append("status", params.status);
+    if (params?.startDate) queryParams.append("startDate", params.startDate);
+    if (params?.endDate) queryParams.append("endDate", params.endDate);
+
+    const endpoint = `/bolna/calls${queryParams.toString() ? `?${queryParams.toString()}` : ""}`;
+    return api.get(endpoint, token);
+  },
+
+  getCall: (token: string, callId: string): Promise<ApiResponse<{
+    call: {
+      id: string;
+      bolnaCallId: string | null;
+      recipientPhone: string;
+      status: string;
+      duration: number | null;
+      recordingUrl: string | null;
+      transcript: string | null;
+      createdAt: string;
+      completedAt: string | null;
+      agent: { id: string; name: string };
+    };
+  }>> => api.get(`/bolna/calls/${callId}`, token),
+};

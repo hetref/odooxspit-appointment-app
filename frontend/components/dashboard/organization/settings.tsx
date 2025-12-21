@@ -10,8 +10,8 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Switch } from "@/components/ui/switch";
 import { Separator } from "@/components/ui/separator";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Building2, Clock, Save, AlertCircle, CheckCircle2 } from "lucide-react";
-import { userApi, organizationApi } from "@/lib/api";
+import { Building2, Clock, Save, AlertCircle, CheckCircle2, Phone, Eye, EyeOff, Loader2 } from "lucide-react";
+import { userApi, organizationApi, bolnaApi } from "@/lib/api";
 import { BusinessHour } from "@/lib/types";
 import { authStorage } from "@/lib/auth";
 import { ConnectRazorpayButton } from "@/components/dashboard/organization/connect-razorpay-button";
@@ -34,6 +34,15 @@ export default function OrganizationSettings() {
   const [razorpayConnected, setRazorpayConnected] = useState(false);
   const [isMember, setIsMember] = useState(false);
 
+  // Bolna Voice Agent state
+  const [bolnaApiKey, setBolnaApiKey] = useState("");
+  const [showApiKey, setShowApiKey] = useState(false);
+  const [bolnaStatus, setBolnaStatus] = useState<{ isConfigured: boolean; isValid: boolean }>({
+    isConfigured: false,
+    isValid: false,
+  });
+  const [savingBolna, setSavingBolna] = useState(false);
+
   const [orgData, setOrgData] = useState({
     name: "",
     location: "",
@@ -51,6 +60,7 @@ export default function OrganizationSettings() {
 
   useEffect(() => {
     fetchOrganizationData();
+    fetchBolnaStatus();
   }, []);
 
   const fetchOrganizationData = async () => {
@@ -117,6 +127,83 @@ export default function OrganizationSettings() {
       setError(err.message || "Failed to load organization data");
     } finally {
       setLoading(false);
+    }
+  };
+
+  const fetchBolnaStatus = async () => {
+    try {
+      const accessToken = authStorage.getAccessToken();
+      if (!accessToken) return;
+
+      const response = await bolnaApi.getApiKeyStatus(accessToken);
+      if (response.success && response.data) {
+        setBolnaStatus(response.data);
+      }
+    } catch (err) {
+      console.error("Error fetching Bolna status:", err);
+    }
+  };
+
+  const handleSaveBolnaApiKey = async () => {
+    if (!bolnaApiKey.trim()) {
+      setError("Please enter a Bolna API key");
+      return;
+    }
+
+    try {
+      setSavingBolna(true);
+      setError(null);
+      setSuccessMessage(null);
+
+      const accessToken = authStorage.getAccessToken();
+      if (!accessToken) {
+        setError("Not authenticated");
+        return;
+      }
+
+      const response = await bolnaApi.saveApiKey(accessToken, bolnaApiKey);
+
+      if (response.success) {
+        setSuccessMessage("Bolna API key saved successfully");
+        setBolnaApiKey("");
+        setBolnaStatus({ isConfigured: true, isValid: true });
+        setTimeout(() => setSuccessMessage(null), 3000);
+      } else {
+        setError(response.message || "Failed to save API key");
+      }
+    } catch (err: any) {
+      console.error("Error saving Bolna API key:", err);
+      setError(err.message || "Failed to save API key. Please check if the key is valid.");
+    } finally {
+      setSavingBolna(false);
+    }
+  };
+
+  const handleDeleteBolnaApiKey = async () => {
+    try {
+      setSavingBolna(true);
+      setError(null);
+
+      const accessToken = authStorage.getAccessToken();
+      if (!accessToken) {
+        setError("Not authenticated");
+        return;
+      }
+
+      const response = await bolnaApi.deleteApiKey(accessToken);
+
+      if (response.success) {
+        setSuccessMessage("Bolna API key removed successfully");
+        setBolnaStatus({ isConfigured: false, isValid: false });
+        setTimeout(() => setSuccessMessage(null), 3000);
+      } else {
+        setError(response.message || "Failed to remove API key");
+      }
+    } catch (err: any) {
+      console.error("Error deleting Bolna API key:", err);
+      setError(err.message || "Failed to remove API key");
+    } finally {
+      setSavingBolna(false);
     }
   };
 
@@ -303,9 +390,10 @@ export default function OrganizationSettings() {
       )}
 
       <Tabs defaultValue="general" className="space-y-4">
-        <TabsList className="grid w-full grid-cols-2 max-w-md">
+        <TabsList className="grid w-full grid-cols-3 max-w-lg">
           <TabsTrigger value="general">General</TabsTrigger>
           <TabsTrigger value="hours">Business Hours</TabsTrigger>
+          <TabsTrigger value="voice">Voice Agent</TabsTrigger>
         </TabsList>
 
         {/* General Tab */}
@@ -460,6 +548,143 @@ export default function OrganizationSettings() {
                   {saving ? "Saving..." : "Save Hours"}
                 </Button>
               </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        {/* Voice Agent Tab */}
+        <TabsContent value="voice">
+          <Card className="hover:shadow-md transition-shadow duration-200">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Phone className="h-5 w-5 text-rose-600" />
+                Bolna AI Voice Agent
+              </CardTitle>
+              <CardDescription>
+                Configure Bolna AI to enable automated voice calls for appointment reminders and confirmations
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-6">
+              {/* Connection Status */}
+              <div className="flex items-center gap-3 p-4 rounded-lg bg-muted/50">
+                <div className={`w-3 h-3 rounded-full ${bolnaStatus.isConfigured && bolnaStatus.isValid ? 'bg-green-500' : bolnaStatus.isConfigured ? 'bg-yellow-500' : 'bg-gray-400'}`} />
+                <div>
+                  <p className="font-medium">
+                    {bolnaStatus.isConfigured && bolnaStatus.isValid
+                      ? "Connected"
+                      : bolnaStatus.isConfigured
+                      ? "Invalid API Key"
+                      : "Not Connected"}
+                  </p>
+                  <p className="text-sm text-muted-foreground">
+                    {bolnaStatus.isConfigured && bolnaStatus.isValid
+                      ? "Your Bolna AI integration is active"
+                      : bolnaStatus.isConfigured
+                      ? "Please update your API key"
+                      : "Add your Bolna API key to get started"}
+                  </p>
+                </div>
+              </div>
+
+              {/* API Key Input */}
+              <div className="space-y-2">
+                <Label htmlFor="bolnaApiKey">
+                  {bolnaStatus.isConfigured ? "Update API Key" : "Bolna API Key"}
+                </Label>
+                <div className="flex gap-2">
+                  <div className="relative flex-1">
+                    <Input
+                      id="bolnaApiKey"
+                      type={showApiKey ? "text" : "password"}
+                      value={bolnaApiKey}
+                      onChange={(e) => setBolnaApiKey(e.target.value)}
+                      placeholder={bolnaStatus.isConfigured ? "Enter new API key to update" : "Enter your Bolna API key"}
+                      className="pr-10"
+                    />
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      className="absolute right-0 top-0 h-full px-3 hover:bg-transparent"
+                      onClick={() => setShowApiKey(!showApiKey)}
+                    >
+                      {showApiKey ? (
+                        <EyeOff className="h-4 w-4 text-muted-foreground" />
+                      ) : (
+                        <Eye className="h-4 w-4 text-muted-foreground" />
+                      )}
+                    </Button>
+                  </div>
+                  <Button
+                    onClick={handleSaveBolnaApiKey}
+                    disabled={savingBolna || !bolnaApiKey.trim()}
+                    className="bg-rose-600 hover:bg-rose-700"
+                  >
+                    {savingBolna ? (
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                    ) : (
+                      <Save className="h-4 w-4" />
+                    )}
+                    <span className="ml-2">{bolnaStatus.isConfigured ? "Update" : "Save"}</span>
+                  </Button>
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  Get your API key from{" "}
+                  <a
+                    href="https://bolna.dev"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-rose-600 hover:underline"
+                  >
+                    bolna.dev
+                  </a>
+                </p>
+              </div>
+
+              {/* Remove API Key */}
+              {bolnaStatus.isConfigured && (
+                <>
+                  <Separator />
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="font-medium text-sm">Remove Integration</p>
+                      <p className="text-xs text-muted-foreground">
+                        This will disconnect Bolna AI from your organization
+                      </p>
+                    </div>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={handleDeleteBolnaApiKey}
+                      disabled={savingBolna}
+                      className="text-red-600 hover:text-red-700 hover:bg-red-50"
+                    >
+                      {savingBolna ? <Loader2 className="h-4 w-4 animate-spin" /> : "Remove"}
+                    </Button>
+                  </div>
+                </>
+              )}
+
+              {/* Quick Links */}
+              {bolnaStatus.isConfigured && bolnaStatus.isValid && (
+                <>
+                  <Separator />
+                  <div className="space-y-2">
+                    <p className="font-medium text-sm">Quick Actions</p>
+                    <div className="flex gap-2">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => window.location.href = "/dashboard/org/voice-agents"}
+                        className="text-rose-600 border-rose-200 hover:bg-rose-50"
+                      >
+                        <Phone className="h-4 w-4 mr-2" />
+                        Manage Voice Agents
+                      </Button>
+                    </div>
+                  </div>
+                </>
+              )}
             </CardContent>
           </Card>
         </TabsContent>

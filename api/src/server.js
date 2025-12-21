@@ -16,6 +16,8 @@ const publicRoutes = require('./routes/public');
 const notificationRoutes = require('./routes/notification');
 const reminderRoutes = require('./routes/reminder');
 const paymentRoutes = require('./routes/payments');
+const adminRoutes = require('./routes/admin');
+const bolnaRoutes = require('./routes/bolna');
 
 const app = express();
 const PORT = process.env.PORT || 4000;
@@ -84,11 +86,13 @@ app.use('/sessions', sessionRoutes);
 app.use('/media', mediaRoutes);
 app.use('/organization', organizationRoutes);
 app.use('/public', publicRoutes); // Public organization discovery routes
+app.use('/admin', adminRoutes); // Admin routes
 app.use('/', appointmentRoutes); // Public routes
 app.use('/', bookingRoutes); // Booking routes (public + protected)
 app.use('/', paymentRoutes); // Payments and webhooks
 app.use('/notifications', notificationRoutes);
 app.use('/reminders', reminderRoutes); // Reminder routes for n8n scheduler
+app.use('/bolna', bolnaRoutes); // Bolna AI voice agent routes
 
 // 404 handler
 app.use((req, res) => {

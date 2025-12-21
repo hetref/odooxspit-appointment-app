@@ -7,6 +7,11 @@ const {
 } = require('../lib/auth');
 const { sendVerificationEmail } = require('../lib/mailer');
 
+// Admin emails list - these users get super admin access
+const ADMIN_EMAILS = [
+  "aryan@devally.in",
+];
+
 /**
  * Get current user profile
  */
@@ -74,6 +79,7 @@ async function getProfile(req, res) {
       razorpayConnected: Boolean(
         user.adminOrganization?.razorpayConnection || user.organization?.razorpayConnection
       ),
+      isAdmin: ADMIN_EMAILS.includes(user.email.toLowerCase()),
     };
 
     res.status(200).json({

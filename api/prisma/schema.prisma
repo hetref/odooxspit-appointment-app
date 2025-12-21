@@ -94,6 +94,9 @@ model Organization {
   resources          Resource[]
   members            User[]                          @relation("OrganizationMembers")
   razorpayConnection OrganizationRazorpayConnection?
+  bolnaApiKey        String?
+  bolnaAgents        BolnaAgent[]
+  bolnaCalls         BolnaCall[]
 
   @@index([adminId])
 }
@@ -264,4 +267,59 @@ model OrganizationRazorpayConnection {
   organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
 
   @@index([razorpayMerchantId])
+}
+
+model BolnaAgent {
+  id              String      @id @default(cuid())
+  organizationId  String
+  bolnaAgentId    String      @unique
+  name            String
+  welcomeMessage  String      @db.Text
+  instructions    String      @db.Text
+  language        String      @default("en")
+  voiceId         String?
+  isActive        Boolean     @default(true)
+  createdAt       DateTime    @default(now())
+  updatedAt       DateTime    @updatedAt
+
+  organization    Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  calls           BolnaCall[]
+
+  @@index([organizationId])
+}
+
+model BolnaCall {
+  id              String          @id @default(cuid())
+  organizationId  String
+  agentId         String
+  bolnaCallId     String?         @unique
+  recipientPhone  String
+  status          BolnaCallStatus @default(INITIATED)
+  duration        Int?
+  recordingUrl    String?
+  transcript      String?         @db.Text
+  errorMessage    String?
+  metadata        Json?
+  createdAt       DateTime        @default(now())
+  updatedAt       DateTime        @updatedAt
+  completedAt     DateTime?
+
+  organization    Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  agent           BolnaAgent   @relation(fields: [agentId], references: [id], onDelete: Cascade)
+
+  @@index([organizationId])
+  @@index([agentId])
+  @@index([status])
+  @@index([createdAt])
+}
+
+enum BolnaCallStatus {
+  INITIATED
+  RINGING
+  IN_PROGRESS
+  COMPLETED
+  FAILED
+  NO_ANSWER
+  BUSY
+  CANCELLED
 }

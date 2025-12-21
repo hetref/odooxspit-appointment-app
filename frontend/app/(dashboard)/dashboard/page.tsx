@@ -16,7 +16,6 @@ import { useUser } from "@/contexts/UserContext";
 import { authStorage } from "@/lib/auth";
 import { userApi } from "@/lib/api";
 import { User } from "@/lib/types";
-import Link from "next/link";
 import { Skeleton } from "@/components/ui/skeleton";
 
 export default function DashboardPage() {
@@ -48,8 +47,11 @@ export default function DashboardPage() {
                     authStorage.setUser(userData);
                     setError(null);
                     
-                    // Redirect based on user role
-                    if (userData.role === "ORGANIZATION") {
+                    // Redirect based on user role - check isAdmin first
+                    if (userData.isAdmin === true) {
+                        router.replace("/dashboard/admin");
+                        return;
+                    } else if (userData.role === "ORGANIZATION") {
                         router.replace("/dashboard/org");
                         return;
                     } else if (userData.role === "USER") {
@@ -62,8 +64,11 @@ export default function DashboardPage() {
                     if (cachedUser) {
                         setUser(cachedUser);
                         
-                        // Redirect based on cached user role
-                        if (cachedUser.role === "ORGANIZATION") {
+                        // Redirect based on cached user role - check isAdmin first
+                        if (cachedUser.isAdmin === true) {
+                            router.replace("/dashboard/admin");
+                            return;
+                        } else if (cachedUser.role === "ORGANIZATION") {
                             router.replace("/dashboard/org");
                             return;
                         } else if (cachedUser.role === "USER") {
@@ -82,8 +87,11 @@ export default function DashboardPage() {
                 if (cachedUser) {
                     setUser(cachedUser);
                     
-                    // Redirect based on cached user role
-                    if (cachedUser.role === "ORGANIZATION") {
+                    // Redirect based on cached user role - check isAdmin first
+                    if (cachedUser.isAdmin === true) {
+                        router.replace("/dashboard/admin");
+                        return;
+                    } else if (cachedUser.role === "ORGANIZATION") {
                         router.replace("/dashboard/org");
                         return;
                     } else if (cachedUser.role === "USER") {
@@ -102,8 +110,11 @@ export default function DashboardPage() {
             if (contextUser) {
                 setUser(contextUser);
                 
-                // Redirect based on context user role
-                if (contextUser.role === "ORGANIZATION") {
+                // Redirect based on context user role - check isAdmin first
+                if (contextUser.isAdmin === true) {
+                    router.replace("/dashboard/admin");
+                    return;
+                } else if (contextUser.role === "ORGANIZATION") {
                     router.replace("/dashboard/org");
                     return;
                 } else if (contextUser.role === "USER") {

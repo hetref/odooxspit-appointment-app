@@ -26,6 +26,7 @@ import {
   Home,
   CreditCard,
   Briefcase,
+  Phone,
 } from "lucide-react"
 import {
   Popover,
@@ -64,6 +65,7 @@ const navigationByRole = {
     { href: "/dashboard/org/all-appointments", label: "All Appointments", icon: CalendarCheck },
     { href: "/dashboard/org/resources", label: "Resources", icon: Briefcase },
     { href: "/dashboard/org/users", label: "Team", icon: Users },
+    { href: "/dashboard/org/voice-agents", label: "Voice Agents", icon: Phone },
     { href: "/dashboard/payments", label: "Payments", icon: CreditCard },
     { href: "/dashboard/org/settings", label: "Settings", icon: Settings },
   ],
@@ -71,11 +73,6 @@ const navigationByRole = {
     { href: "/dashboard/admin", label: "Admin Dashboard", icon: Home },
     { href: "/dashboard/admin/users", label: "User Management", icon: UserCog },
     { href: "/dashboard/admin/reports", label: "Reports & Analytics", icon: BarChart3 },
-    { href: "/dashboard/org/all-appointments", label: "Appointments", icon: CalendarCheck },
-    { href: "/dashboard/org/resources", label: "Resources", icon: Briefcase },
-    { href: "/dashboard/org/users", label: "Team", icon: Users },
-    { href: "/dashboard/payments", label: "Payments", icon: CreditCard },
-    { href: "/dashboard/org/settings", label: "Settings", icon: Settings },
   ],
 };
 
@@ -87,11 +84,7 @@ const getMobileNav = (role: UserRole) => {
     return [
       {
         name: "Administration",
-        items: items.slice(0, 3).map(item => ({ label: item.label, href: item.href })),
-      },
-      {
-        name: "Organization",
-        items: items.slice(3).map(item => ({ label: item.label, href: item.href })),
+        items: items.map(item => ({ label: item.label, href: item.href })),
       },
     ];
   }
