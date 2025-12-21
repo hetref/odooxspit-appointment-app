@@ -1,8 +1,6 @@
-# 📅 OdooXspit Appointment App
+# 📅 Book Now ~ Schedule Smarter, Work Better Together
 
 <div align="center">
-
-![OdooXspit Banner](./docs/images/banner.png)
 
 **A comprehensive, full-stack appointment booking and management system**
 
