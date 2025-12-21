@@ -36,7 +36,7 @@ interface Appointment {
     customQuestions?: Array<{
         id: string;
         question: string;
-        type: "TEXT" | "TEXTAREA" | "SELECT" | "RADIO";
+        type: "TEXT" | "TEXTAREA" | "SELECT" | "RADIO" | "CHECKBOX" | "text" | "textarea" | "select" | "radio" | "checkbox";
         options?: string[];
         required: boolean;
     }>;
