@@ -1,5 +1,5 @@
 const express = require('express');
-const { getUpcomingBookings, getBookingsInTimeWindow } = require('../controllers/reminderController');
+const { getUpcomingBookings, getBookingsInTimeWindow, sendWhatsAppReminders } = require('../controllers/reminderController');
 
 const router = express.Router();
 
@@ -17,5 +17,12 @@ router.get('/upcoming', getUpcomingBookings);
  * @access  Public (but should be protected with API key in production)
  */
 router.get('/time-window', getBookingsInTimeWindow);
+
+/**
+ * @route   POST /reminders/send-whatsapp
+ * @desc    Get upcoming bookings AND send WhatsApp reminders to all users
+ * @access  Public (but should be protected with API key in production)
+ */
+router.post('/send-whatsapp', sendWhatsAppReminders);
 
 module.exports = router;
