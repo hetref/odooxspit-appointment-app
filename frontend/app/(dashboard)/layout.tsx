@@ -74,6 +74,16 @@ export default function DashboardLayout({
 
         if (response.success && response.data?.user) {
           const userData = response.data.user;
+          
+          // Check for isAdmin cookie as fallback
+          const isAdminCookie = document.cookie
+            .split('; ')
+            .find(row => row.startsWith('isAdmin='))
+            ?.split('=')[1] === 'true';
+          
+          // Set isAdmin from response or cookie
+          userData.isAdmin = userData.isAdmin || isAdminCookie;
+          
           setUser(userData);
 
           // Update cached user data

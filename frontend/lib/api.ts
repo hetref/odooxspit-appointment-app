@@ -473,3 +473,93 @@ export const notificationApi = {
   deleteAllRead: (token: string) =>
     api.delete("/notifications/read", token),
 };
+
+// Admin API functions (requires admin privileges)
+export const adminApi = {
+  // Get admin dashboard statistics
+  getStats: (token: string): Promise<ApiResponse<{
+    totalUsers: number;
+    totalOrganizations: number;
+    totalAppointments: number;
+    totalBookings: number;
+    verifiedUsers: number;
+    activeUsers: number;
+    pendingAppointments: number;
+    confirmedAppointments: number;
+    completedAppointments: number;
+    cancelledAppointments: number;
+    revenueThisMonth: number;
+    recentBookings: number;
+  }>> => api.get("/admin/stats", token),
+
+  // Get all users with pagination and filters
+  getAllUsers: (token: string, params?: {
+    page?: number;
+    limit?: number;
+    role?: string;
+    search?: string;
+    status?: string;
+  }): Promise<ApiResponse<{
+    users: Array<{
+      id: string;
+      name: string;
+      email: string;
+      role: "USER" | "ORGANIZATION";
+      emailVerified: boolean;
+      isActive: boolean;
+      isMember?: boolean;
+      createdAt: string;
+      updatedAt: string;
+      organization?: { id: string; name: string };
+    }>;
+    pagination: {
+      page: number;
+      limit: number;
+      total: number;
+      totalPages: number;
+    };
+  }>> => {
+    const queryParams = new URLSearchParams();
+    if (params?.page) queryParams.append("page", params.page.toString());
+    if (params?.limit) queryParams.append("limit", params.limit.toString());
+    if (params?.role) queryParams.append("role", params.role);
+    if (params?.search) queryParams.append("search", params.search);
+    if (params?.status) queryParams.append("status", params.status);
+
+    const endpoint = `/admin/users${queryParams.toString() ? `?${queryParams.toString()}` : ""}`;
+    return api.get(endpoint, token);
+  },
+
+  // Get reports and analytics data
+  getReports: (token: string, days?: number): Promise<ApiResponse<{
+    totalAppointments: number;
+    completedAppointments: number;
+    cancelledAppointments: number;
+    totalRevenue: number;
+    averageBookingValue: number;
+    peakHours: Array<{ hour: string; count: number }>;
+    providerUtilization: Array<{ name: string; percentage: number; bookings: number }>;
+    monthlyTrends: Array<{ month: string; appointments: number }>;
+  }>> => {
+    const endpoint = days ? `/admin/reports?days=${days}` : "/admin/reports";
+    return api.get(endpoint, token);
+  },
+
+  // Get recent activity
+  getRecentActivity: (token: string, limit?: number): Promise<ApiResponse<{
+    activities: Array<{
+      type: string;
+      icon: string;
+      text: string;
+      time: string;
+      color: string;
+    }>;
+  }>> => {
+    const endpoint = limit ? `/admin/activity?limit=${limit}` : "/admin/activity";
+    return api.get(endpoint, token);
+  },
+
+  // Delete a user by ID
+  deleteUser: (token: string, userId: string): Promise<ApiResponse<void>> =>
+    api.delete(`/admin/users/${userId}`, token),
+};

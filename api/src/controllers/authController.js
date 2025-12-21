@@ -35,6 +35,11 @@ const COOKIE_OPTIONS = {
   maxAge: 30 * 24 * 60 * 60 * 1000, // 30 days
 };
 
+// Admin emails list - these users get super admin access
+const ADMIN_EMAILS = [
+  "aryan@devally.in",
+];
+
 /**
  * Register a new user
  */
@@ -344,10 +349,22 @@ async function login(req, res) {
       organizationName: userData.isMember
         ? userData.organization?.name
         : userData.adminOrganization?.name,
+      isAdmin: ADMIN_EMAILS.includes(user.email.toLowerCase()),
     };
 
     // Set refresh token in cookie
     res.cookie("refreshToken", refreshToken, COOKIE_OPTIONS);
+
+    // Set isAdmin cookie if user is an admin (non-httpOnly so frontend can read it)
+    if (ADMIN_EMAILS.includes(user.email.toLowerCase())) {
+      res.cookie("isAdmin", "true", {
+        ...COOKIE_OPTIONS,
+        httpOnly: false, // Allow frontend to read this cookie
+      });
+    } else {
+      // Clear isAdmin cookie if not admin
+      res.clearCookie("isAdmin");
+    }
 
     res.status(200).json({
       success: true,
@@ -467,8 +484,9 @@ async function logout(req, res) {
       await revokeRefreshToken(refreshToken);
     }
 
-    // Clear cookie
+    // Clear cookies
     res.clearCookie("refreshToken");
+    res.clearCookie("isAdmin");
 
     res.status(200).json({
       success: true,
