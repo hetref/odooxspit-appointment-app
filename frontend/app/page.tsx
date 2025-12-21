@@ -92,13 +92,13 @@ export default function Home() {
           <div className="flex flex-col sm:flex-row items-center justify-center gap-4 animate-in fade-in slide-in-from-bottom-4 duration-1000 delay-300">
             <Link href="/register">
               <Button size="lg" className="w-full sm:w-auto text-base px-8 py-6 font-semibold shadow-lg hover:shadow-xl transition-all hover:scale-105">
-                Start Free Trial
+                Get Started
                 <ArrowRight className="ml-2 size-5" />
               </Button>
             </Link>
-            <Link href="/login">
+            <Link href="/search">
               <Button size="lg" variant="outline" className="w-full sm:w-auto text-base px-8 py-6 font-semibold border-2 hover:bg-accent">
-                Sign In
+                <Calendar />Book Appointments
               </Button>
             </Link>
           </div>

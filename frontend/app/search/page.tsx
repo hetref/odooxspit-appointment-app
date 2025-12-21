@@ -79,7 +79,7 @@ export default function SearchPage() {
                 <div className="container mx-auto px-4 py-4 flex items-center justify-between">
                     <Link href="/" className="flex items-center gap-2">
                         <Calendar className="h-6 w-6 text-primary" />
-                        <span className="text-xl font-bold">BookingApp</span>
+                        <span className="text-xl font-bold">BookNow</span>
                     </Link>
                     <div className="flex items-center gap-3">
                         <Button variant="ghost" asChild>
@@ -241,7 +241,7 @@ export default function SearchPage() {
             {/* Footer */}
             <footer className="border-t bg-muted/30 py-8">
                 <div className="container mx-auto px-4 text-center text-sm text-muted-foreground">
-                    <p>&copy; {new Date().getFullYear()} BookingApp. All rights reserved.</p>
+                    <p>&copy; {new Date().getFullYear()} BookNow. All rights reserved.</p>
                 </div>
             </footer>
         </div>
