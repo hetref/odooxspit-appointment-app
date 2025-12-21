@@ -37,10 +37,37 @@ import {
     Mail,
     Phone,
     FileText,
+    ArrowUpDown,
+    ArrowUp,
+    ArrowDown,
+    Filter,
+    X,
 } from "lucide-react";
 import { format } from "date-fns";
 import { bookingApi } from "@/lib/api";
 import { authStorage } from "@/lib/auth";
+import {
+    Select,
+    SelectContent,
+    SelectItem,
+    SelectTrigger,
+    SelectValue,
+} from "@/components/ui/select";
+import {
+    Popover,
+    PopoverContent,
+    PopoverTrigger,
+} from "@/components/ui/popover";
+
+type SortField = "date" | "customer" | "appointment" | "status";
+type SortDirection = "asc" | "desc";
+
+interface FilterState {
+    bookingStatus: string;
+    paymentStatus: string;
+    dateFrom: string;
+    dateTo: string;
+}
 
 interface Booking {
     id: string;
@@ -110,6 +137,19 @@ export default function OrganizationAppointmentsList() {
     const [selectedBooking, setSelectedBooking] = React.useState<Booking | null>(null);
     const [isDialogOpen, setIsDialogOpen] = React.useState(false);
     const [cancellingBookingId, setCancellingBookingId] = React.useState<string | null>(null);
+    
+    // Sorting state
+    const [sortField, setSortField] = React.useState<SortField>("date");
+    const [sortDirection, setSortDirection] = React.useState<SortDirection>("desc");
+    
+    // Filtering state
+    const [filters, setFilters] = React.useState<FilterState>({
+        bookingStatus: "all",
+        paymentStatus: "all",
+        dateFrom: "",
+        dateTo: "",
+    });
+    const [showFilters, setShowFilters] = React.useState(false);
 
     React.useEffect(() => {
         fetchBookings();
@@ -143,6 +183,95 @@ export default function OrganizationAppointmentsList() {
         booking.user.email.toLowerCase().includes(searchQuery.toLowerCase()) ||
         booking.appointment.title.toLowerCase().includes(searchQuery.toLowerCase())
     );
+
+    // Apply filters
+    const filteredAndFilteredBookings = filteredBookings.filter((booking) => {
+        // Booking status filter
+        if (filters.bookingStatus !== "all" && booking.bookingStatus !== filters.bookingStatus) {
+            return false;
+        }
+        
+        // Payment status filter
+        if (filters.paymentStatus !== "all" && booking.paymentStatus !== filters.paymentStatus) {
+            return false;
+        }
+        
+        // Date range filter
+        const bookingDate = new Date(booking.startTime);
+        if (filters.dateFrom) {
+            const fromDate = new Date(filters.dateFrom);
+            if (bookingDate < fromDate) return false;
+        }
+        if (filters.dateTo) {
+            const toDate = new Date(filters.dateTo);
+            toDate.setHours(23, 59, 59, 999); // End of day
+            if (bookingDate > toDate) return false;
+        }
+        
+        return true;
+    });
+
+    // Apply sorting
+    const sortedBookings = [...filteredAndFilteredBookings].sort((a, b) => {
+        let comparison = 0;
+        
+        switch (sortField) {
+            case "date":
+                comparison = new Date(a.startTime).getTime() - new Date(b.startTime).getTime();
+                break;
+            case "customer":
+                comparison = a.user.name.localeCompare(b.user.name);
+                break;
+            case "appointment":
+                comparison = a.appointment.title.localeCompare(b.appointment.title);
+                break;
+            case "status":
+                comparison = a.bookingStatus.localeCompare(b.bookingStatus);
+                break;
+        }
+        
+        return sortDirection === "asc" ? comparison : -comparison;
+    });
+
+    const handleSort = (field: SortField) => {
+        if (sortField === field) {
+            setSortDirection(sortDirection === "asc" ? "desc" : "asc");
+        } else {
+            setSortField(field);
+            setSortDirection("asc");
+        }
+    };
+
+    const handleFilterChange = (key: keyof FilterState, value: string) => {
+        setFilters((prev) => ({ ...prev, [key]: value }));
+    };
+
+    const clearFilters = () => {
+        setFilters({
+            bookingStatus: "all",
+            paymentStatus: "all",
+            dateFrom: "",
+            dateTo: "",
+        });
+    };
+
+    const activeFiltersCount = Object.entries(filters).filter(([key, value]) => {
+        if (key === "bookingStatus" || key === "paymentStatus") {
+            return value !== "all";
+        }
+        return value !== "";
+    }).length;
+
+    const SortIcon = ({ field }: { field: SortField }) => {
+        if (sortField !== field) {
+            return <ArrowUpDown className="w-4 h-4 ml-1 opacity-50" />;
+        }
+        return sortDirection === "asc" ? (
+            <ArrowUp className="w-4 h-4 ml-1" />
+        ) : (
+            <ArrowDown className="w-4 h-4 ml-1" />
+        );
+    };
 
     const stats = {
         total: bookings.length,
@@ -278,18 +407,115 @@ export default function OrganizationAppointmentsList() {
                 </Card>
             </div>
 
-            {/* Search */}
+            {/* Search and Filters */}
             <Card>
-                <CardHeader>
-                    <div className="relative">
-                        <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-                        <Input
-                            placeholder="Search bookings by customer name, email, or appointment..."
-                            value={searchQuery}
-                            onChange={(e) => setSearchQuery(e.target.value)}
-                            className="pl-10"
-                        />
+                <CardHeader className="space-y-4">
+                    <div className="flex flex-col sm:flex-row gap-3">
+                        <div className="relative flex-1">
+                            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                            <Input
+                                placeholder="Search bookings by customer name, email, or appointment..."
+                                value={searchQuery}
+                                onChange={(e) => setSearchQuery(e.target.value)}
+                                className="pl-10"
+                            />
+                        </div>
+                        <Button
+                            variant={showFilters ? "default" : "outline"}
+                            onClick={() => setShowFilters(!showFilters)}
+                            className="gap-2"
+                        >
+                            <Filter className="w-4 h-4" />
+                            Filters
+                            {activeFiltersCount > 0 && (
+                                <Badge variant="secondary" className="ml-1 px-1.5 py-0.5 text-xs">
+                                    {activeFiltersCount}
+                                </Badge>
+                            )}
+                        </Button>
                     </div>
+
+                    {/* Filter Panel */}
+                    {showFilters && (
+                        <div className="border-t pt-4 space-y-4">
+                            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                                {/* Booking Status Filter */}
+                                <div className="space-y-2">
+                                    <label className="text-sm font-medium">Booking Status</label>
+                                    <Select
+                                        value={filters.bookingStatus}
+                                        onValueChange={(value) => handleFilterChange("bookingStatus", value)}
+                                    >
+                                        <SelectTrigger>
+                                            <SelectValue placeholder="All statuses" />
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                            <SelectItem value="all">All Statuses</SelectItem>
+                                            <SelectItem value="PENDING">Pending</SelectItem>
+                                            <SelectItem value="CONFIRMED">Confirmed</SelectItem>
+                                            <SelectItem value="COMPLETED">Completed</SelectItem>
+                                            <SelectItem value="CANCELLED">Cancelled</SelectItem>
+                                        </SelectContent>
+                                    </Select>
+                                </div>
+
+                                {/* Payment Status Filter */}
+                                <div className="space-y-2">
+                                    <label className="text-sm font-medium">Payment Status</label>
+                                    <Select
+                                        value={filters.paymentStatus}
+                                        onValueChange={(value) => handleFilterChange("paymentStatus", value)}
+                                    >
+                                        <SelectTrigger>
+                                            <SelectValue placeholder="All payments" />
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                            <SelectItem value="all">All Payments</SelectItem>
+                                            <SelectItem value="PENDING">Pending</SelectItem>
+                                            <SelectItem value="PAID">Paid</SelectItem>
+                                            <SelectItem value="FAILED">Failed</SelectItem>
+                                            <SelectItem value="REFUNDED">Refunded</SelectItem>
+                                        </SelectContent>
+                                    </Select>
+                                </div>
+
+                                {/* Date From Filter */}
+                                <div className="space-y-2">
+                                    <label className="text-sm font-medium">From Date</label>
+                                    <Input
+                                        type="date"
+                                        value={filters.dateFrom}
+                                        onChange={(e) => handleFilterChange("dateFrom", e.target.value)}
+                                    />
+                                </div>
+
+                                {/* Date To Filter */}
+                                <div className="space-y-2">
+                                    <label className="text-sm font-medium">To Date</label>
+                                    <Input
+                                        type="date"
+                                        value={filters.dateTo}
+                                        onChange={(e) => handleFilterChange("dateTo", e.target.value)}
+                                    />
+                                </div>
+                            </div>
+
+                            {/* Clear Filters Button */}
+                            {activeFiltersCount > 0 && (
+                                <div className="flex justify-end">
+                                    <Button
+                                        variant="ghost"
+                                        size="sm"
+                                        onClick={clearFilters}
+                                        className="gap-2"
+                                    >
+                                        <X className="w-4 h-4" />
+                                        Clear Filters
+                                    </Button>
+                                </div>
+                            )}
+                        </div>
+                    )}
                 </CardHeader>
             </Card>
 
@@ -303,6 +529,23 @@ export default function OrganizationAppointmentsList() {
                 </div>
             )}
 
+            {/* Results Count */}
+            {!error && (
+                <div className="flex items-center justify-between text-sm text-muted-foreground">
+                    <p>
+                        Showing <span className="font-medium text-foreground">{sortedBookings.length}</span> of{" "}
+                        <span className="font-medium text-foreground">{bookings.length}</span> bookings
+                    </p>
+                    {(searchQuery || activeFiltersCount > 0) && (
+                        <p className="text-xs">
+                            {searchQuery && `Search: "${searchQuery}"`}
+                            {searchQuery && activeFiltersCount > 0 && " • "}
+                            {activeFiltersCount > 0 && `${activeFiltersCount} filter${activeFiltersCount > 1 ? "s" : ""} active`}
+                        </p>
+                    )}
+                </div>
+            )}
+
             {/* Bookings Table */}
             <Card>
                 <CardContent className="p-0">
@@ -310,17 +553,49 @@ export default function OrganizationAppointmentsList() {
                         <Table>
                             <TableHeader>
                                 <TableRow>
-                                    <TableHead>Customer</TableHead>
-                                    <TableHead>Appointment</TableHead>
-                                    <TableHead>Date & Time</TableHead>
+                                    <TableHead>
+                                        <button
+                                            onClick={() => handleSort("customer")}
+                                            className="flex items-center hover:text-foreground transition-colors"
+                                        >
+                                            Customer
+                                            <SortIcon field="customer" />
+                                        </button>
+                                    </TableHead>
+                                    <TableHead>
+                                        <button
+                                            onClick={() => handleSort("appointment")}
+                                            className="flex items-center hover:text-foreground transition-colors"
+                                        >
+                                            Appointment
+                                            <SortIcon field="appointment" />
+                                        </button>
+                                    </TableHead>
+                                    <TableHead>
+                                        <button
+                                            onClick={() => handleSort("date")}
+                                            className="flex items-center hover:text-foreground transition-colors"
+                                        >
+                                            Date & Time
+                                            <SortIcon field="date" />
+                                        </button>
+                                    </TableHead>
                                     <TableHead>Provider/Resource</TableHead>
-                                    <TableHead>Status</TableHead>
+                                    <TableHead>
+                                        <button
+                                            onClick={() => handleSort("status")}
+                                            className="flex items-center hover:text-foreground transition-colors"
+                                        >
+                                            Status
+                                            <SortIcon field="status" />
+                                        </button>
+                                    </TableHead>
                                     <TableHead>Payment</TableHead>
                                 </TableRow>
                             </TableHeader>
                             <TableBody>
-                                {filteredBookings.length > 0 ? (
-                                    filteredBookings.map((booking) => (
+                                {sortedBookings.length > 0 ? (
+                                    sortedBookings.map((booking) => (
                                         <TableRow
                                             key={booking.id}
                                             className="cursor-pointer hover:bg-muted/50 transition-colors"
@@ -386,7 +661,7 @@ export default function OrganizationAppointmentsList() {
                                                             className={getPaymentStatusColor(booking.paymentStatus)}
                                                             variant="secondary"
                                                         >
-                                                            {booking.paymentStatus}
+                                                            FREE
                                                         </Badge>
                                                     )}
                                                     {booking.totalAmount > 0 && (

@@ -56,7 +56,7 @@ const navigationByRole = {
   customer: [
     { href: "/dashboard", label: "Home", icon: Home },
     { href: "/dashboard/user/appointments", label: "My Appointments", icon: CalendarCheck },
-    { href: "/dashboard/user/appointments/book", label: "Book Appointment", icon: Calendar },
+    { href: "/search", label: "Book Appointments", icon: Calendar },
   ],
   organizer: [
     { href: "/dashboard", label: "Dashboard", icon: Home },

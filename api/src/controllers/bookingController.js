@@ -885,7 +885,12 @@ const getOrganizationBookings = async (req, res) => {
 
         // Check if user is organization admin or member
         let organizationId;
-        if (user.role === "ORGANIZATION") {
+        
+        // Check member first (members also have role === "ORGANIZATION")
+        if (user.isMember && user.organizationId) {
+            organizationId = user.organizationId;
+        } else if (user.role === "ORGANIZATION") {
+            // For admins, look up organization by adminId
             const org = await prisma.organization.findUnique({
                 where: { adminId: user.id },
             });
@@ -896,8 +901,6 @@ const getOrganizationBookings = async (req, res) => {
                 });
             }
             organizationId = org.id;
-        } else if (user.isMember && user.organizationId) {
-            organizationId = user.organizationId;
         } else {
             return res.status(403).json({
                 success: false,

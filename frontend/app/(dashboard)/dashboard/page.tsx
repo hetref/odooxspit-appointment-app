@@ -270,55 +270,73 @@ export default function DashboardPage() {
                     <div className="space-y-4">
                         {user.role === "ORGANIZATION" ? (
                             <>
-                                {user.adminOrganization ? (
-                                    <>
-                                        <div>
-                                            <label className="text-sm font-medium text-muted-foreground">
-                                                Organization Name
-                                            </label>
-                                            <p className="text-base font-medium">
-                                                {user.adminOrganization.name}
-                                            </p>
-                                        </div>
-
-                                        <div>
-                                            <label className="text-sm font-medium text-muted-foreground flex items-center gap-2">
-                                                <MapPin className="size-4" />
-                                                Location
-                                            </label>
-                                            <p className="text-base">
-                                                {user.adminOrganization.location}
-                                            </p>
-                                        </div>
-
-                                        {user.adminOrganization.description && (
-                                            <div>
-                                                <label className="text-sm font-medium text-muted-foreground">
-                                                    Description
-                                                </label>
-                                                <p className="text-base">
-                                                    {user.adminOrganization.description}
+                                {/* Show organization details for both admins and members */}
+                                {(() => {
+                                    const org = user.adminOrganization || user.organization;
+                                    
+                                    if (!org) {
+                                        return (
+                                            <div className="text-center py-8">
+                                                <Building2 className="size-12 mx-auto mb-3 text-muted-foreground" />
+                                                <p className="text-muted-foreground">
+                                                    No organization details available
                                                 </p>
                                             </div>
-                                        )}
+                                        );
+                                    }
 
-                                        <div>
-                                            <label className="text-sm font-medium text-muted-foreground">
-                                                Organization ID
-                                            </label>
-                                            <p className="text-sm font-mono bg-muted px-2 py-1 rounded">
-                                                {user.adminOrganization.id}
-                                            </p>
-                                        </div>
-                                    </>
-                                ) : (
-                                    <div className="text-center py-8">
-                                        <Building2 className="size-12 mx-auto mb-3 text-muted-foreground" />
-                                        <p className="text-muted-foreground">
-                                            No organization details available
-                                        </p>
-                                    </div>
-                                )}
+                                    return (
+                                        <>
+                                            <div>
+                                                <label className="text-sm font-medium text-muted-foreground">
+                                                    Organization Name
+                                                </label>
+                                                <p className="text-base font-medium">
+                                                    {org.name}
+                                                </p>
+                                            </div>
+
+                                            <div>
+                                                <label className="text-sm font-medium text-muted-foreground flex items-center gap-2">
+                                                    <MapPin className="size-4" />
+                                                    Location
+                                                </label>
+                                                <p className="text-base">
+                                                    {org.location}
+                                                </p>
+                                            </div>
+
+                                            {org.description && (
+                                                <div>
+                                                    <label className="text-sm font-medium text-muted-foreground">
+                                                        Description
+                                                    </label>
+                                                    <p className="text-base">
+                                                        {org.description}
+                                                    </p>
+                                                </div>
+                                            )}
+
+                                            <div>
+                                                <label className="text-sm font-medium text-muted-foreground">
+                                                    Role
+                                                </label>
+                                                <p className="text-base">
+                                                    {user.isMember ? "Organization Member" : "Organization Admin"}
+                                                </p>
+                                            </div>
+
+                                            <div>
+                                                <label className="text-sm font-medium text-muted-foreground">
+                                                    Organization ID
+                                                </label>
+                                                <p className="text-sm font-mono bg-muted px-2 py-1 rounded">
+                                                    {org.id}
+                                                </p>
+                                            </div>
+                                        </>
+                                    );
+                                })()}
                             </>
                         ) : (
                             <>

@@ -283,7 +283,7 @@ export default function OrganizationPage() {
 
                                         <div className="pt-3 border-t">
                                             <Button className="w-full group-hover:bg-primary group-hover:text-primary-foreground transition-colors">
-                                                Book Now
+                                                BookNow
                                             </Button>
                                         </div>
 
@@ -301,7 +301,7 @@ export default function OrganizationPage() {
             {/* Footer */}
             <footer className="border-t bg-muted/30 py-8 mt-12">
                 <div className="container mx-auto px-4 text-center text-sm text-muted-foreground">
-                    <p>&copy; {new Date().getFullYear()} BookingApp. All rights reserved.</p>
+                    <p>&copy; {new Date().getFullYear()} BookNow. All rights reserved.</p>
                 </div>
             </footer>
         </div>
