@@ -14,27 +14,39 @@ import {
   XCircle,
 } from "lucide-react";
 import { authStorage } from "@/lib/auth";
+import { adminApi } from "@/lib/api";
 
 interface AdminStats {
   totalUsers: number;
   totalOrganizations: number;
   totalAppointments: number;
+  totalBookings: number;
   activeUsers: number;
   pendingAppointments: number;
   completedAppointments: number;
+  cancelledAppointments: number;
   revenueThisMonth: number;
+}
+
+interface ActivityItem {
+  type: string;
+  icon: string;
+  text: string;
+  time: string;
+  color: string;
 }
 
 export default function AdminDashboard() {
   const [stats, setStats] = useState<AdminStats | null>(null);
+  const [activities, setActivities] = useState<ActivityItem[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    fetchAdminStats();
+    fetchAdminData();
   }, []);
 
-  const fetchAdminStats = async () => {
+  const fetchAdminData = async () => {
     try {
       setIsLoading(true);
       setError(null);
@@ -45,26 +57,36 @@ export default function AdminDashboard() {
         return;
       }
 
-      // TODO: Replace with actual API call
-      // const response = await adminApi.getStats(accessToken);
-      
-      // Mock data for now
-      setTimeout(() => {
-        setStats({
-          totalUsers: 1247,
-          totalOrganizations: 89,
-          totalAppointments: 3456,
-          activeUsers: 892,
-          pendingAppointments: 145,
-          completedAppointments: 2891,
-          revenueThisMonth: 45670,
-        });
-        setIsLoading(false);
-      }, 1000);
+      // Fetch stats and activity in parallel
+      const [statsResponse, activityResponse] = await Promise.all([
+        adminApi.getStats(accessToken),
+        adminApi.getRecentActivity(accessToken, 10),
+      ]);
+
+      if (statsResponse.success && statsResponse.data) {
+        setStats(statsResponse.data);
+      } else {
+        setError(statsResponse.message || "Failed to load statistics");
+      }
+
+      if (activityResponse.success && activityResponse.data) {
+        setActivities(activityResponse.data.activities);
+      }
     } catch (err: any) {
-      console.error("Fetch admin stats error:", err);
-      setError(err.message || "Failed to load statistics");
+      console.error("Fetch admin data error:", err);
+      setError(err.message || "Failed to load admin data");
+    } finally {
       setIsLoading(false);
+    }
+  };
+
+  const getActivityIcon = (iconName: string) => {
+    switch (iconName) {
+      case 'Users': return Users;
+      case 'Calendar': return Calendar;
+      case 'Building2': return Building2;
+      case 'CheckCircle2': return CheckCircle2;
+      default: return Activity;
     }
   };
 
@@ -120,7 +142,7 @@ export default function AdminDashboard() {
             <h3 className="text-lg font-semibold mb-2">Failed to Load Statistics</h3>
             <p className="text-muted-foreground mb-4">{error}</p>
             <button
-              onClick={fetchAdminStats}
+              onClick={fetchAdminData}
               className="px-4 py-2 bg-primary text-primary-foreground rounded-md hover:bg-primary/90"
             >
               Try Again
@@ -166,7 +188,7 @@ export default function AdminDashboard() {
         <Card className="hover:shadow-md transition-all duration-200 hover:scale-[1.02]">
           <CardHeader className="flex flex-row items-center justify-between pb-2">
             <CardTitle className="text-sm font-medium text-muted-foreground">
-              Active Users
+              New Users (30d)
             </CardTitle>
             <TrendingUp className="h-4 w-4 text-green-600" />
           </CardHeader>
@@ -175,7 +197,7 @@ export default function AdminDashboard() {
               {stats?.activeUsers.toLocaleString()}
             </div>
             <p className="text-xs text-muted-foreground mt-1">
-              Currently active
+              Joined last 30 days
             </p>
           </CardContent>
         </Card>
@@ -196,17 +218,17 @@ export default function AdminDashboard() {
           </CardContent>
         </Card>
 
-        {/* Total Appointments */}
+        {/* Total Bookings */}
         <Card className="hover:shadow-md transition-all duration-200 hover:scale-[1.02]">
           <CardHeader className="flex flex-row items-center justify-between pb-2">
             <CardTitle className="text-sm font-medium text-muted-foreground">
-              Total Appointments
+              Total Bookings
             </CardTitle>
             <Calendar className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">
-              {stats?.totalAppointments.toLocaleString()}
+              {stats?.totalBookings.toLocaleString()}
             </div>
             <p className="text-xs text-muted-foreground mt-1">
               All bookings
@@ -214,7 +236,7 @@ export default function AdminDashboard() {
           </CardContent>
         </Card>
 
-        {/* Pending Appointments */}
+        {/* Pending */}
         <Card className="hover:shadow-md transition-all duration-200 hover:scale-[1.02]">
           <CardHeader className="flex flex-row items-center justify-between pb-2">
             <CardTitle className="text-sm font-medium text-muted-foreground">
@@ -232,7 +254,7 @@ export default function AdminDashboard() {
           </CardContent>
         </Card>
 
-        {/* Completed Appointments */}
+        {/* Completed */}
         <Card className="hover:shadow-md transition-all duration-200 hover:scale-[1.02]">
           <CardHeader className="flex flex-row items-center justify-between pb-2">
             <CardTitle className="text-sm font-medium text-muted-foreground">
@@ -260,7 +282,7 @@ export default function AdminDashboard() {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold text-primary">
-              ${stats?.revenueThisMonth.toLocaleString()}
+              ₹{stats?.revenueThisMonth.toLocaleString()}
             </div>
             <p className="text-xs text-muted-foreground mt-1">
               Total earnings this month
@@ -275,44 +297,26 @@ export default function AdminDashboard() {
           <CardTitle>Recent Activity</CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="space-y-4">
-            {[
-              {
-                icon: Users,
-                text: "New user registered",
-                time: "2 minutes ago",
-                color: "text-blue-600",
-              },
-              {
-                icon: Calendar,
-                text: "New appointment booked",
-                time: "5 minutes ago",
-                color: "text-green-600",
-              },
-              {
-                icon: Building2,
-                text: "New organization registered",
-                time: "15 minutes ago",
-                color: "text-purple-600",
-              },
-              {
-                icon: CheckCircle2,
-                text: "Appointment completed",
-                time: "1 hour ago",
-                color: "text-green-600",
-              },
-            ].map((activity, i) => (
-              <div key={i} className="flex items-center gap-4 pb-4 border-b last:border-0 last:pb-0 hover:bg-accent/50 -mx-2 px-2 py-2 rounded-lg transition-colors duration-200 cursor-pointer">
-                <div className={`p-2 rounded-lg bg-muted`}>
-                  <activity.icon className={`h-4 w-4 ${activity.color}`} />
-                </div>
-                <div className="flex-1">
-                  <p className="text-sm font-medium">{activity.text}</p>
-                  <p className="text-xs text-muted-foreground">{activity.time}</p>
-                </div>
-              </div>
-            ))}
-          </div>
+          {activities.length === 0 ? (
+            <p className="text-muted-foreground text-center py-8">No recent activity</p>
+          ) : (
+            <div className="space-y-4">
+              {activities.map((activity, i) => {
+                const IconComponent = getActivityIcon(activity.icon);
+                return (
+                  <div key={i} className="flex items-center gap-4 pb-4 border-b last:border-0 last:pb-0 hover:bg-accent/50 -mx-2 px-2 py-2 rounded-lg transition-colors duration-200 cursor-pointer">
+                    <div className="p-2 rounded-lg bg-muted">
+                      <IconComponent className={`h-4 w-4 ${activity.color}`} />
+                    </div>
+                    <div className="flex-1">
+                      <p className="text-sm font-medium">{activity.text}</p>
+                      <p className="text-xs text-muted-foreground">{activity.time}</p>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
         </CardContent>
       </Card>
     </div>

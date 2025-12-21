@@ -13,6 +13,8 @@ export interface User {
   adminOrganization?: Organization;
   // Computed on backend: whether this user's organization has a Razorpay connection
   razorpayConnected?: boolean;
+  // Super admin flag - set for specific admin emails
+  isAdmin?: boolean;
 }
 
 export interface Organization {
