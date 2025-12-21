@@ -1,6 +1,12 @@
 const prisma = require('../lib/prisma');
 const crypto = require('crypto');
 const { notifyOrganizationMembers } = require('../lib/notificationHelper');
+const {
+    emitAppointmentCreated,
+    emitAppointmentUpdated,
+    emitAppointmentPublished,
+    emitAppointmentUnpublished,
+} = require('../socket');
 
 // Generate secret link for unpublished appointments
 const generateSecretLink = () => {
@@ -27,6 +33,7 @@ async function createAppointment(req, res) {
             questions,
             allowedUserIds,
             allowedResourceIds,
+            location,
         } = req.body;
 
         // Fetch user with organization
@@ -204,6 +211,7 @@ async function createAppointment(req, res) {
                 questions,
                 introMessage: req.body.introMessage || null,
                 confirmationMessage: req.body.confirmationMessage || null,
+                location: location || null,
                 organizationId,
                 allowedUsers: bookType === 'USER' ? { connect: allowedUserIds.map((id) => ({ id })) } : undefined,
                 allowedResources:
@@ -237,6 +245,9 @@ async function createAppointment(req, res) {
             relatedType: 'appointment',
             actionUrl: `/dashboard/org/appointments`,
         });
+
+        // Emit socket event for real-time update
+        emitAppointmentCreated(organizationId, appointment);
 
         res.status(201).json({
             success: true,
@@ -508,6 +519,22 @@ async function publishAppointment(req, res) {
             actionUrl: `/dashboard/org/appointments`,
         });
 
+        // Fetch full appointment data for socket emit
+        const publishedAppointment = await prisma.appointment.findUnique({
+            where: { id },
+            include: {
+                allowedUsers: {
+                    select: { id: true, name: true, email: true },
+                },
+                allowedResources: {
+                    select: { id: true, name: true, capacity: true },
+                },
+            },
+        });
+
+        // Emit socket event for real-time update
+        emitAppointmentPublished(user.adminOrganization.id, publishedAppointment);
+
         res.json({
             success: true,
             message: 'Appointment published successfully.',
@@ -561,6 +588,9 @@ async function unpublishAppointment(req, res) {
                 isPublished: false,
             },
         });
+
+        // Emit socket event for real-time update
+        emitAppointmentUnpublished(user.adminOrganization.id, appointment.id);
 
         res.json({
             success: true,
@@ -666,7 +696,8 @@ async function updateAppointment(req, res) {
             confirmationMessage,
             allowedUserIds,
             allowedResourceIds,
-        } = req.body;
+            location,
+            assignmentType } = req.body;
 
         const user = await prisma.user.findUnique({
             where: { id: userId },
@@ -705,6 +736,8 @@ async function updateAppointment(req, res) {
         if (questions) updateData.questions = questions;
         if (introMessage !== undefined) updateData.introMessage = introMessage;
         if (confirmationMessage !== undefined) updateData.confirmationMessage = confirmationMessage;
+        if (location !== undefined) updateData.location = location;
+        if (assignmentType) updateData.assignmentType = assignmentType;
 
         // Handle user/resource updates
         if (allowedUserIds && appointment.bookType === 'USER') {
@@ -749,6 +782,9 @@ async function updateAppointment(req, res) {
             relatedType: 'appointment',
             actionUrl: `/dashboard/org/appointments`,
         });
+
+        // Emit socket event for real-time update
+        emitAppointmentUpdated(user.adminOrganization.id, updatedAppointment);
 
         res.json({
             success: true,

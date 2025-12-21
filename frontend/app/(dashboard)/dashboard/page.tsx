@@ -16,7 +16,6 @@ import { useUser } from "@/contexts/UserContext";
 import { authStorage } from "@/lib/auth";
 import { userApi } from "@/lib/api";
 import { User } from "@/lib/types";
-import Link from "next/link";
 import { Skeleton } from "@/components/ui/skeleton";
 
 export default function DashboardPage() {
@@ -47,11 +46,35 @@ export default function DashboardPage() {
                     // Update cached user data
                     authStorage.setUser(userData);
                     setError(null);
+                    
+                    // Redirect based on user role - check isAdmin first
+                    if (userData.isAdmin === true) {
+                        router.replace("/dashboard/admin");
+                        return;
+                    } else if (userData.role === "ORGANIZATION") {
+                        router.replace("/dashboard/org");
+                        return;
+                    } else if (userData.role === "USER") {
+                        router.replace("/dashboard/user");
+                        return;
+                    }
                 } else {
                     // Try to use cached data
                     const cachedUser = authStorage.getUser();
                     if (cachedUser) {
                         setUser(cachedUser);
+                        
+                        // Redirect based on cached user role - check isAdmin first
+                        if (cachedUser.isAdmin === true) {
+                            router.replace("/dashboard/admin");
+                            return;
+                        } else if (cachedUser.role === "ORGANIZATION") {
+                            router.replace("/dashboard/org");
+                            return;
+                        } else if (cachedUser.role === "USER") {
+                            router.replace("/dashboard/user");
+                            return;
+                        }
                     } else {
                         setError("Unable to load user data");
                     }
@@ -63,6 +86,18 @@ export default function DashboardPage() {
                 const cachedUser = authStorage.getUser();
                 if (cachedUser) {
                     setUser(cachedUser);
+                    
+                    // Redirect based on cached user role - check isAdmin first
+                    if (cachedUser.isAdmin === true) {
+                        router.replace("/dashboard/admin");
+                        return;
+                    } else if (cachedUser.role === "ORGANIZATION") {
+                        router.replace("/dashboard/org");
+                        return;
+                    } else if (cachedUser.role === "USER") {
+                        router.replace("/dashboard/user");
+                        return;
+                    }
                 } else {
                     setError("Failed to load user data. Please refresh the page.");
                 }
@@ -74,6 +109,19 @@ export default function DashboardPage() {
         if (!contextLoading) {
             if (contextUser) {
                 setUser(contextUser);
+                
+                // Redirect based on context user role - check isAdmin first
+                if (contextUser.isAdmin === true) {
+                    router.replace("/dashboard/admin");
+                    return;
+                } else if (contextUser.role === "ORGANIZATION") {
+                    router.replace("/dashboard/org");
+                    return;
+                } else if (contextUser.role === "USER") {
+                    router.replace("/dashboard/user");
+                    return;
+                }
+                
                 setIsLoading(false);
             } else {
                 fetchUserData();

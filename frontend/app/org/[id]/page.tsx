@@ -18,6 +18,8 @@ import {
     Building2,
 } from "lucide-react";
 import { publicApi } from "@/lib/api";
+import { Organization as OrgType } from "@/lib/types";
+import { socket, socketHelpers } from "@/lib/socket";
 
 interface Appointment {
     id: string;
@@ -35,13 +37,7 @@ interface Appointment {
     createdAt: string;
 }
 
-interface Organization {
-    id: string;
-    name: string;
-    description: string | null;
-    location: string | null;
-    businessHours: any;
-    createdAt: string;
+interface Organization extends OrgType {
     appointments: Appointment[];
 }
 
@@ -58,12 +54,140 @@ export default function OrganizationPage() {
         fetchOrganization();
     }, [organizationId]);
 
+    // Separate useEffect for socket connection and room joining
+    React.useEffect(() => {
+        // Connect socket
+        socketHelpers.connect();
+
+        // Only join rooms after socket is connected
+        const handleConnect = () => {
+            socketHelpers.joinPublic();
+            socketHelpers.joinOrganization(organizationId);
+        };
+        socket.on('connect', handleConnect);
+
+        // Cleanup on unmount
+        return () => {
+            socketHelpers.leaveOrganization(organizationId);
+            socket.off('connect', handleConnect);
+        };
+    }, [organizationId]);
+
+    // Separate useEffect for socket event listeners
+    React.useEffect(() => {
+        // Listen for new appointments
+        const handleAppointmentCreated = (newAppointment: Appointment) => {
+            console.log('📢 Appointment created:', newAppointment);
+            if (newAppointment.isPublished) {
+                setOrganization((prev) => {
+                    if (!prev) return prev;
+                    // Check if already exists to prevent duplicates
+                    const exists = prev.appointments.some((apt) => apt.id === newAppointment.id);
+                    if (exists) return prev;
+                    return {
+                        ...prev,
+                        appointments: [newAppointment, ...prev.appointments],
+                    };
+                });
+            }
+        };
+
+        // Listen for appointment updates
+        const handleAppointmentUpdated = (updatedAppointment: Appointment) => {
+            console.log('📢 Appointment updated:', updatedAppointment);
+            setOrganization((prev) => {
+                if (!prev) return prev;
+                // Only update if this appointment belongs to this organization
+                const exists = prev.appointments.some((apt) => apt.id === updatedAppointment.id);
+                if (!exists && !updatedAppointment.isPublished) return prev;
+
+                // If published, update or add it
+                if (updatedAppointment.isPublished) {
+                    if (exists) {
+                        return {
+                            ...prev,
+                            appointments: prev.appointments.map((apt) =>
+                                apt.id === updatedAppointment.id ? updatedAppointment : apt
+                            ),
+                        };
+                    } else {
+                        return {
+                            ...prev,
+                            appointments: [updatedAppointment, ...prev.appointments],
+                        };
+                    }
+                } else {
+                    // If unpublished, remove it
+                    return {
+                        ...prev,
+                        appointments: prev.appointments.filter((apt) => apt.id !== updatedAppointment.id),
+                    };
+                }
+            });
+        };
+
+        // Listen for appointment published
+        const handleAppointmentPublished = (publishedAppointment: Appointment) => {
+            console.log('🎉 Appointment published (real-time):', publishedAppointment.title);
+            setOrganization((prev) => {
+                if (!prev) return prev;
+                // Check if appointment already exists, if not add it
+                const exists = prev.appointments.some((apt) => apt.id === publishedAppointment.id);
+                if (exists) {
+                    // Update existing appointment
+                    return {
+                        ...prev,
+                        appointments: prev.appointments.map((apt) =>
+                            apt.id === publishedAppointment.id ? publishedAppointment : apt
+                        ),
+                    };
+                } else {
+                    // Add new published appointment to the list
+                    console.log('✨ Adding newly published appointment to list');
+                    return {
+                        ...prev,
+                        appointments: [publishedAppointment, ...prev.appointments],
+                    };
+                }
+            });
+        };
+
+        // Listen for appointment unpublished
+        const handleAppointmentUnpublished = ({ id }: { id: string }) => {
+            console.log('🚫 Appointment unpublished (real-time):', id);
+            setOrganization((prev) => {
+                if (!prev) return prev;
+                const removedAppointment = prev.appointments.find((apt) => apt.id === id);
+                if (removedAppointment) {
+                    console.log('❌ Removing unpublished appointment:', removedAppointment.title);
+                }
+                return {
+                    ...prev,
+                    appointments: prev.appointments.filter((apt) => apt.id !== id),
+                };
+            });
+        };
+
+        socket.on('appointment:created', handleAppointmentCreated);
+        socket.on('appointment:updated', handleAppointmentUpdated);
+        socket.on('appointment:published', handleAppointmentPublished);
+        socket.on('appointment:unpublished', handleAppointmentUnpublished);
+
+        // Cleanup on unmount
+        return () => {
+            socket.off('appointment:created', handleAppointmentCreated);
+            socket.off('appointment:updated', handleAppointmentUpdated);
+            socket.off('appointment:published', handleAppointmentPublished);
+            socket.off('appointment:unpublished', handleAppointmentUnpublished);
+        };
+    }, []); // Empty dependency array since we use functional setState
+
     const fetchOrganization = async () => {
         try {
             const response = await publicApi.getOrganizationById(organizationId);
 
             if (response.success && response.data) {
-                setOrganization(response.data.organization);
+                setOrganization(response.data.organization as Organization);
             } else {
                 setError("Organization not found");
             }
@@ -150,14 +274,14 @@ export default function OrganizationPage() {
                         <ArrowLeft className="w-4 h-4" />
                         Back to Search
                     </Button>
-                    <div className="flex items-center gap-3">
+                    {/* <div className="flex items-center gap-3">
                         <Button variant="ghost" asChild>
                             <Link href="/login">Sign In</Link>
                         </Button>
                         <Button asChild>
                             <Link href="/register">Get Started</Link>
                         </Button>
-                    </div>
+                    </div> */}
                 </div>
             </header>
 

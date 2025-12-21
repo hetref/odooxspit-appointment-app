@@ -19,6 +19,7 @@ interface Appointment {
     description: string | null;
     durationMinutes: number;
     bookType: "USER" | "RESOURCE";
+    assignmentType: "AUTOMATIC" | "BY_VISITOR";
     price: number | null;
     isPaid: boolean;
     allowMultipleSlots: boolean;
@@ -26,6 +27,7 @@ interface Appointment {
     introMessage: string | null;
     confirmationMessage: string | null;
     picture: string | null;
+    location: string | null;
     organization: {
         id: string;
         name: string;

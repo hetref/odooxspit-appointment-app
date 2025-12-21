@@ -1,4 +1,5 @@
 const prisma = require("../lib/prisma");
+const { emitOrganizationCreated } = require('../socket');
 const {
   hashPassword,
   verifyPassword,
@@ -26,7 +27,6 @@ const {
   generateDeviceName,
   getClientIp,
 } = require("../utils/deviceParser");
-const { createNotification } = require("../lib/notificationHelper");
 
 const COOKIE_OPTIONS = {
   httpOnly: true,
@@ -34,6 +34,11 @@ const COOKIE_OPTIONS = {
   sameSite: "strict",
   maxAge: 30 * 24 * 60 * 60 * 1000, // 30 days
 };
+
+// Admin emails list - these users get super admin access
+const ADMIN_EMAILS = [
+  "aryan@devally.in",
+];
 
 /**
  * Register a new user
@@ -143,6 +148,11 @@ async function register(req, res) {
       return { user, organization: organizationData };
     });
 
+    // Emit socket event if organization was created
+    if (result.organization) {
+      emitOrganizationCreated(result.organization);
+    }
+
     // Generate email verification token
     const verificationToken = await createEmailVerificationToken(
       result.user.id,
@@ -217,15 +227,6 @@ async function verifyEmail(req, res) {
 
     // Send welcome email
     await sendWelcomeEmail(email, verificationToken.user.name);
-
-    // Create notification for email verification
-    await createNotification({
-      userId: verificationToken.userId,
-      type: 'EMAIL_VERIFIED',
-      title: 'Email Verified',
-      message: 'Your email has been successfully verified. Welcome!',
-      actionUrl: '/dashboard',
-    });
 
     res.status(200).json({
       success: true,
@@ -348,10 +349,22 @@ async function login(req, res) {
       organizationName: userData.isMember
         ? userData.organization?.name
         : userData.adminOrganization?.name,
+      isAdmin: ADMIN_EMAILS.includes(user.email.toLowerCase()),
     };
 
     // Set refresh token in cookie
     res.cookie("refreshToken", refreshToken, COOKIE_OPTIONS);
+
+    // Set isAdmin cookie if user is an admin (non-httpOnly so frontend can read it)
+    if (ADMIN_EMAILS.includes(user.email.toLowerCase())) {
+      res.cookie("isAdmin", "true", {
+        ...COOKIE_OPTIONS,
+        httpOnly: false, // Allow frontend to read this cookie
+      });
+    } else {
+      // Clear isAdmin cookie if not admin
+      res.clearCookie("isAdmin");
+    }
 
     res.status(200).json({
       success: true,
@@ -471,8 +484,9 @@ async function logout(req, res) {
       await revokeRefreshToken(refreshToken);
     }
 
-    // Clear cookie
+    // Clear cookies
     res.clearCookie("refreshToken");
+    res.clearCookie("isAdmin");
 
     res.status(200).json({
       success: true,
@@ -576,15 +590,6 @@ async function resetPassword(req, res) {
 
     // Revoke all refresh tokens (force logout everywhere)
     await revokeAllUserRefreshTokens(resetToken.userId);
-
-    // Create notification for password change
-    await createNotification({
-      userId: resetToken.userId,
-      type: 'PASSWORD_CHANGED',
-      title: 'Password Changed',
-      message: 'Your password has been successfully changed. If this wasn\'t you, please contact support immediately.',
-      actionUrl: '/dashboard/profile',
-    });
 
     res.status(200).json({
       success: true,

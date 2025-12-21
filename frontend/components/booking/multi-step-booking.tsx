@@ -37,6 +37,7 @@ import {
 import { bookingApi, paymentsApi } from "@/lib/api";
 import { authStorage } from "@/lib/auth";
 import { format } from "date-fns";
+import { socket, socketHelpers } from "@/lib/socket";
 
 interface Appointment {
     id: string;
@@ -44,6 +45,7 @@ interface Appointment {
     description: string | null;
     durationMinutes: number;
     bookType: "USER" | "RESOURCE";
+    assignmentType: "AUTOMATIC" | "BY_VISITOR";
     price: number | null;
     isPaid: boolean;
     allowMultipleSlots: boolean;
@@ -51,6 +53,7 @@ interface Appointment {
     introMessage: string | null;
     confirmationMessage: string | null;
     picture: string | null;
+    location: string | null;
     organization: {
         id: string;
         name: string;
@@ -91,16 +94,26 @@ export function MultiStepBooking({ appointment, onSuccess, onCancel }: MultiStep
     const [selectedUser, setSelectedUser] = React.useState("");
     const [selectedDate, setSelectedDate] = React.useState<Date | undefined>(undefined);
     const [selectedSlot, setSelectedSlot] = React.useState("");
+    const [selectedSlots, setSelectedSlots] = React.useState<string[]>([]);
     const [timeSlots, setTimeSlots] = React.useState<TimeSlot[]>([]);
     const [numberOfSlots, setNumberOfSlots] = React.useState(1);
+    const [isDragging, setIsDragging] = React.useState(false);
+    const [dragStartSlot, setDragStartSlot] = React.useState<string | null>(null);
     const [customAnswers, setCustomAnswers] = React.useState<Record<string, string | string[]>>({});
     // For paid appointments we always use online payment (Razorpay)
     const [paymentMethod] = React.useState("online");
     const [bookingNotes, setBookingNotes] = React.useState("");
 
+    // Show provider/resource selection only if:
+    // - Resource booking OR
+    // - User booking with BY_VISITOR assignment type
+    const showProviderSelection = appointment.bookType === "RESOURCE" ||
+        (appointment.bookType === "USER" && appointment.assignmentType === "BY_VISITOR" &&
+            appointment.allowedUsers && appointment.allowedUsers.length > 0);
+
     const totalSteps =
         1 + // Appointment details confirmation
-        (appointment.bookType === "RESOURCE" || (appointment.allowedUsers && appointment.allowedUsers.length > 0) ? 1 : 0) + // Provider/Resource selection
+        (showProviderSelection ? 1 : 0) + // Provider/Resource selection
         1 + // Date selection
         1 + // Time selection
         (appointment.customQuestions && appointment.customQuestions.length > 0 ? 1 : 0) + // Custom questions
@@ -112,6 +125,49 @@ export function MultiStepBooking({ appointment, onSuccess, onCancel }: MultiStep
             fetchAvailableSlots();
         }
     }, [selectedDate, selectedResource, selectedUser]);
+
+    // Global mouse up handler for drag selection
+    React.useEffect(() => {
+        const handleGlobalMouseUp = () => {
+            setIsDragging(false);
+            setDragStartSlot(null);
+        };
+
+        if (isDragging) {
+            window.addEventListener('mouseup', handleGlobalMouseUp);
+            return () => window.removeEventListener('mouseup', handleGlobalMouseUp);
+        }
+    }, [isDragging]);
+
+    // Socket integration for real-time slot updates
+    React.useEffect(() => {
+        // Connect socket and join appointment room
+        socketHelpers.connect();
+        socketHelpers.joinAppointment(appointment.id);
+
+        // Listen for booking created - refresh slots
+        socket.on('booking:created', (data: any) => {
+            if (data._refreshSlots && selectedDate) {
+                console.log('Booking created, refreshing slots...');
+                fetchAvailableSlots();
+            }
+        });
+
+        // Listen for booking cancelled - refresh slots
+        socket.on('booking:cancelled', (data: any) => {
+            if (data._refreshSlots && selectedDate) {
+                console.log('Booking cancelled, refreshing slots...');
+                fetchAvailableSlots();
+            }
+        });
+
+        // Cleanup on unmount
+        return () => {
+            socket.off('booking:created');
+            socket.off('booking:cancelled');
+            socketHelpers.leaveAppointment(appointment.id);
+        };
+    }, [appointment.id, selectedDate]);
 
     const fetchAvailableSlots = async () => {
         if (!selectedDate) return;
@@ -302,38 +358,57 @@ export function MultiStepBooking({ appointment, onSuccess, onCancel }: MultiStep
     };
 
     const canProceed = () => {
-        switch (currentStep) {
-            case 1:
-                return true; // Appointment details, always can proceed
-            case 2:
+        let stepCount = 1;
+
+        // Step 1: Appointment details
+        if (currentStep === stepCount) return true;
+        stepCount++;
+
+        // Step 2: Provider/Resource selection
+        if (showProviderSelection) {
+            if (currentStep === stepCount) {
                 if (appointment.bookType === "RESOURCE") {
                     return !!selectedResource;
                 }
-                return true; // User selection is optional
-            case 3:
-                return !!selectedDate;
-            case 4:
-                return !!selectedSlot;
-            case 5:
-                if (appointment.customQuestions) {
-                    return appointment.customQuestions.every(q => {
-                        if (!q.required) return true;
-                        const answer = customAnswers[q.id];
-                        // For checkbox (array answers), check if array has at least one item
-                        if (Array.isArray(answer)) {
-                            return answer.length > 0;
-                        }
-                        // For other types, check if answer exists and is not empty
-                        return answer && answer.toString().trim() !== '';
-                    });
+                if (appointment.bookType === "USER" && appointment.assignmentType === "BY_VISITOR") {
+                    return true; // User selection is optional
                 }
-                return true;
-            case 6:
-                // Payment step – no extra input required, user will click Pay Now
-                return true;
-            default:
-                return true;
+            }
+            stepCount++;
         }
+
+        // Step 3: Date selection
+        if (currentStep === stepCount) return !!selectedDate;
+        stepCount++;
+
+        // Step 4: Time selection
+        if (currentStep === stepCount) return selectedSlots.length > 0;
+        stepCount++;
+
+        // Step 5: Custom questions
+        if (appointment.customQuestions && appointment.customQuestions.length > 0) {
+            if (currentStep === stepCount) {
+                return appointment.customQuestions.every(q => {
+                    if (!q.required) return true;
+                    const answer = customAnswers[q.id];
+                    // For checkbox (array answers), check if array has at least one item
+                    if (Array.isArray(answer)) {
+                        return answer.length > 0;
+                    }
+                    // For other types, check if answer exists and is not empty
+                    return answer && answer.toString().trim() !== '';
+                });
+            }
+            stepCount++;
+        }
+
+        // Step 6: Payment
+        if (appointment.isPaid) {
+            if (currentStep === stepCount) return true;
+            stepCount++;
+        }
+
+        return true;
     };
 
     const handleNext = () => {
@@ -418,7 +493,7 @@ export function MultiStepBooking({ appointment, onSuccess, onCancel }: MultiStep
                                 <CardTitle className="text-xl">{appointment.title}</CardTitle>
                                 <CardDescription className="mt-2">
                                     {appointment.organization.name}
-                                    {appointment.organization.location && ` • ${appointment.organization.location}`}
+                                    {(appointment.location || appointment.organization.location) && ` • ${appointment.location || appointment.organization.location}`}
                                 </CardDescription>
                             </div>
                             {appointment.isPaid && appointment.price !== null && (
@@ -564,17 +639,91 @@ export function MultiStepBooking({ appointment, onSuccess, onCancel }: MultiStep
 
     // Step 4: Time Slot Selection
     const renderStep4 = () => {
+        const handleSlotMouseDown = (slotTime: string) => {
+            if (!appointment.allowMultipleSlots) {
+                setSelectedSlot(slotTime);
+                setSelectedSlots([slotTime]);
+                setNumberOfSlots(1);
+                return;
+            }
+
+            setIsDragging(true);
+            setDragStartSlot(slotTime);
+            setSelectedSlots([slotTime]);
+            setSelectedSlot(slotTime);
+        };
+
+        const handleSlotMouseEnter = (slotTime: string) => {
+            if (!isDragging || !dragStartSlot || !appointment.allowMultipleSlots) return;
+
+            const startIndex = timeSlots.findIndex(s => s.startTime === dragStartSlot);
+            const currentIndex = timeSlots.findIndex(s => s.startTime === slotTime);
+
+            if (startIndex === -1 || currentIndex === -1) return;
+
+            const start = Math.min(startIndex, currentIndex);
+            const end = Math.max(startIndex, currentIndex);
+            const range = end - start + 1;
+
+            // Limit to maxSlotsPerBooking
+            const maxSlots = appointment.maxSlotsPerBooking || 1;
+            if (range > maxSlots) return;
+
+            // Get consecutive slots
+            const slots = timeSlots.slice(start, end + 1).map(s => s.startTime);
+            setSelectedSlots(slots);
+            setNumberOfSlots(slots.length);
+        };
+
+        const handleSlotMouseUp = () => {
+            setIsDragging(false);
+            setDragStartSlot(null);
+        };
+
+        const totalPrice = appointment.isPaid && appointment.price
+            ? appointment.price * numberOfSlots
+            : 0;
+
         return (
             <div className="space-y-6">
                 <div className="text-center space-y-2">
-                    <h2 className="text-2xl font-bold">Select Time Slot</h2>
-                    <p className="text-muted-foreground">Choose your preferred time</p>
+                    <h2 className="text-2xl font-bold">Select Time Slot{appointment.allowMultipleSlots ? 's' : ''}</h2>
+                    <p className="text-muted-foreground">
+                        {appointment.allowMultipleSlots
+                            ? `Drag to select up to ${appointment.maxSlotsPerBooking} consecutive slots`
+                            : 'Choose your preferred time'}
+                    </p>
                     {selectedDate && (
                         <p className="text-sm font-medium">
                             {format(selectedDate, "EEEE, MMMM d, yyyy")}
                         </p>
                     )}
                 </div>
+
+                <Card className="bg-blue-50 dark:bg-blue-950/20 border-blue-200 dark:border-blue-800">
+                    <CardContent className="pt-4 pb-4">
+                        <div className="flex items-center justify-between">
+                            <div className="flex items-center gap-2">
+                                <Info className="w-5 h-5 text-blue-600 dark:text-blue-400" />
+                                <span className="text-sm font-medium text-blue-900 dark:text-blue-100">
+                                    {appointment.allowMultipleSlots ? 'You can select up to' : 'You can book'}
+                                </span>
+                            </div>
+                            <Badge variant="default" className="text-lg px-4 py-1 bg-blue-600">
+                                {appointment.allowMultipleSlots
+                                    ? `${appointment.maxSlotsPerBooking == null ? 1 : appointment.maxSlotsPerBooking} slot${(appointment.maxSlotsPerBooking || 1) > 1 ? 's' : ''}`
+                                    : '1 slot'
+                                }
+                            </Badge>
+                        </div>
+                        <p className="text-xs text-blue-700 dark:text-blue-300 mt-2">
+                            {appointment.allowMultipleSlots
+                                ? `Total duration: up to ${formatDuration((appointment.durationMinutes || 0) * (appointment.maxSlotsPerBooking || 1))}`
+                                : `Duration: ${formatDuration(appointment.durationMinutes || 0)}`
+                            }
+                        </p>
+                    </CardContent>
+                </Card>
 
                 {isLoadingSlots ? (
                     <div className="flex items-center justify-center py-12">
@@ -592,45 +741,63 @@ export function MultiStepBooking({ appointment, onSuccess, onCancel }: MultiStep
                     </Card>
                 ) : (
                     <>
-                        <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
-                            {timeSlots.map((slot) => (
-                                <Button
-                                    key={slot.startTime}
-                                    variant={selectedSlot === slot.startTime ? "default" : "outline"}
-                                    className="h-auto py-4 flex-col gap-1"
-                                    onClick={() => setSelectedSlot(slot.startTime)}
-                                >
-                                    <span className="text-base font-semibold">
-                                        {format(new Date(slot.startTime), "h:mm a")}
-                                    </span>
-                                    {slot.availableCount !== undefined && (
-                                        <span className="text-xs opacity-70">
-                                            {slot.availableCount} available
+                        <div
+                            className="grid grid-cols-2 sm:grid-cols-3 gap-3 select-none"
+                            onMouseLeave={handleSlotMouseUp}
+                        >
+                            {timeSlots.map((slot) => {
+                                const isSelected = selectedSlots.includes(slot.startTime);
+                                return (
+                                    <Button
+                                        key={slot.startTime}
+                                        variant={isSelected ? "default" : "outline"}
+                                        className={`h-auto py-4 flex-col gap-1 cursor-pointer transition-all ${isSelected ? 'scale-105 shadow-md' : ''
+                                            }`}
+                                        onMouseDown={(e) => {
+                                            e.preventDefault();
+                                            handleSlotMouseDown(slot.startTime);
+                                        }}
+                                        onMouseEnter={() => handleSlotMouseEnter(slot.startTime)}
+                                        onMouseUp={handleSlotMouseUp}
+                                    >
+                                        <span className="text-base font-semibold">
+                                            {format(new Date(slot.startTime), "h:mm a")}
                                         </span>
-                                    )}
-                                </Button>
-                            ))}
+                                        {slot.availableCount !== undefined && (
+                                            <span className="text-xs opacity-70">
+                                                {slot.availableCount} available
+                                            </span>
+                                        )}
+                                    </Button>
+                                );
+                            })}
                         </div>
 
-                        {appointment.allowMultipleSlots && appointment.maxSlotsPerBooking && (
-                            <div className="space-y-2">
-                                <Label>Number of Consecutive Slots</Label>
-                                <Select
-                                    value={numberOfSlots.toString()}
-                                    onValueChange={(val) => setNumberOfSlots(parseInt(val))}
-                                >
-                                    <SelectTrigger>
-                                        <SelectValue />
-                                    </SelectTrigger>
-                                    <SelectContent>
-                                        {Array.from({ length: appointment.maxSlotsPerBooking }, (_, i) => i + 1).map((num) => (
-                                            <SelectItem key={num} value={num.toString()}>
-                                                {num} slot{num > 1 ? "s" : ""} ({formatDuration(appointment.durationMinutes * num)})
-                                            </SelectItem>
-                                        ))}
-                                    </SelectContent>
-                                </Select>
-                            </div>
+                        {appointment.allowMultipleSlots && selectedSlots.length > 0 && (
+                            <Card className="border-2 border-primary/20 bg-primary/5">
+                                <CardContent className="pt-6">
+                                    <div className="space-y-3">
+                                        <div className="flex items-center justify-between">
+                                            <span className="text-sm font-medium">Selected Slots:</span>
+                                            <Badge variant="secondary" className="text-base px-3 py-1">
+                                                {numberOfSlots} slot{numberOfSlots > 1 ? 's' : ''}
+                                            </Badge>
+                                        </div>
+                                        <div className="flex items-center justify-between">
+                                            <span className="text-sm font-medium">Total Duration:</span>
+                                            <span className="text-sm">{formatDuration(appointment.durationMinutes * numberOfSlots)}</span>
+                                        </div>
+                                        {appointment.isPaid && appointment.price && (
+                                            <div className="flex items-center justify-between pt-2 border-t">
+                                                <span className="text-sm font-semibold">Total Price:</span>
+                                                <Badge variant="default" className="text-lg px-4 py-1">
+                                                    ₹{totalPrice}
+                                                </Badge>
+                                            </div>
+                                        )}
+                                    </div>
+                                </CardContent>
+                            </Card>
                         )}
                     </>
                 )}
@@ -684,7 +851,7 @@ export function MultiStepBooking({ appointment, onSuccess, onCancel }: MultiStep
 
                                 {questionType === "SELECT" && question.options && (
                                     <Select
-                                        value={typeof customAnswers[question.id] === 'string' ? customAnswers[question.id] : ""}
+                                        value={typeof customAnswers[question.id] === 'string' ? (customAnswers[question.id] as string) : ""}
                                         onValueChange={(value) =>
                                             setCustomAnswers((prev) => ({ ...prev, [question.id]: value }))
                                         }
@@ -704,7 +871,7 @@ export function MultiStepBooking({ appointment, onSuccess, onCancel }: MultiStep
 
                                 {questionType === "RADIO" && question.options && (
                                     <RadioGroup
-                                        value={typeof customAnswers[question.id] === 'string' ? customAnswers[question.id] : ""}
+                                        value={typeof customAnswers[question.id] === 'string' ? (customAnswers[question.id] as string) : ""}
                                         onValueChange={(value) =>
                                             setCustomAnswers((prev) => ({ ...prev, [question.id]: value }))
                                         }
@@ -885,8 +1052,8 @@ export function MultiStepBooking({ appointment, onSuccess, onCancel }: MultiStep
         if (currentStep === stepCount) return renderStep1();
         stepCount++;
 
-        // Step 2: Provider/Resource selection (if applicable)
-        if (appointment.bookType === "RESOURCE" || (appointment.allowedUsers && appointment.allowedUsers.length > 0)) {
+        // Step 2: Provider/Resource selection (only if showProviderSelection is true)
+        if (showProviderSelection) {
             if (currentStep === stepCount) return renderStep2();
             stepCount++;
         }

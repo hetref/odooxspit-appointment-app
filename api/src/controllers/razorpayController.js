@@ -1,4 +1,7 @@
+const { getValidAccessTokenForOrganization } = require("../lib/razorpay");
+const axios = require("axios");
 const prisma = require("../lib/prisma");
+
 const { verifyAccessToken } = require("../lib/auth");
 const {
     buildAuthorizeUrl,
@@ -6,6 +9,69 @@ const {
     exchangeCodeForTokens,
     createMerchantWebhooks,
 } = require("../lib/razorpay");
+
+// GET /razorpay/payments?limit=20&cursor=pay_xxx
+// Requires authenticated user (org admin)
+async function getPayments(req, res) {
+    try {
+        // Get the admin's organization
+        const userId = req.user.id;
+        const user = await prisma.user.findUnique({
+            where: { id: userId },
+            include: { adminOrganization: true },
+        });
+        if (!user || !user.adminOrganization) {
+            return res.status(403).json({ success: false, message: "Not an organization admin" });
+        }
+        const org = user.adminOrganization;
+        // Check Razorpay connection
+        const connection = await getValidAccessTokenForOrganization(org.id).catch(() => null);
+        if (!connection) {
+            return res.json({ success: true, data: { payments: [], hasMore: false, totalIncome: 0, totalIncomeMonth: 0, razorpayConnected: false } });
+        }
+        // Pagination
+        const limit = Math.max(1, Math.min(100, parseInt(req.query.limit) || 20));
+        const cursor = req.query.cursor;
+        // Fetch payments from Razorpay
+        const headers = { Authorization: `Bearer ${connection.accessToken}` };
+        let url = `https://api.razorpay.com/v1/payments?count=${limit}`;
+        if (cursor) url += `&from=${cursor}`;
+        const { data } = await axios.get(url, { headers });
+        const payments = data.items || [];
+        // Calculate total income (all time and this month)
+        let totalIncome = 0;
+        let totalIncomeMonth = 0;
+        const now = new Date();
+        const month = now.getMonth();
+        const year = now.getFullYear();
+        for (const p of payments) {
+            if (p.status === "captured") {
+                totalIncome += p.amount / 100;
+                const paidAt = new Date(p.created_at * 1000);
+                if (paidAt.getMonth() === month && paidAt.getFullYear() === year) {
+                    totalIncomeMonth += p.amount / 100;
+                }
+            }
+        }
+        // Pagination: Razorpay returns items in descending order, so use last payment's created_at as next cursor
+        const hasMore = payments.length === limit;
+        const nextCursor = hasMore ? payments[payments.length - 1].created_at : null;
+        res.json({
+            success: true,
+            data: {
+                payments,
+                hasMore,
+                nextCursor,
+                totalIncome,
+                totalIncomeMonth,
+                razorpayConnected: true,
+            },
+        });
+    } catch (error) {
+        console.error("Get Razorpay payments error:", error);
+        res.status(500).json({ success: false, message: "Failed to fetch payments" });
+    }
+}
 
 // GET /auth/razorpay/connect
 // Requires authenticated organization admin
@@ -198,4 +264,5 @@ async function razorpayCallback(req, res) {
 module.exports = {
     connectRazorpay,
     razorpayCallback,
+    getPayments,
 };

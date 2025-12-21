@@ -18,6 +18,7 @@ import {
     AlertCircle,
 } from "lucide-react";
 import { publicApi } from "@/lib/api";
+import { socket, socketHelpers } from "@/lib/socket";
 
 interface Organization {
     id: string;
@@ -39,6 +40,29 @@ export default function SearchPage() {
 
     React.useEffect(() => {
         fetchOrganizations();
+
+        // Connect socket and join public room for real-time updates
+        socketHelpers.connect();
+        socketHelpers.joinPublic();
+
+        // Listen for new organizations
+        socket.on('organization:created', (newOrg: Organization) => {
+            setOrganizations((prev) => [newOrg, ...prev]);
+        });
+
+        // Listen for organization updates
+        socket.on('organization:updated', (updatedOrg: Organization) => {
+            setOrganizations((prev) =>
+                prev.map((org) => (org.id === updatedOrg.id ? updatedOrg : org))
+            );
+        });
+
+        // Cleanup on unmount
+        return () => {
+            socket.off('organization:created');
+            socket.off('organization:updated');
+            socketHelpers.disconnect();
+        };
     }, []);
 
     const fetchOrganizations = async (search?: string) => {
@@ -81,14 +105,6 @@ export default function SearchPage() {
                         <Calendar className="h-6 w-6 text-primary" />
                         <span className="text-xl font-bold">BookNow</span>
                     </Link>
-                    <div className="flex items-center gap-3">
-                        <Button variant="ghost" asChild>
-                            <Link href="/login">Sign In</Link>
-                        </Button>
-                        <Button asChild>
-                            <Link href="/register">Get Started</Link>
-                        </Button>
-                    </div>
                 </div>
             </header>
 
