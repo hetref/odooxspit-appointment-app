@@ -763,10 +763,10 @@ const createBooking = async (req, res) => {
         if (orgAdmin && orgAdmin.phone) {
             try {
                 const axios = require('axios');
-                
+
                 // Prepare WhatsApp message body
-                const bookingType = appointment.isPaid 
-                    ? `a paid appointment (₹${totalAmount})` 
+                const bookingType = appointment.isPaid
+                    ? `a paid appointment (₹${totalAmount})`
                     : 'an appointment';
                 const whatsappMessage = `You got ${bookingType} booked by ${booking.user.name} for "${booking.appointment.title}" on ${formattedDate}.`;
 

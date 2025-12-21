@@ -266,7 +266,7 @@ async function handleWebhook(req, res) {
                         if (orgAdmin.phone) {
                             try {
                                 const axios = require('axios');
-                                
+
                                 const formattedDate = new Date(bookingWithDetails.startTime).toLocaleDateString('en-US', {
                                     weekday: 'long',
                                     year: 'numeric',
