@@ -27,6 +27,7 @@ model User {
   allowedAppointments     Appointment[]            @relation("AppointmentAllowedUsers")
   bookings                Booking[]
   assignedBookings        Booking[]                @relation("AssignedBookings")
+  notifications           Notification[]
 
   @@index([organizationId])
 }
@@ -80,18 +81,19 @@ model PasswordResetToken {
 }
 
 model Organization {
-  id            String        @id @default(cuid())
-  name          String
-  location      String
-  description   String?
-  businessHours Json
-  adminId       String        @unique
-  createdAt     DateTime      @default(now())
-  updatedAt     DateTime      @updatedAt
-  appointments  Appointment[]
-  admin         User          @relation("OrganizationAdmin", fields: [adminId], references: [id], onDelete: Cascade)
-  resources     Resource[]
-  members       User[]        @relation("OrganizationMembers")
+  id                 String                          @id @default(cuid())
+  name               String
+  location           String
+  description        String?
+  businessHours      Json
+  adminId            String                          @unique
+  createdAt          DateTime                        @default(now())
+  updatedAt          DateTime                        @updatedAt
+  appointments       Appointment[]
+  admin              User                            @relation("OrganizationAdmin", fields: [adminId], references: [id], onDelete: Cascade)
+  resources          Resource[]
+  members            User[]                          @relation("OrganizationMembers")
+  razorpayConnection OrganizationRazorpayConnection?
 
   @@index([adminId])
 }
@@ -175,6 +177,49 @@ enum PaymentStatus {
   REFUNDED
 }
 
+enum NotificationType {
+  APPOINTMENT_CREATED
+  APPOINTMENT_UPDATED
+  APPOINTMENT_CANCELLED
+  APPOINTMENT_PUBLISHED
+  APPOINTMENT_REMINDER
+  MEMBER_ADDED
+  MEMBER_REMOVED
+  RESOURCE_CREATED
+  RESOURCE_DELETED
+  ORGANIZATION_UPDATED
+  INVITATION_RECEIVED
+  BOOKING_CREATED
+  BOOKING_CANCELLED
+  BOOKING_CONFIRMED
+  BOOKING_REJECTED
+  PAYMENT_RECEIVED
+  PAYMENT_FAILED
+  EMAIL_VERIFIED
+  PASSWORD_CHANGED
+  SYSTEM_ANNOUNCEMENT
+}
+
+model Notification {
+  id          String           @id @default(cuid())
+  type        NotificationType
+  title       String
+  message     String
+  read        Boolean          @default(false)
+  userId      String
+  relatedId   String?
+  relatedType String?
+  actionUrl   String?
+  metadata    Json?
+  createdAt   DateTime         @default(now())
+  readAt      DateTime?
+  user        User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([userId, read])
+  @@index([createdAt])
+}
+
 model Booking {
   id             String        @id @default(cuid())
   appointmentId  String
@@ -202,4 +247,21 @@ model Booking {
   @@index([assignedUserId])
   @@index([startTime])
   @@index([bookingStatus])
+}
+
+model OrganizationRazorpayConnection {
+  id                 String   @id @default(cuid())
+  organizationId     String   @unique
+  razorpayMerchantId String
+  accessToken        String
+  refreshToken       String
+  tokenExpiresAt     DateTime
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+  // Optional public key (safe to expose to frontend for Checkout)
+  merchantKeyId      String?
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  @@index([razorpayMerchantId])
 }

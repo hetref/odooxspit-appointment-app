@@ -59,25 +59,40 @@ import {
 import { format } from "date-fns";
 import { GetUserData } from "@/lib/auth";
 import { Label } from "@/components/ui/label";
+import { bookingApi } from "@/lib/api";
+import { authStorage } from "@/lib/auth";
 
 // Types
-interface Appointment {
+interface Booking {
   id: string;
-  appointmentType: string;
-  customerName: string;
-  customerEmail: string;
-  date: string;
-  time: string;
-  duration: number;
-  venue: string;
-  provider: string;
-  status: "pending" | "confirmed" | "completed" | "cancelled" | "no_show";
-  paymentStatus: "pending" | "paid" | "refunded" | "failed";
-  paymentAmount: number;
-  capacityBooked: number;
-  confirmationMessage?: string;
-  cancellationReason?: string;
+  startTime: string;
+  endTime: string;
+  numberOfSlots: number;
+  totalAmount: number;
+  paymentStatus: "PENDING" | "PAID" | "FAILED" | "REFUNDED";
+  bookingStatus: "PENDING" | "CONFIRMED" | "CANCELLED" | "COMPLETED";
+  userResponses: any;
   createdAt: string;
+  appointment: {
+    id: string;
+    title: string;
+    durationMinutes: number;
+  };
+  user: {
+    id: string;
+    name: string;
+    email: string;
+  };
+  resource?: {
+    id: string;
+    name: string;
+    capacity: number;
+  } | null;
+  assignedUser?: {
+    id: string;
+    name: string;
+    email: string;
+  } | null;
 }
 
 interface Stats {
@@ -291,7 +306,8 @@ export default function OrganizationAppointmentsList() {
   const router = useRouter();
   const [isLoading, setIsLoading] = React.useState(true);
   const [userData, setUserData] = React.useState<any>(null);
-  const [selectedAppointment, setSelectedAppointment] = React.useState<Appointment | null>(null);
+  const [bookings, setBookings] = React.useState<Booking[]>([]);
+  const [selectedBooking, setSelectedBooking] = React.useState<Booking | null>(null);
   const [showDetailsDialog, setShowDetailsDialog] = React.useState(false);
   const [searchQuery, setSearchQuery] = React.useState("");
   const [filterProvider, setFilterProvider] = React.useState("all");
@@ -302,6 +318,7 @@ export default function OrganizationAppointmentsList() {
       try {
         const data = await GetUserData();
         setUserData(data);
+        await fetchBookings();
       } catch (error) {
         console.error("Failed to fetch user data:", error);
       } finally {
@@ -312,66 +329,95 @@ export default function OrganizationAppointmentsList() {
     fetchData();
   }, []);
 
+  const fetchBookings = async () => {
+    try {
+      const token = authStorage.getAccessToken();
+      if (!token) {
+        console.error("No access token found");
+        return;
+      }
+
+      const response = await bookingApi.getOrganizationBookings(token);
+      if (response.success && response.data) {
+        setBookings(response.data as Booking[]);
+      }
+    } catch (error) {
+      console.error("Failed to fetch bookings:", error);
+    }
+  };
+
   // Calculate stats
   const stats: Stats = React.useMemo(() => {
-    return {
-      total: dummyAppointments.length,
-      pending: dummyAppointments.filter((a) => a.status === "pending").length,
-      confirmed: dummyAppointments.filter((a) => a.status === "confirmed").length,
-      completed: dummyAppointments.filter((a) => a.status === "completed").length,
-      cancelled: dummyAppointments.filter((a) => a.status === "cancelled").length,
-      revenue: dummyAppointments
-        .filter((a) => a.paymentStatus === "paid")
-        .reduce((sum, a) => sum + a.paymentAmount, 0),
+    const statusMap = {
+      PENDING: 'pending',
+      CONFIRMED: 'confirmed',
+      COMPLETED: 'completed',
+      CANCELLED: 'cancelled',
     };
-  }, []);
 
-  // Filter appointments
-  const filterAppointments = (appointments: Appointment[], status?: string) => {
+    return {
+      total: bookings.length,
+      pending: bookings.filter((b) => b.bookingStatus === "PENDING").length,
+      confirmed: bookings.filter((b) => b.bookingStatus === "CONFIRMED").length,
+      completed: bookings.filter((b) => b.bookingStatus === "COMPLETED").length,
+      cancelled: bookings.filter((b) => b.bookingStatus === "CANCELLED").length,
+      revenue: bookings
+        .filter((b) => b.paymentStatus === "PAID")
+        .reduce((sum, b) => sum + (b.totalAmount || 0), 0),
+    };
+  }, [bookings]);
+
+  // Filter bookings
+  const filterBookings = (bookingsList: Booking[], status?: string) => {
     let filtered = status
-      ? appointments.filter((a) => a.status === status)
-      : appointments;
+      ? bookingsList.filter((b) => b.bookingStatus.toLowerCase() === status)
+      : bookingsList;
 
     if (searchQuery) {
       filtered = filtered.filter(
-        (a) =>
-          a.customerName.toLowerCase().includes(searchQuery.toLowerCase()) ||
-          a.customerEmail.toLowerCase().includes(searchQuery.toLowerCase()) ||
-          a.appointmentType.toLowerCase().includes(searchQuery.toLowerCase())
+        (b) =>
+          b.user.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+          b.user.email.toLowerCase().includes(searchQuery.toLowerCase()) ||
+          b.appointment.title.toLowerCase().includes(searchQuery.toLowerCase())
       );
     }
 
     if (filterProvider !== "all") {
-      filtered = filtered.filter((a) => a.provider === filterProvider);
+      filtered = filtered.filter((b) =>
+        b.assignedUser?.name === filterProvider ||
+        b.resource?.name === filterProvider
+      );
     }
 
     if (filterPaymentStatus !== "all") {
-      filtered = filtered.filter((a) => a.paymentStatus === filterPaymentStatus);
+      filtered = filtered.filter((b) => b.paymentStatus.toLowerCase() === filterPaymentStatus);
     }
 
     return filtered;
   };
 
-  const handleConfirm = async (appointmentId: string) => {
-    console.log("Confirming appointment:", appointmentId);
-    // Simulate API call
-    await new Promise((resolve) => setTimeout(resolve, 1000));
-    alert("Appointment confirmed!");
+  const handleConfirm = async (bookingId: string) => {
+    console.log("Confirming booking:", bookingId);
+    // TODO: Implement confirm API call
+    alert("Booking confirmed!");
+    fetchBookings(); // Refresh
   };
 
-  const handleCancel = async (appointmentId: string) => {
-    console.log("Cancelling appointment:", appointmentId);
-    // Simulate API call
-    await new Promise((resolve) => setTimeout(resolve, 1000));
-    alert("Appointment cancelled!");
+  const handleCancel = async (bookingId: string) => {
+    console.log("Cancelling booking:", bookingId);
+    // TODO: Implement cancel API call  
+    alert("Booking cancelled!");
+    fetchBookings(); // Refresh
   };
 
-  const handleViewDetails = (appointment: Appointment) => {
-    setSelectedAppointment(appointment);
+  const handleViewDetails = (booking: Booking) => {
+    setSelectedBooking(booking);
     setShowDetailsDialog(true);
   };
 
-  const uniqueProviders = Array.from(new Set(dummyAppointments.map((a) => a.provider)));
+  const uniqueProviders = Array.from(new Set(
+    bookings.map((b) => b.assignedUser?.name || b.resource?.name).filter(Boolean)
+  )) as string[];
 
   if (isLoading) {
     return (
@@ -397,8 +443,8 @@ export default function OrganizationAppointmentsList() {
             Manage and track all your appointments
           </p>
         </div>
-        <Button 
-          size="lg" 
+        <Button
+          size="lg"
           className="gap-2 w-full sm:w-auto"
           onClick={() => router.push("/dashboard/org/appointments/create")}
         >
@@ -523,49 +569,49 @@ export default function OrganizationAppointmentsList() {
             <Calendar className="w-3 h-3 sm:w-4 sm:h-4" />
             <span className="hidden sm:inline">All</span>
             <Badge variant="secondary" className="text-[10px] sm:text-xs h-4 sm:h-5 px-1 sm:px-1.5">
-              {filterAppointments(dummyAppointments).length}
+              {filterBookings(bookings).length}
             </Badge>
           </TabsTrigger>
           <TabsTrigger value="pending" className="flex items-center justify-center gap-1 sm:gap-2 text-xs sm:text-sm px-2 py-2">
             <Clock className="w-3 h-3 sm:w-4 sm:h-4" />
             <span className="hidden sm:inline">Pending</span>
             <Badge variant="secondary" className="text-[10px] sm:text-xs h-4 sm:h-5 px-1 sm:px-1.5">
-              {filterAppointments(dummyAppointments, "pending").length}
+              {filterBookings(bookings, "pending").length}
             </Badge>
           </TabsTrigger>
           <TabsTrigger value="confirmed" className="flex items-center justify-center gap-1 sm:gap-2 text-xs sm:text-sm px-2 py-2">
             <CheckCircle2 className="w-3 h-3 sm:w-4 sm:h-4" />
             <span className="hidden sm:inline">Confirmed</span>
             <Badge variant="secondary" className="text-[10px] sm:text-xs h-4 sm:h-5 px-1 sm:px-1.5">
-              {filterAppointments(dummyAppointments, "confirmed").length}
+              {filterBookings(bookings, "confirmed").length}
             </Badge>
           </TabsTrigger>
           <TabsTrigger value="completed" className="flex items-center justify-center gap-1 sm:gap-2 text-xs sm:text-sm px-2 py-2">
             <CalendarCheck className="w-3 h-3 sm:w-4 sm:h-4" />
             <span className="hidden sm:inline">Completed</span>
             <Badge variant="secondary" className="text-[10px] sm:text-xs h-4 sm:h-5 px-1 sm:px-1.5">
-              {filterAppointments(dummyAppointments, "completed").length}
+              {filterBookings(bookings, "completed").length}
             </Badge>
           </TabsTrigger>
           <TabsTrigger value="cancelled" className="flex items-center justify-center gap-1 sm:gap-2 text-xs sm:text-sm px-2 py-2">
             <XCircle className="w-3 h-3 sm:w-4 sm:h-4" />
             <span className="hidden sm:inline">Cancelled</span>
             <Badge variant="secondary" className="text-[10px] sm:text-xs h-4 sm:h-5 px-1 sm:px-1.5">
-              {filterAppointments(dummyAppointments, "cancelled").length}
+              {filterBookings(bookings, "cancelled").length}
             </Badge>
           </TabsTrigger>
           <TabsTrigger value="no_show" className="flex items-center justify-center gap-1 sm:gap-2 text-xs sm:text-sm px-2 py-2">
             <CalendarX className="w-3 h-3 sm:w-4 sm:h-4" />
             <span className="hidden sm:inline">No Show</span>
             <Badge variant="secondary" className="text-[10px] sm:text-xs h-4 sm:h-5 px-1 sm:px-1.5">
-              {filterAppointments(dummyAppointments, "no_show").length}
+              0
             </Badge>
           </TabsTrigger>
         </TabsList>
 
         {["all", "pending", "confirmed", "completed", "cancelled", "no_show"].map((tabValue) => {
-          const filteredAppointments = filterAppointments(
-            dummyAppointments,
+          const filteredBookings = filterBookings(
+            bookings,
             tabValue === "all" ? undefined : tabValue
           );
 
@@ -771,7 +817,7 @@ export default function OrganizationAppointmentsList() {
                           <span className="font-medium">{appointment.appointmentType}</span>
                           <span className="text-muted-foreground">{appointment.duration} min</span>
                         </div>
-                        
+
                         <div className="flex items-center gap-2 text-sm">
                           <Calendar className="w-4 h-4 text-muted-foreground" />
                           <span>{appointment.date}</span>

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -13,125 +13,198 @@ import {
   AlertCircle,
   Info,
   Trash2,
-  Settings,
+  Loader2,
 } from "lucide-react";
 import { format } from "date-fns";
-
-interface Notification {
-  id: string;
-  type: "appointment" | "user" | "system" | "alert";
-  title: string;
-  message: string;
-  time: string;
-  read: boolean;
-}
-
-const dummyNotifications: Notification[] = [
-  {
-    id: "1",
-    type: "appointment",
-    title: "New Appointment Booked",
-    message: "John Doe booked a Medical Consultation for tomorrow at 10:00 AM",
-    time: "2025-01-20T14:30:00",
-    read: false,
-  },
-  {
-    id: "2",
-    type: "appointment",
-    title: "Appointment Cancelled",
-    message: "Jane Smith cancelled their Dental Checkup scheduled for Jan 25",
-    time: "2025-01-20T13:15:00",
-    read: false,
-  },
-  {
-    id: "3",
-    type: "user",
-    title: "New User Registered",
-    message: "Alice Johnson joined your organization as a staff member",
-    time: "2025-01-20T11:45:00",
-    read: true,
-  },
-  {
-    id: "4",
-    type: "appointment",
-    title: "Appointment Reminder",
-    message: "You have 3 appointments scheduled for today",
-    time: "2025-01-20T09:00:00",
-    read: true,
-  },
-  {
-    id: "5",
-    type: "system",
-    title: "System Maintenance",
-    message: "Scheduled maintenance on Jan 22 from 2:00 AM to 4:00 AM",
-    time: "2025-01-19T18:00:00",
-    read: true,
-  },
-  {
-    id: "6",
-    type: "alert",
-    title: "Payment Received",
-    message: "Payment of $150 received for appointment #A12345",
-    time: "2025-01-19T15:30:00",
-    read: true,
-  },
-];
+import { notificationApi, userApi } from "@/lib/api";
+import { authStorage } from "@/lib/auth";
+import { Notification, User as UserType } from "@/lib/types";
 
 export default function NotificationsPage() {
-  const [notifications, setNotifications] = useState<Notification[]>(dummyNotifications);
+  const [notifications, setNotifications] = useState<Notification[]>([]);
   const [activeTab, setActiveTab] = useState("all");
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
+  const [user, setUser] = useState<UserType | null>(null);
+  const [unreadCount, setUnreadCount] = useState(0);
 
-  const unreadCount = notifications.filter((n) => !n.read).length;
+  useEffect(() => {
+    fetchUserAndNotifications();
+  }, []);
+
+  const fetchUserAndNotifications = async () => {
+    try {
+      setLoading(true);
+      setError("");
+      const token = authStorage.getAccessToken();
+      if (!token) {
+        setError("Please login to view notifications");
+        return;
+      }
+
+      // Fetch user data
+      const userResponse = await userApi.getMe(token);
+      if (userResponse.success && userResponse.data) {
+        setUser(userResponse.data.user);
+      }
+
+      // Fetch notifications
+      const response = await notificationApi.getNotifications(token, {
+        page: 1,
+        limit: 100,
+      });
+
+      if (response.success && response.data) {
+        setNotifications(response.data.notifications);
+        setUnreadCount(response.data.unreadCount);
+      }
+    } catch (error: any) {
+      console.error("Failed to fetch notifications:", error);
+      setError(error.message || "Failed to load notifications");
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const filteredNotifications = notifications.filter((notification) => {
     if (activeTab === "all") return true;
     if (activeTab === "unread") return !notification.read;
-    return notification.type === activeTab;
+    
+    // Filter by notification type category
+    if (activeTab === "appointment") {
+      return notification.type.includes("APPOINTMENT");
+    }
+    if (activeTab === "booking") {
+      return notification.type.includes("BOOKING");
+    }
+    if (activeTab === "organization") {
+      return notification.type.includes("MEMBER") || 
+             notification.type.includes("RESOURCE") || 
+             notification.type.includes("ORGANIZATION");
+    }
+    if (activeTab === "account") {
+      return notification.type.includes("EMAIL") || 
+             notification.type.includes("PASSWORD");
+    }
+    
+    return false;
   });
 
-  const markAsRead = (id: string) => {
-    setNotifications(
-      notifications.map((n) => (n.id === id ? { ...n, read: true } : n))
-    );
+  const markAsRead = async (id: string) => {
+    try {
+      const token = authStorage.getAccessToken();
+      if (!token) return;
+
+      await notificationApi.markAsRead(token, id);
+      
+      setNotifications(
+        notifications.map((n) => (n.id === id ? { ...n, read: true } : n))
+      );
+      setUnreadCount(Math.max(0, unreadCount - 1));
+    } catch (error) {
+      console.error("Failed to mark as read:", error);
+    }
   };
 
-  const markAllAsRead = () => {
-    setNotifications(notifications.map((n) => ({ ...n, read: true })));
+  const markAllAsRead = async () => {
+    try {
+      const token = authStorage.getAccessToken();
+      if (!token) return;
+
+      await notificationApi.markAllAsRead(token);
+      
+      setNotifications(notifications.map((n) => ({ ...n, read: true })));
+      setUnreadCount(0);
+    } catch (error) {
+      console.error("Failed to mark all as read:", error);
+    }
   };
 
-  const deleteNotification = (id: string) => {
-    setNotifications(notifications.filter((n) => n.id !== id));
+  const deleteNotification = async (id: string) => {
+    try {
+      const token = authStorage.getAccessToken();
+      if (!token) return;
+
+      await notificationApi.deleteNotification(token, id);
+      
+      const notification = notifications.find((n) => n.id === id);
+      setNotifications(notifications.filter((n) => n.id !== id));
+      if (notification && !notification.read) {
+        setUnreadCount(Math.max(0, unreadCount - 1));
+      }
+    } catch (error) {
+      console.error("Failed to delete notification:", error);
+    }
+  };
+
+  const deleteAllRead = async () => {
+    try {
+      const token = authStorage.getAccessToken();
+      if (!token) return;
+
+      await notificationApi.deleteAllRead(token);
+      
+      setNotifications(notifications.filter((n) => !n.read));
+    } catch (error) {
+      console.error("Failed to delete read notifications:", error);
+    }
   };
 
   const getNotificationIcon = (type: string) => {
-    switch (type) {
-      case "appointment":
-        return <Calendar className="w-5 h-5 text-blue-600" />;
-      case "user":
-        return <User className="w-5 h-5 text-green-600" />;
-      case "system":
-        return <Info className="w-5 h-5 text-purple-600" />;
-      case "alert":
-        return <AlertCircle className="w-5 h-5 text-orange-600" />;
-      default:
-        return <Bell className="w-5 h-5 text-gray-600" />;
+    if (type.includes("APPOINTMENT") || type.includes("BOOKING")) {
+      return <Calendar className="w-5 h-5 text-blue-600" />;
     }
+    if (type.includes("MEMBER") || type.includes("USER")) {
+      return <User className="w-5 h-5 text-green-600" />;
+    }
+    if (type.includes("RESOURCE") || type.includes("ORGANIZATION")) {
+      return <Info className="w-5 h-5 text-purple-600" />;
+    }
+    if (type.includes("EMAIL") || type.includes("PASSWORD")) {
+      return <AlertCircle className="w-5 h-5 text-orange-600" />;
+    }
+    return <Bell className="w-5 h-5 text-gray-600" />;
   };
 
   const getNotificationBg = (type: string) => {
-    switch (type) {
-      case "appointment":
-        return "bg-blue-50 dark:bg-blue-950";
-      case "user":
-        return "bg-green-50 dark:bg-green-950";
-      case "system":
-        return "bg-purple-50 dark:bg-purple-950";
-      case "alert":
-        return "bg-orange-50 dark:bg-orange-950";
-      default:
-        return "bg-gray-50 dark:bg-gray-950";
+    if (type.includes("APPOINTMENT") || type.includes("BOOKING")) {
+      return "bg-blue-50 dark:bg-blue-950";
     }
+    if (type.includes("MEMBER") || type.includes("USER")) {
+      return "bg-green-50 dark:bg-green-950";
+    }
+    if (type.includes("RESOURCE") || type.includes("ORGANIZATION")) {
+      return "bg-purple-50 dark:bg-purple-950";
+    }
+    if (type.includes("EMAIL") || type.includes("PASSWORD")) {
+      return "bg-orange-50 dark:bg-orange-950";
+    }
+    return "bg-gray-50 dark:bg-gray-950";
   };
+
+  // Determine if user is an organizer
+  const isOrganizer = user?.role === "ORGANIZATION" || user?.isAdmin;
+
+  if (loading) {
+    return (
+      <div className="p-4 md:p-6 flex items-center justify-center min-h-[400px]">
+        <Loader2 className="w-8 h-8 animate-spin text-muted-foreground" />
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="p-4 md:p-6">
+        <Card>
+          <CardContent className="p-12 text-center">
+            <AlertCircle className="w-12 h-12 mx-auto mb-4 text-red-500" />
+            <p className="text-lg font-medium text-red-600">{error}</p>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
 
   return (
     <div className="p-4 md:p-6 space-y-6 animate-in fade-in duration-500">
@@ -148,7 +221,9 @@ export default function NotificationsPage() {
             )}
           </h1>
           <p className="text-muted-foreground mt-1">
-            Stay updated with your latest activities
+            {isOrganizer 
+              ? "Stay updated with your organization activities" 
+              : "Stay updated with your bookings and activities"}
           </p>
         </div>
         <div className="flex gap-2">
@@ -156,9 +231,9 @@ export default function NotificationsPage() {
             <CheckCheck className="w-4 h-4 mr-2" />
             Mark All Read
           </Button>
-          <Button variant="outline">
-            <Settings className="w-4 h-4 mr-2" />
-            Settings
+          <Button variant="outline" onClick={deleteAllRead}>
+            <Trash2 className="w-4 h-4 mr-2" />
+            Clear Read
           </Button>
         </div>
       </div>
@@ -185,19 +260,27 @@ export default function NotificationsPage() {
           <CardContent className="p-4">
             <div className="text-center">
               <div className="text-2xl font-bold text-blue-600">
-                {notifications.filter((n) => n.type === "appointment").length}
+                {notifications.filter((n) => n.type.includes("APPOINTMENT") || n.type.includes("BOOKING")).length}
               </div>
-              <p className="text-sm text-muted-foreground">Appointments</p>
+              <p className="text-sm text-muted-foreground">
+                {isOrganizer ? "Appointments" : "Bookings"}
+              </p>
             </div>
           </CardContent>
         </Card>
         <Card>
           <CardContent className="p-4">
             <div className="text-center">
-              <div className="text-2xl font-bold text-orange-600">
-                {notifications.filter((n) => n.type === "alert").length}
+              <div className="text-2xl font-bold text-purple-600">
+                {notifications.filter((n) => 
+                  n.type.includes("MEMBER") || 
+                  n.type.includes("RESOURCE") || 
+                  n.type.includes("ORGANIZATION")
+                ).length}
               </div>
-              <p className="text-sm text-muted-foreground">Alerts</p>
+              <p className="text-sm text-muted-foreground">
+                {isOrganizer ? "Organization" : "Updates"}
+              </p>
             </div>
           </CardContent>
         </Card>
@@ -215,10 +298,13 @@ export default function NotificationsPage() {
               </Badge>
             )}
           </TabsTrigger>
-          <TabsTrigger value="appointment">Appointments</TabsTrigger>
-          <TabsTrigger value="user">Users</TabsTrigger>
-          <TabsTrigger value="system">System</TabsTrigger>
-          <TabsTrigger value="alert">Alerts</TabsTrigger>
+          <TabsTrigger value={isOrganizer ? "appointment" : "booking"}>
+            {isOrganizer ? "Appointments" : "Bookings"}
+          </TabsTrigger>
+          <TabsTrigger value="organization">
+            {isOrganizer ? "Organization" : "Updates"}
+          </TabsTrigger>
+          <TabsTrigger value="account">Account</TabsTrigger>
         </TabsList>
 
         <TabsContent value={activeTab} className="space-y-3">
@@ -267,7 +353,7 @@ export default function NotificationsPage() {
                             {notification.message}
                           </p>
                           <p className="text-xs text-muted-foreground mt-2">
-                            {format(new Date(notification.time), "MMM d, yyyy 'at' h:mm a")}
+                            {format(new Date(notification.createdAt), "MMM d, yyyy 'at' h:mm a")}
                           </p>
                         </div>
                       </div>

@@ -9,6 +9,7 @@ const {
     getUserBookings,
     getOrganizationBookings,
     cancelBooking,
+    cancelBookingByOrganization,
 } = require("../controllers/bookingController");
 
 // Public routes
@@ -21,5 +22,6 @@ router.post("/appointments/:id/book", requireAuth, createBooking);
 router.get("/bookings/my", requireAuth, getUserBookings);
 router.get("/bookings/organization", requireAuth, getOrganizationBookings);
 router.delete("/bookings/:id", requireAuth, cancelBooking);
+router.delete("/bookings/:id/organization", requireAuth, cancelBookingByOrganization);
 
 module.exports = router;

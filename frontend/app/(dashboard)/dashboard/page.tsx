@@ -47,11 +47,29 @@ export default function DashboardPage() {
                     // Update cached user data
                     authStorage.setUser(userData);
                     setError(null);
+                    
+                    // Redirect based on user role
+                    if (userData.role === "ORGANIZATION") {
+                        router.replace("/dashboard/org");
+                        return;
+                    } else if (userData.role === "USER") {
+                        router.replace("/dashboard/user");
+                        return;
+                    }
                 } else {
                     // Try to use cached data
                     const cachedUser = authStorage.getUser();
                     if (cachedUser) {
                         setUser(cachedUser);
+                        
+                        // Redirect based on cached user role
+                        if (cachedUser.role === "ORGANIZATION") {
+                            router.replace("/dashboard/org");
+                            return;
+                        } else if (cachedUser.role === "USER") {
+                            router.replace("/dashboard/user");
+                            return;
+                        }
                     } else {
                         setError("Unable to load user data");
                     }
@@ -63,6 +81,15 @@ export default function DashboardPage() {
                 const cachedUser = authStorage.getUser();
                 if (cachedUser) {
                     setUser(cachedUser);
+                    
+                    // Redirect based on cached user role
+                    if (cachedUser.role === "ORGANIZATION") {
+                        router.replace("/dashboard/org");
+                        return;
+                    } else if (cachedUser.role === "USER") {
+                        router.replace("/dashboard/user");
+                        return;
+                    }
                 } else {
                     setError("Failed to load user data. Please refresh the page.");
                 }
@@ -74,6 +101,16 @@ export default function DashboardPage() {
         if (!contextLoading) {
             if (contextUser) {
                 setUser(contextUser);
+                
+                // Redirect based on context user role
+                if (contextUser.role === "ORGANIZATION") {
+                    router.replace("/dashboard/org");
+                    return;
+                } else if (contextUser.role === "USER") {
+                    router.replace("/dashboard/user");
+                    return;
+                }
+                
                 setIsLoading(false);
             } else {
                 fetchUserData();
@@ -270,55 +307,73 @@ export default function DashboardPage() {
                     <div className="space-y-4">
                         {user.role === "ORGANIZATION" ? (
                             <>
-                                {user.adminOrganization ? (
-                                    <>
-                                        <div>
-                                            <label className="text-sm font-medium text-muted-foreground">
-                                                Organization Name
-                                            </label>
-                                            <p className="text-base font-medium">
-                                                {user.adminOrganization.name}
-                                            </p>
-                                        </div>
-
-                                        <div>
-                                            <label className="text-sm font-medium text-muted-foreground flex items-center gap-2">
-                                                <MapPin className="size-4" />
-                                                Location
-                                            </label>
-                                            <p className="text-base">
-                                                {user.adminOrganization.location}
-                                            </p>
-                                        </div>
-
-                                        {user.adminOrganization.description && (
-                                            <div>
-                                                <label className="text-sm font-medium text-muted-foreground">
-                                                    Description
-                                                </label>
-                                                <p className="text-base">
-                                                    {user.adminOrganization.description}
+                                {/* Show organization details for both admins and members */}
+                                {(() => {
+                                    const org = user.adminOrganization || user.organization;
+                                    
+                                    if (!org) {
+                                        return (
+                                            <div className="text-center py-8">
+                                                <Building2 className="size-12 mx-auto mb-3 text-muted-foreground" />
+                                                <p className="text-muted-foreground">
+                                                    No organization details available
                                                 </p>
                                             </div>
-                                        )}
+                                        );
+                                    }
 
-                                        <div>
-                                            <label className="text-sm font-medium text-muted-foreground">
-                                                Organization ID
-                                            </label>
-                                            <p className="text-sm font-mono bg-muted px-2 py-1 rounded">
-                                                {user.adminOrganization.id}
-                                            </p>
-                                        </div>
-                                    </>
-                                ) : (
-                                    <div className="text-center py-8">
-                                        <Building2 className="size-12 mx-auto mb-3 text-muted-foreground" />
-                                        <p className="text-muted-foreground">
-                                            No organization details available
-                                        </p>
-                                    </div>
-                                )}
+                                    return (
+                                        <>
+                                            <div>
+                                                <label className="text-sm font-medium text-muted-foreground">
+                                                    Organization Name
+                                                </label>
+                                                <p className="text-base font-medium">
+                                                    {org.name}
+                                                </p>
+                                            </div>
+
+                                            <div>
+                                                <label className="text-sm font-medium text-muted-foreground flex items-center gap-2">
+                                                    <MapPin className="size-4" />
+                                                    Location
+                                                </label>
+                                                <p className="text-base">
+                                                    {org.location}
+                                                </p>
+                                            </div>
+
+                                            {org.description && (
+                                                <div>
+                                                    <label className="text-sm font-medium text-muted-foreground">
+                                                        Description
+                                                    </label>
+                                                    <p className="text-base">
+                                                        {org.description}
+                                                    </p>
+                                                </div>
+                                            )}
+
+                                            <div>
+                                                <label className="text-sm font-medium text-muted-foreground">
+                                                    Role
+                                                </label>
+                                                <p className="text-base">
+                                                    {user.isMember ? "Organization Member" : "Organization Admin"}
+                                                </p>
+                                            </div>
+
+                                            <div>
+                                                <label className="text-sm font-medium text-muted-foreground">
+                                                    Organization ID
+                                                </label>
+                                                <p className="text-sm font-mono bg-muted px-2 py-1 rounded">
+                                                    {org.id}
+                                                </p>
+                                            </div>
+                                        </>
+                                    );
+                                })()}
                             </>
                         ) : (
                             <>
