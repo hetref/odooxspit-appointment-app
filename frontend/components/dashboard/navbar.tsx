@@ -26,6 +26,7 @@ import {
   Home,
   CreditCard,
   Briefcase,
+  Phone,
 } from "lucide-react"
 import {
   Popover,
@@ -64,6 +65,7 @@ const navigationByRole = {
     { href: "/dashboard/org/all-appointments", label: "All Appointments", icon: CalendarCheck },
     { href: "/dashboard/org/resources", label: "Resources", icon: Briefcase },
     { href: "/dashboard/org/users", label: "Team", icon: Users },
+    { href: "/dashboard/org/voice-agents", label: "Voice Agents", icon: Phone },
     { href: "/dashboard/payments", label: "Payments", icon: CreditCard },
     { href: "/dashboard/org/settings", label: "Settings", icon: Settings },
   ],
