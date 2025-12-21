@@ -43,7 +43,7 @@
 
 ## 🌟 Overview
 
-**OdooXspit Appointment App** is a modern, production-ready appointment booking system designed for organizations and businesses. It enables organizations to manage appointments, resources, team members, and bookings with ease. The system includes a web application, REST API backend, and a cross-platform desktop application built with Tauri.
+**Book Now** is a modern, production-ready appointment booking system designed for organizations and businesses. It enables organizations to manage appointments, resources, team members, and bookings with ease. The system includes a web application, REST API backend, and a cross-platform desktop application built with Tauri.
 
 ### 🎯 What Makes It Special?
 
