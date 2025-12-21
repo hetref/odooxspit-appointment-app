@@ -13,16 +13,16 @@ export interface User {
   adminOrganization?: Organization;
   // Computed on backend: whether this user's organization has a Razorpay connection
   razorpayConnected?: boolean;
-  // Super admin flag - set for specific admin emails
+  // Admin flag
   isAdmin?: boolean;
 }
 
 export interface Organization {
   id: string;
   name: string;
-  location: string;
+  location: string | null;
   businessHours?: BusinessHour[];
-  description?: string;
+  description?: string | null;
   adminId: string;
   createdAt: string;
   updatedAt?: string;
