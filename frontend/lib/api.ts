@@ -1,6 +1,6 @@
 import { User, Organization, Appointment, Booking, TimeSlot, Notification } from "./types";
 
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "https://jeanene-unexposed-ingrid.ngrok-free.dev";
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "https://odooxspit-appointment-app.onrender.com";
 
 export interface ApiResponse<T = any> {
   success: boolean;
