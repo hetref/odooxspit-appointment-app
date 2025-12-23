@@ -11,6 +11,7 @@ export interface User {
   organizationName?: string;
   organization?: Organization;
   adminOrganization?: Organization;
+  phone?: string | null;
   // Computed on backend: whether this user's organization has a Razorpay connection
   razorpayConnected?: boolean;
   // Super admin flag - set for specific admin emails

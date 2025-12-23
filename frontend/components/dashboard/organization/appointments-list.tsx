@@ -61,40 +61,9 @@ import { GetUserData } from "@/lib/auth";
 import { Label } from "@/components/ui/label";
 import { bookingApi } from "@/lib/api";
 import { authStorage } from "@/lib/auth";
+import { Appointment, Booking } from "@/lib/types";
 
 // Types
-interface Booking {
-  id: string;
-  startTime: string;
-  endTime: string;
-  numberOfSlots: number;
-  totalAmount: number;
-  paymentStatus: "PENDING" | "PAID" | "FAILED" | "REFUNDED";
-  bookingStatus: "PENDING" | "CONFIRMED" | "CANCELLED" | "COMPLETED";
-  userResponses: any;
-  createdAt: string;
-  appointment: {
-    id: string;
-    title: string;
-    durationMinutes: number;
-  };
-  user: {
-    id: string;
-    name: string;
-    email: string;
-  };
-  resource?: {
-    id: string;
-    name: string;
-    capacity: number;
-  } | null;
-  assignedUser?: {
-    id: string;
-    name: string;
-    email: string;
-  } | null;
-}
-
 interface Stats {
   total: number;
   pending: number;
@@ -104,171 +73,7 @@ interface Stats {
   revenue: number;
 }
 
-// Dummy Data
-const dummyAppointments: Appointment[] = [
-  {
-    id: "1",
-    appointmentType: "General Consultation",
-    customerName: "Alice Johnson",
-    customerEmail: "alice@example.com",
-    date: "2025-01-15",
-    time: "10:00 AM",
-    duration: 30,
-    venue: "Main Office - Room 101",
-    provider: "Dr. Sarah Johnson",
-    status: "pending",
-    paymentStatus: "pending",
-    paymentAmount: 50,
-    capacityBooked: 1,
-    createdAt: "2024-12-18T10:00:00Z",
-  },
-  {
-    id: "2",
-    appointmentType: "Technical Support",
-    customerName: "Bob Smith",
-    customerEmail: "bob@example.com",
-    date: "2025-01-16",
-    time: "2:30 PM",
-    duration: 45,
-    venue: "Support Center - Building B",
-    provider: "John Smith",
-    status: "confirmed",
-    paymentStatus: "paid",
-    paymentAmount: 75,
-    capacityBooked: 1,
-    confirmationMessage: "Looking forward to helping you with your technical issues.",
-    createdAt: "2024-12-19T14:00:00Z",
-  },
-  {
-    id: "3",
-    appointmentType: "Product Demo",
-    customerName: "Carol White",
-    customerEmail: "carol@example.com",
-    date: "2025-01-18",
-    time: "11:00 AM",
-    duration: 60,
-    venue: "Demo Lab - Floor 3",
-    provider: "Emily Chen",
-    status: "confirmed",
-    paymentStatus: "paid",
-    paymentAmount: 100,
-    capacityBooked: 2,
-    createdAt: "2024-12-20T09:00:00Z",
-  },
-  {
-    id: "4",
-    appointmentType: "Training Session",
-    customerName: "David Brown",
-    customerEmail: "david@example.com",
-    date: "2024-12-10",
-    time: "9:00 AM",
-    duration: 90,
-    venue: "Training Center",
-    provider: "Mark Wilson",
-    status: "completed",
-    paymentStatus: "paid",
-    paymentAmount: 150,
-    capacityBooked: 5,
-    createdAt: "2024-11-28T10:00:00Z",
-  },
-  {
-    id: "5",
-    appointmentType: "General Consultation",
-    customerName: "Eve Davis",
-    customerEmail: "eve@example.com",
-    date: "2024-11-25",
-    time: "1:00 PM",
-    duration: 30,
-    venue: "Main Office - Room 101",
-    provider: "Dr. Sarah Johnson",
-    status: "completed",
-    paymentStatus: "paid",
-    paymentAmount: 50,
-    capacityBooked: 1,
-    createdAt: "2024-11-20T10:00:00Z",
-  },
-  {
-    id: "6",
-    appointmentType: "Technical Support",
-    customerName: "Frank Miller",
-    customerEmail: "frank@example.com",
-    date: "2024-10-30",
-    time: "10:30 AM",
-    duration: 45,
-    venue: "Support Center - Building B",
-    provider: "John Smith",
-    status: "cancelled",
-    paymentStatus: "refunded",
-    paymentAmount: 75,
-    capacityBooked: 1,
-    cancellationReason: "Customer requested to reschedule",
-    createdAt: "2024-10-25T10:00:00Z",
-  },
-  {
-    id: "7",
-    appointmentType: "Follow-up Meeting",
-    customerName: "Grace Lee",
-    customerEmail: "grace@example.com",
-    date: "2025-01-22",
-    time: "3:00 PM",
-    duration: 20,
-    venue: "Conference Room A",
-    provider: "Dr. Sarah Johnson",
-    status: "pending",
-    paymentStatus: "pending",
-    paymentAmount: 40,
-    capacityBooked: 1,
-    createdAt: "2024-12-15T11:00:00Z",
-  },
-  {
-    id: "8",
-    appointmentType: "Strategy Planning",
-    customerName: "Henry Taylor",
-    customerEmail: "henry@example.com",
-    date: "2025-01-25",
-    time: "4:00 PM",
-    duration: 120,
-    venue: "Executive Board Room",
-    provider: "Jennifer Adams",
-    status: "confirmed",
-    paymentStatus: "paid",
-    paymentAmount: 200,
-    capacityBooked: 1,
-    createdAt: "2024-12-10T10:00:00Z",
-  },
-  {
-    id: "9",
-    appointmentType: "Product Demo",
-    customerName: "Iris Martinez",
-    customerEmail: "iris@example.com",
-    date: "2024-12-05",
-    time: "2:00 PM",
-    duration: 60,
-    venue: "Demo Lab - Floor 3",
-    provider: "Emily Chen",
-    status: "no_show",
-    paymentStatus: "paid",
-    paymentAmount: 100,
-    capacityBooked: 1,
-    createdAt: "2024-11-28T10:00:00Z",
-  },
-  {
-    id: "10",
-    appointmentType: "Training Session",
-    customerName: "Jack Wilson",
-    customerEmail: "jack@example.com",
-    date: "2025-02-01",
-    time: "10:00 AM",
-    duration: 90,
-    venue: "Training Center",
-    provider: "Mark Wilson",
-    status: "pending",
-    paymentStatus: "pending",
-    paymentAmount: 150,
-    capacityBooked: 8,
-    createdAt: "2024-12-18T10:00:00Z",
-  },
-];
+// Note: Dummy data removed - component now uses real data from API via bookings state
 
 const getStatusColor = (status: string) => {
   switch (status) {
@@ -376,9 +181,9 @@ export default function OrganizationAppointmentsList() {
     if (searchQuery) {
       filtered = filtered.filter(
         (b) =>
-          b.user.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-          b.user.email.toLowerCase().includes(searchQuery.toLowerCase()) ||
-          b.appointment.title.toLowerCase().includes(searchQuery.toLowerCase())
+          b.user?.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+          b.user?.email.toLowerCase().includes(searchQuery.toLowerCase()) ||
+          b.appointment?.title.toLowerCase().includes(searchQuery.toLowerCase())
       );
     }
 
@@ -635,22 +440,22 @@ export default function OrganizationAppointmentsList() {
                         </TableRow>
                       </TableHeader>
                       <TableBody>
-                        {filteredAppointments.length > 0 ? (
-                          filteredAppointments.map((appointment) => (
-                            <TableRow key={appointment.id}>
+                        {filteredBookings.length > 0 ? (
+                          filteredBookings.map((booking) => (
+                            <TableRow key={booking.id}>
                               <TableCell>
                                 <div className="flex flex-col">
-                                  <span className="font-medium">{appointment.customerName}</span>
+                                  <span className="font-medium">{booking.user?.name || "N/A"}</span>
                                   <span className="text-sm text-muted-foreground">
-                                    {appointment.customerEmail}
+                                    {booking.user?.email || "N/A"}
                                   </span>
                                 </div>
                               </TableCell>
                               <TableCell>
                                 <div className="flex flex-col">
-                                  <span className="font-medium">{appointment.appointmentType}</span>
+                                  <span className="font-medium">{booking.appointment?.title || "N/A"}</span>
                                   <span className="text-sm text-muted-foreground">
-                                    {appointment.duration} min
+                                    {booking.appointment?.durationMinutes || 0} min
                                   </span>
                                 </div>
                               </TableCell>
@@ -658,46 +463,46 @@ export default function OrganizationAppointmentsList() {
                                 <div className="flex flex-col gap-1">
                                   <div className="flex items-center gap-1.5">
                                     <Calendar className="w-3.5 h-3.5 text-muted-foreground" />
-                                    <span className="text-sm">{appointment.date}</span>
+                                    <span className="text-sm">{format(new Date(booking.startTime), "MMM dd, yyyy")}</span>
                                   </div>
                                   <div className="flex items-center gap-1.5">
                                     <Clock className="w-3.5 h-3.5 text-muted-foreground" />
-                                    <span className="text-sm">{appointment.time}</span>
+                                    <span className="text-sm">{format(new Date(booking.startTime), "hh:mm a")}</span>
                                   </div>
                                 </div>
                               </TableCell>
                               <TableCell>
                                 <div className="flex items-center gap-1.5">
                                   <User className="w-3.5 h-3.5 text-muted-foreground" />
-                                  <span className="text-sm">{appointment.provider}</span>
+                                  <span className="text-sm">{booking.assignedUser?.name || booking.resource?.name || "N/A"}</span>
                                 </div>
                               </TableCell>
                               <TableCell>
                                 <div className="flex items-center gap-1.5 max-w-[200px]">
                                   <MapPin className="w-3.5 h-3.5 text-muted-foreground flex-shrink-0" />
-                                  <span className="text-sm truncate">{appointment.venue}</span>
+                                  <span className="text-sm truncate">{booking.appointment?.location || "N/A"}</span>
                                 </div>
                               </TableCell>
                               <TableCell>
                                 <Badge
-                                  className={getStatusColor(appointment.status)}
+                                  className={getStatusColor(booking.bookingStatus.toLowerCase())}
                                   variant="outline"
                                 >
-                                  {appointment.status.charAt(0).toUpperCase() +
-                                    appointment.status.slice(1).replace("_", " ")}
+                                  {booking.bookingStatus.charAt(0).toUpperCase() +
+                                    booking.bookingStatus.slice(1).toLowerCase()}
                                 </Badge>
                               </TableCell>
                               <TableCell>
                                 <div className="flex flex-col gap-1">
                                   <Badge
-                                    className={getPaymentStatusColor(appointment.paymentStatus)}
+                                    className={getPaymentStatusColor(booking.paymentStatus.toLowerCase())}
                                     variant="secondary"
                                   >
-                                    {appointment.paymentStatus.charAt(0).toUpperCase() +
-                                      appointment.paymentStatus.slice(1)}
+                                    {booking.paymentStatus.charAt(0).toUpperCase() +
+                                      booking.paymentStatus.slice(1).toLowerCase()}
                                   </Badge>
                                   <span className="text-xs text-muted-foreground">
-                                    ${appointment.paymentAmount}
+                                    ${booking.totalAmount || 0}
                                   </span>
                                 </div>
                               </TableCell>
@@ -712,21 +517,21 @@ export default function OrganizationAppointmentsList() {
                                     <DropdownMenuLabel>Actions</DropdownMenuLabel>
                                     <DropdownMenuSeparator />
                                     <DropdownMenuItem
-                                      onClick={() => handleViewDetails(appointment)}
+                                      onClick={() => handleViewDetails(booking)}
                                     >
                                       View Details
                                     </DropdownMenuItem>
-                                    {appointment.status === "pending" && (
+                                    {booking.bookingStatus === "PENDING" && (
                                       <>
                                         <DropdownMenuItem
-                                          onClick={() => handleConfirm(appointment.id)}
+                                          onClick={() => handleConfirm(booking.id)}
                                           className="text-green-600"
                                         >
                                           <CheckCircle2 className="w-4 h-4 mr-2" />
                                           Confirm
                                         </DropdownMenuItem>
                                         <DropdownMenuItem
-                                          onClick={() => handleCancel(appointment.id)}
+                                          onClick={() => handleCancel(booking.id)}
                                           className="text-red-600"
                                         >
                                           <XCircle className="w-4 h-4 mr-2" />
@@ -734,7 +539,7 @@ export default function OrganizationAppointmentsList() {
                                         </DropdownMenuItem>
                                       </>
                                     )}
-                                    {appointment.status === "confirmed" && (
+                                    {booking.bookingStatus === "CONFIRMED" && (
                                       <DropdownMenuItem>Reschedule</DropdownMenuItem>
                                     )}
                                     <DropdownMenuSeparator />
@@ -763,17 +568,17 @@ export default function OrganizationAppointmentsList() {
 
               {/* Mobile Card View */}
               <div className="md:hidden space-y-4">
-                {filteredAppointments.length > 0 ? (
-                  filteredAppointments.map((appointment) => (
-                    <Card key={appointment.id} className="overflow-hidden">
+                {filteredBookings.length > 0 ? (
+                  filteredBookings.map((booking) => (
+                    <Card key={booking.id} className="overflow-hidden">
                       <CardHeader className="pb-3">
                         <div className="flex items-start justify-between gap-2">
                           <div className="flex-1 min-w-0">
                             <CardTitle className="text-base font-semibold truncate">
-                              {appointment.customerName}
+                              {booking.user?.name || "N/A"}
                             </CardTitle>
                             <CardDescription className="text-xs truncate">
-                              {appointment.customerEmail}
+                              {booking.user?.email || "N/A"}
                             </CardDescription>
                           </div>
                           <DropdownMenu>
@@ -786,21 +591,21 @@ export default function OrganizationAppointmentsList() {
                               <DropdownMenuLabel>Actions</DropdownMenuLabel>
                               <DropdownMenuSeparator />
                               <DropdownMenuItem
-                                onClick={() => handleViewDetails(appointment)}
+                                onClick={() => handleViewDetails(booking)}
                               >
                                 View Details
                               </DropdownMenuItem>
-                              {appointment.status === "pending" && (
+                              {booking.bookingStatus === "PENDING" && (
                                 <>
                                   <DropdownMenuItem
-                                    onClick={() => handleConfirm(appointment.id)}
+                                    onClick={() => handleConfirm(booking.id)}
                                     className="text-green-600"
                                   >
                                     <CheckCircle2 className="w-4 h-4 mr-2" />
                                     Confirm
                                   </DropdownMenuItem>
                                   <DropdownMenuItem
-                                    onClick={() => handleCancel(appointment.id)}
+                                    onClick={() => handleCancel(booking.id)}
                                     className="text-red-600"
                                   >
                                     <XCircle className="w-4 h-4 mr-2" />
@@ -814,41 +619,41 @@ export default function OrganizationAppointmentsList() {
                       </CardHeader>
                       <CardContent className="space-y-3 pt-0">
                         <div className="flex items-center justify-between text-sm">
-                          <span className="font-medium">{appointment.appointmentType}</span>
-                          <span className="text-muted-foreground">{appointment.duration} min</span>
+                          <span className="font-medium">{booking.appointment?.title || "N/A"}</span>
+                          <span className="text-muted-foreground">{booking.appointment?.durationMinutes || 0} min</span>
                         </div>
 
                         <div className="flex items-center gap-2 text-sm">
                           <Calendar className="w-4 h-4 text-muted-foreground" />
-                          <span>{appointment.date}</span>
+                          <span>{format(new Date(booking.startTime), "MMM dd, yyyy")}</span>
                           <Clock className="w-4 h-4 text-muted-foreground ml-2" />
-                          <span>{appointment.time}</span>
+                          <span>{format(new Date(booking.startTime), "hh:mm a")}</span>
                         </div>
 
                         <div className="flex items-center gap-2 text-sm">
                           <User className="w-4 h-4 text-muted-foreground" />
-                          <span className="truncate">{appointment.provider}</span>
+                          <span className="truncate">{booking.assignedUser?.name || booking.resource?.name || "N/A"}</span>
                         </div>
 
                         <div className="flex items-start gap-2 text-sm">
                           <MapPin className="w-4 h-4 text-muted-foreground mt-0.5 flex-shrink-0" />
-                          <span className="line-clamp-2">{appointment.venue}</span>
+                          <span className="line-clamp-2">{booking.appointment?.location || "N/A"}</span>
                         </div>
 
                         <div className="flex items-center justify-between pt-2 border-t">
                           <div className="flex gap-2">
                             <Badge
-                              className={getStatusColor(appointment.status)}
+                              className={getStatusColor(booking.bookingStatus.toLowerCase())}
                               variant="outline"
                             >
-                              {appointment.status.charAt(0).toUpperCase() +
-                                appointment.status.slice(1).replace("_", " ")}
+                              {booking.bookingStatus.charAt(0).toUpperCase() +
+                                booking.bookingStatus.slice(1).toLowerCase()}
                             </Badge>
                             <Badge
-                              className={getPaymentStatusColor(appointment.paymentStatus)}
+                              className={getPaymentStatusColor(booking.paymentStatus.toLowerCase())}
                               variant="secondary"
                             >
-                              ${appointment.paymentAmount}
+                              ${booking.totalAmount || 0}
                             </Badge>
                           </div>
                         </div>
@@ -880,20 +685,20 @@ export default function OrganizationAppointmentsList() {
               Complete information about this appointment
             </DialogDescription>
           </DialogHeader>
-          {selectedAppointment && (
+          {selectedBooking && (
             <div className="space-y-6">
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <Label className="text-sm font-medium text-muted-foreground">
-                    Appointment ID
+                    Booking ID
                   </Label>
-                  <p className="text-sm font-mono">{selectedAppointment.id}</p>
+                  <p className="text-sm font-mono">{selectedBooking.id}</p>
                 </div>
                 <div>
                   <Label className="text-sm font-medium text-muted-foreground">Status</Label>
-                  <Badge className={getStatusColor(selectedAppointment.status)} variant="outline">
-                    {selectedAppointment.status.charAt(0).toUpperCase() +
-                      selectedAppointment.status.slice(1)}
+                  <Badge className={getStatusColor(selectedBooking.bookingStatus.toLowerCase())} variant="outline">
+                    {selectedBooking.bookingStatus.charAt(0).toUpperCase() +
+                      selectedBooking.bookingStatus.slice(1).toLowerCase()}
                   </Badge>
                 </div>
               </div>
@@ -903,11 +708,11 @@ export default function OrganizationAppointmentsList() {
                 <div className="grid grid-cols-2 gap-4">
                   <div>
                     <Label className="text-sm font-medium text-muted-foreground">Name</Label>
-                    <p className="text-sm">{selectedAppointment.customerName}</p>
+                    <p className="text-sm">{selectedBooking.user?.name || "N/A"}</p>
                   </div>
                   <div>
                     <Label className="text-sm font-medium text-muted-foreground">Email</Label>
-                    <p className="text-sm">{selectedAppointment.customerEmail}</p>
+                    <p className="text-sm">{selectedBooking.user?.email || "N/A"}</p>
                   </div>
                 </div>
               </div>
@@ -917,27 +722,27 @@ export default function OrganizationAppointmentsList() {
                 <div className="grid grid-cols-2 gap-4">
                   <div>
                     <Label className="text-sm font-medium text-muted-foreground">Type</Label>
-                    <p className="text-sm">{selectedAppointment.appointmentType}</p>
+                    <p className="text-sm">{selectedBooking.appointment?.title || "N/A"}</p>
                   </div>
                   <div>
                     <Label className="text-sm font-medium text-muted-foreground">Duration</Label>
-                    <p className="text-sm">{selectedAppointment.duration} minutes</p>
+                    <p className="text-sm">{selectedBooking.appointment?.durationMinutes || 0} minutes</p>
                   </div>
                   <div>
                     <Label className="text-sm font-medium text-muted-foreground">Date</Label>
-                    <p className="text-sm">{selectedAppointment.date}</p>
+                    <p className="text-sm">{format(new Date(selectedBooking.startTime), "MMM dd, yyyy")}</p>
                   </div>
                   <div>
                     <Label className="text-sm font-medium text-muted-foreground">Time</Label>
-                    <p className="text-sm">{selectedAppointment.time}</p>
+                    <p className="text-sm">{format(new Date(selectedBooking.startTime), "hh:mm a")} - {format(new Date(selectedBooking.endTime), "hh:mm a")}</p>
                   </div>
                   <div>
                     <Label className="text-sm font-medium text-muted-foreground">Provider</Label>
-                    <p className="text-sm">{selectedAppointment.provider}</p>
+                    <p className="text-sm">{selectedBooking.assignedUser?.name || selectedBooking.resource?.name || "N/A"}</p>
                   </div>
                   <div>
-                    <Label className="text-sm font-medium text-muted-foreground">Venue</Label>
-                    <p className="text-sm">{selectedAppointment.venue}</p>
+                    <Label className="text-sm font-medium text-muted-foreground">Location</Label>
+                    <p className="text-sm">{selectedBooking.appointment?.location || "N/A"}</p>
                   </div>
                 </div>
               </div>
@@ -950,53 +755,53 @@ export default function OrganizationAppointmentsList() {
                       Payment Status
                     </Label>
                     <Badge
-                      className={getPaymentStatusColor(selectedAppointment.paymentStatus)}
+                      className={getPaymentStatusColor(selectedBooking.paymentStatus.toLowerCase())}
                       variant="secondary"
                     >
-                      {selectedAppointment.paymentStatus.charAt(0).toUpperCase() +
-                        selectedAppointment.paymentStatus.slice(1)}
+                      {selectedBooking.paymentStatus.charAt(0).toUpperCase() +
+                        selectedBooking.paymentStatus.slice(1).toLowerCase()}
                     </Badge>
                   </div>
                   <div>
                     <Label className="text-sm font-medium text-muted-foreground">Amount</Label>
-                    <p className="text-sm font-semibold">${selectedAppointment.paymentAmount}</p>
+                    <p className="text-sm font-semibold">${selectedBooking.totalAmount || 0}</p>
                   </div>
                   <div>
                     <Label className="text-sm font-medium text-muted-foreground">
-                      Capacity Booked
+                      Slots Booked
                     </Label>
-                    <p className="text-sm">{selectedAppointment.capacityBooked} slot(s)</p>
+                    <p className="text-sm">{selectedBooking.numberOfSlots || 1} slot(s)</p>
                   </div>
                 </div>
               </div>
 
-              {selectedAppointment.confirmationMessage && (
+              {selectedBooking.appointment?.confirmationMessage && (
                 <div className="border-t pt-4">
                   <Label className="text-sm font-medium text-muted-foreground">
                     Confirmation Message
                   </Label>
                   <p className="text-sm mt-1 p-3 bg-muted rounded-md">
-                    {selectedAppointment.confirmationMessage}
+                    {selectedBooking.appointment.confirmationMessage}
                   </p>
                 </div>
               )}
 
-              {selectedAppointment.cancellationReason && (
+              {selectedBooking.notes && (
                 <div className="border-t pt-4">
                   <Label className="text-sm font-medium text-muted-foreground">
-                    Cancellation Reason
+                    Notes
                   </Label>
                   <p className="text-sm mt-1 p-3 bg-muted rounded-md">
-                    {selectedAppointment.cancellationReason}
+                    {selectedBooking.notes}
                   </p>
                 </div>
               )}
 
               <div className="border-t pt-4 flex gap-2 justify-end">
-                {selectedAppointment.status === "pending" && (
+                {selectedBooking.bookingStatus === "PENDING" && (
                   <>
                     <Button
-                      onClick={() => handleConfirm(selectedAppointment.id)}
+                      onClick={() => handleConfirm(selectedBooking.id)}
                       className="gap-2"
                     >
                       <CheckCircle2 className="w-4 h-4" />
@@ -1004,7 +809,7 @@ export default function OrganizationAppointmentsList() {
                     </Button>
                     <Button
                       variant="destructive"
-                      onClick={() => handleCancel(selectedAppointment.id)}
+                      onClick={() => handleCancel(selectedBooking.id)}
                       className="gap-2"
                     >
                       <XCircle className="w-4 h-4" />
