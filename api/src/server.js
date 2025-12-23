@@ -6,7 +6,7 @@ const helmet = require('helmet');
 const cookieParser = require('cookie-parser');
 const rateLimit = require('express-rate-limit');
 const { initializeMailer } = require('./lib/mailer');
-const { initSocket } = require('./socket');
+// const { initSocket } = require('./socket');
 const authRoutes = require('./routes/auth');
 const userRoutes = require('./routes/user');
 const sessionRoutes = require('./routes/session');
@@ -67,8 +67,8 @@ app.use(cookieParser());
 initializeMailer();
 
 // Initialize Socket.IO
-initSocket(server);
-console.log('✅ Socket.IO initialized');
+// initSocket(server);
+// console.log('✅ Socket.IO initialized');
 
 // Health check endpoint
 app.get('/', (req, res) => {

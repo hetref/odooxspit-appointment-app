@@ -1,7 +1,7 @@
 const prisma = require("../lib/prisma");
 const crypto = require("crypto");
 const { notifyOrganizationMembers, createNotification } = require('../lib/notificationHelper');
-const { emitBookingCreated, emitBookingCancelled } = require('../socket');
+// const { emitBookingCreated, emitBookingCancelled } = require('../socket');
 
 // Generate secret link for unpublished appointments
 const generateSecretLink = () => {
@@ -826,7 +826,7 @@ const createBooking = async (req, res) => {
         }
 
         // Emit socket event for real-time update
-        emitBookingCreated(booking.appointment.organizationId, booking.appointmentId, booking);
+        // emitBookingCreated(booking.appointment.organizationId, booking.appointmentId, booking);
 
         res.status(201).json({
             success: true,
@@ -1042,7 +1042,7 @@ const cancelBooking = async (req, res) => {
         });
 
         // Emit socket event for real-time update
-        emitBookingCancelled(booking.appointment.organizationId, booking.appointmentId, booking.id);
+        // emitBookingCancelled(booking.appointment.organizationId, booking.appointmentId, booking.id);
 
         res.json({
             success: true,
@@ -1128,7 +1128,7 @@ const cancelBookingByOrganization = async (req, res) => {
         });
 
         // Emit socket event for real-time update
-        emitBookingCancelled(booking.appointment.organizationId, booking.appointmentId, booking.id);
+        // emitBookingCancelled(booking.appointment.organizationId, booking.appointmentId, booking.id);
 
         res.json({
             success: true,

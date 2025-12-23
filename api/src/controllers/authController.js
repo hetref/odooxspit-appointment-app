@@ -1,5 +1,5 @@
 const prisma = require("../lib/prisma");
-const { emitOrganizationCreated } = require('../socket');
+// const { emitOrganizationCreated } = require('../socket');
 const {
   hashPassword,
   verifyPassword,
@@ -149,9 +149,9 @@ async function register(req, res) {
     });
 
     // Emit socket event if organization was created
-    if (result.organization) {
-      emitOrganizationCreated(result.organization);
-    }
+    // if (result.organization) {
+      // emitOrganizationCreated(result.organization);
+    // }
 
     // Generate email verification token
     const verificationToken = await createEmailVerificationToken(
