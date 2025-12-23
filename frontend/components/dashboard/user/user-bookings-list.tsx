@@ -36,40 +36,7 @@ import {
 import { format } from "date-fns";
 import { bookingApi } from "@/lib/api";
 import { authStorage } from "@/lib/auth";
-
-interface Booking {
-    id: string;
-    startTime: string;
-    endTime: string;
-    numberOfSlots: number;
-    totalAmount: number;
-    paymentStatus: "PENDING" | "PAID" | "FAILED" | "REFUNDED";
-    bookingStatus: "PENDING" | "CONFIRMED" | "CANCELLED" | "COMPLETED";
-    createdAt: string;
-    userResponses?: any;
-    appointment: {
-        id: string;
-        title: string;
-        description: string | null;
-        durationMinutes: number;
-        price: number | null;
-        organization: {
-            id: string;
-            name: string;
-            location: string | null;
-            description: string | null;
-        };
-    };
-    resource?: {
-        id: string;
-        name: string;
-    } | null;
-    assignedUser?: {
-        id: string;
-        name: string;
-        email: string;
-    } | null;
-}
+import { Booking } from "@/lib/types";
 
 const getStatusColor = (status: string) => {
     switch (status.toLowerCase()) {
@@ -174,8 +141,8 @@ export default function UserBookingsList() {
         const query = searchQuery.toLowerCase();
         return bookings.filter(
             (booking) =>
-                booking.appointment.title.toLowerCase().includes(query) ||
-                booking.appointment.organization.name.toLowerCase().includes(query) ||
+                booking.appointment?.title.toLowerCase().includes(query) ||
+                booking.appointment?.organization?.name.toLowerCase().includes(query) ||
                 booking.bookingStatus.toLowerCase().includes(query)
         );
     }, [bookings, searchQuery]);
@@ -358,17 +325,17 @@ export default function UserBookingsList() {
                                             onClick={() => handleRowClick(booking)}
                                         >
                                             <TableCell>
-                                                <div className="font-medium">{booking.appointment.title}</div>
+                                                <div className="font-medium">{booking.appointment?.title || "N/A"}</div>
                                                 <div className="text-xs text-muted-foreground">
-                                                    {booking.appointment.durationMinutes * booking.numberOfSlots} minutes
+                                                    {(booking.appointment?.durationMinutes || 0) * (booking.numberOfSlots || 1)} minutes
                                                 </div>
                                             </TableCell>
                                             <TableCell>
                                                 <div className="flex items-center gap-2">
                                                     <Building2 className="h-4 w-4 text-muted-foreground" />
                                                     <div>
-                                                        <div className="font-medium">{booking.appointment.organization.name}</div>
-                                                        {booking.appointment.organization.location && (
+                                                        <div className="font-medium">{booking.appointment?.organization?.name || "N/A"}</div>
+                                                        {booking.appointment?.organization?.location && (
                                                             <div className="text-xs text-muted-foreground">
                                                                 {booking.appointment.organization.location}
                                                             </div>
@@ -420,9 +387,9 @@ export default function UserBookingsList() {
                                                             {booking.paymentStatus}
                                                         </Badge>
                                                     )}
-                                                    {booking.totalAmount > 0 && (
+                                                    {(booking.totalAmount || 0) > 0 && (
                                                         <span className="text-xs text-muted-foreground">
-                                                            ${booking.totalAmount.toFixed(2)}
+                                                            ${(booking.totalAmount || 0).toFixed(2)}
                                                         </span>
                                                     )}
                                                 </div>
@@ -454,9 +421,9 @@ export default function UserBookingsList() {
                                 <div className="grid gap-3">
                                     <div className="flex items-center justify-between">
                                         <span className="text-sm text-muted-foreground">Title</span>
-                                        <span className="font-medium">{selectedBooking.appointment.title}</span>
+                                        <span className="font-medium">{selectedBooking.appointment?.title || "N/A"}</span>
                                     </div>
-                                    {selectedBooking.appointment.description && (
+                                    {selectedBooking.appointment?.description && (
                                         <div className="flex flex-col gap-1">
                                             <span className="text-sm text-muted-foreground">Description</span>
                                             <p className="text-sm">{selectedBooking.appointment.description}</p>
@@ -465,8 +432,8 @@ export default function UserBookingsList() {
                                     <div className="flex items-center justify-between">
                                         <span className="text-sm text-muted-foreground">Duration</span>
                                         <span className="font-medium">
-                                            {selectedBooking.appointment.durationMinutes * selectedBooking.numberOfSlots} minutes
-                                            {selectedBooking.numberOfSlots > 1 && ` (${selectedBooking.numberOfSlots} slots)`}
+                                            {(selectedBooking.appointment?.durationMinutes || 0) * (selectedBooking.numberOfSlots || 1)} minutes
+                                            {(selectedBooking.numberOfSlots || 1) > 1 && ` (${selectedBooking.numberOfSlots} slots)`}
                                         </span>
                                     </div>
                                 </div>
@@ -481,15 +448,15 @@ export default function UserBookingsList() {
                                 <div className="grid gap-3">
                                     <div className="flex items-center justify-between">
                                         <span className="text-sm text-muted-foreground">Name</span>
-                                        <span className="font-medium">{selectedBooking.appointment.organization.name}</span>
+                                        <span className="font-medium">{selectedBooking.appointment?.organization?.name || "N/A"}</span>
                                     </div>
-                                    {selectedBooking.appointment.organization.location && (
+                                    {selectedBooking.appointment?.organization?.location && (
                                         <div className="flex items-center justify-between">
                                             <span className="text-sm text-muted-foreground">Location</span>
                                             <span className="font-medium">{selectedBooking.appointment.organization.location}</span>
                                         </div>
                                     )}
-                                    {selectedBooking.appointment.organization.description && (
+                                    {selectedBooking.appointment?.organization?.description && (
                                         <div className="flex flex-col gap-1">
                                             <span className="text-sm text-muted-foreground">About</span>
                                             <p className="text-sm">{selectedBooking.appointment.organization.description}</p>
@@ -554,11 +521,11 @@ export default function UserBookingsList() {
                                             </Badge>
                                         </div>
                                     )}
-                                    {selectedBooking.totalAmount > 0 && (
+                                    {(selectedBooking.totalAmount || 0) > 0 && (
                                         <div className="flex items-center justify-between pt-2 border-t">
                                             <span className="font-medium">Total Amount</span>
                                             <span className="text-xl font-bold">
-                                                ${selectedBooking.totalAmount.toFixed(2)}
+                                                ${(selectedBooking.totalAmount || 0).toFixed(2)}
                                             </span>
                                         </div>
                                     )}

@@ -2,38 +2,44 @@ import { apiClient } from "./client";
 
 export const bookingApi = {
   // Get published appointments (public)
-  getPublishedAppointments: async (params?: {
-    organizationId?: string;
-    search?: string;
-  }) => {
-    const response = await apiClient.get("/appointments/published", { params });
-    return response.data;
+  getPublishedAppointments: async (
+    token: string,
+    params?: {
+      organizationId?: string;
+      search?: string;
+    }
+  ) => {
+    const queryParams = new URLSearchParams();
+    if (params?.organizationId) queryParams.append("organizationId", params.organizationId);
+    if (params?.search) queryParams.append("search", params.search);
+    
+    const endpoint = `/appointments/published${queryParams.toString() ? `?${queryParams.toString()}` : ""}`;
+    return await apiClient.get(endpoint, token);
   },
 
   // Get appointment details (public with optional secret link)
-  getAppointmentDetails: async (id: string, secretLink?: string) => {
-    const params = secretLink ? { secretLink } : {};
-    const response = await apiClient.get(`/appointments/${id}/details`, {
-      params,
-    });
-    return response.data;
+  getAppointmentDetails: async (id: string, token: string, secretLink?: string) => {
+    const queryParams = new URLSearchParams();
+    if (secretLink) queryParams.append("secretLink", secretLink);
+    
+    const endpoint = `/appointments/${id}/details${queryParams.toString() ? `?${queryParams.toString()}` : ""}`;
+    return await apiClient.get(endpoint, token);
   },
 
   // Get available time slots
   getAvailableSlots: async (
     id: string,
     date: string,
+    token: string,
     userId?: string,
     resourceId?: string
   ) => {
-    const params: any = { date };
-    if (userId) params.userId = userId;
-    if (resourceId) params.resourceId = resourceId;
+    const queryParams = new URLSearchParams({ date });
+    if (userId) queryParams.append("userId", userId);
+    if (resourceId) queryParams.append("resourceId", resourceId);
 
-    const response = await apiClient.get(`/appointments/${id}/slots`, {
-      params,
-    });
-    return response.data;
+    const endpoint = `/appointments/${id}/slots?${queryParams.toString()}`;
+    return await apiClient.get(endpoint, token);
   },
 
   // Create a booking (requires auth)
@@ -45,30 +51,28 @@ export const bookingApi = {
       assignedUserId?: string;
       userResponses?: any;
       secretLink?: string;
-    }
+    },
+    token: string
   ) => {
-    const response = await apiClient.post(
+    return await apiClient.post(
       `/appointments/${appointmentId}/book`,
-      bookingData
+      bookingData,
+      token
     );
-    return response.data;
   },
 
   // Get user's bookings (requires auth)
-  getUserBookings: async () => {
-    const response = await apiClient.get("/bookings/my");
-    return response.data;
+  getUserBookings: async (token: string) => {
+    return await apiClient.get("/bookings/my", token);
   },
 
   // Get organization bookings (requires auth - org admin/member)
-  getOrganizationBookings: async () => {
-    const response = await apiClient.get("/bookings/organization");
-    return response.data;
+  getOrganizationBookings: async (token: string) => {
+    return await apiClient.get("/bookings/organization", token);
   },
 
   // Cancel a booking (requires auth)
-  cancelBooking: async (bookingId: string) => {
-    const response = await apiClient.delete(`/bookings/${bookingId}`);
-    return response.data;
+  cancelBooking: async (bookingId: string, token: string) => {
+    return await apiClient.delete(`/bookings/${bookingId}`, token);
   },
 };
